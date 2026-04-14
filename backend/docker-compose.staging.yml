@@ -1,0 +1,47 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iway_staging}
+      POSTGRES_USER: ${POSTGRES_USER:-iway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iway_staging_change_me}
+    ports:
+      - "5433:5432"
+    volumes:
+      - iway_staging_postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iway} -d ${POSTGRES_DB:-iway_staging}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IWAY_BACKEND_IMAGE:-iway-backend-staging:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.staging
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://iway:iway_staging_change_me@postgres:5432/iway_staging?schema=public}
+      PRISMA_SCHEMA: prisma/schema.postgres.prisma
+    ports:
+      - "3001:3001"
+    volumes:
+      - iway_staging_uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3001/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  iway_staging_postgres_data:
+  iway_staging_uploads_data:

@@ -1,0 +1,51 @@
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { TravelersService } from './travelers.service';
+import { RegisterTravelerDto } from './dto/register-traveler.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ReviewTravelerDto } from './dto/review-traveler.dto';
+import { UpdatePayoutHoldDto } from './dto/update-payout-hold.dto';
+
+@Controller('travelers')
+export class TravelersController {
+  constructor(private readonly travelersService: TravelersService) {}
+
+  @Post('register')
+  register(@Body() body: RegisterTravelerDto) {
+    return this.travelersService.register(body);
+  }
+
+  @Get('allowed-routes/:travelerType')
+  getAllowedRoutes(@Param('travelerType') travelerType: 'avion_ida_vuelta' | 'avion_tierra' | 'solo_tierra') {
+    return this.travelersService.getAllowedDirectionsByType(travelerType);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/verification-summary')
+  getMyVerificationSummary(@Req() req: any) {
+    return this.travelersService.getVerificationSummary(req.user.sub, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('review-queue')
+  getReviewQueue(@Req() req: any) {
+    return this.travelersService.listReviewQueue(req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':userId/run-kyc-analysis')
+  runKycAnalysis(@Param('userId') userId: string, @Req() req: any) {
+    return this.travelersService.runKycAnalysis(userId, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':userId/payout-hold')
+  updatePayoutHold(@Param('userId') userId: string, @Body() body: UpdatePayoutHoldDto, @Req() req: any) {
+    return this.travelersService.updatePayoutHold(userId, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':userId/review')
+  reviewTraveler(@Param('userId') userId: string, @Body() body: ReviewTravelerDto, @Req() req: any) {
+    return this.travelersService.reviewTraveler(userId, body, req.user);
+  }
+}

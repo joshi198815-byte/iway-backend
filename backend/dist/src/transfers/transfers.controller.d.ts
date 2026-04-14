@@ -1,0 +1,170 @@
+import { TransfersService } from './transfers.service';
+import { SubmitTransferDto } from './dto/submit-transfer.dto';
+import { ReviewTransferDto } from './dto/review-transfer.dto';
+export declare class TransfersController {
+    private readonly transfersService;
+    constructor(transfersService: TransfersService);
+    submit(body: SubmitTransferDto, req: any): Promise<{
+        status: import(".prisma/client").$Enums.TransferStatus;
+        id: string;
+        createdAt: Date;
+        travelerId: string;
+        weeklySettlementId: string | null;
+        bankReference: string | null;
+        transferredAmount: import("@prisma/client/runtime/library").Decimal;
+        proofUrl: string | null;
+        reviewedAt: Date | null;
+        reviewedBy: string | null;
+    }>;
+    getMyTransfers(req: any): Promise<{
+        transferredAmount: number;
+        reviewAction: string | null;
+        reviewReason: string | null;
+        weeklySettlement: {
+            totalCommission: number;
+            totalPaid: number;
+            totalPending: number;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            travelerId: string;
+            dueDate: Date;
+            weekStart: Date;
+            weekEnd: Date;
+            isOverdue: boolean;
+            isBlocked: boolean;
+        } | null;
+        payoutPolicy: {
+            travelerId: string;
+            status: import(".prisma/client").$Enums.TravelerStatus;
+            kycTier: import(".prisma/client").$Enums.KycTier;
+            trustScore: number;
+            payoutHoldEnabled: boolean;
+            policy: string;
+            approvedTransfers: number;
+            deliveredShipments: number;
+            currentPendingAmount: number;
+            maxAutoApprovalAmount: number;
+            payoutDelayHours: number;
+            reviewPriority: string;
+            reasons: string[];
+        };
+        status: import(".prisma/client").$Enums.TransferStatus;
+        id: string;
+        createdAt: Date;
+        travelerId: string;
+        weeklySettlementId: string | null;
+        bankReference: string | null;
+        proofUrl: string | null;
+        reviewedAt: Date | null;
+        reviewedBy: string | null;
+    }[]>;
+    getMyPayoutPolicy(req: any): Promise<{
+        travelerId: string;
+        status: import(".prisma/client").$Enums.TravelerStatus;
+        kycTier: import(".prisma/client").$Enums.KycTier;
+        trustScore: number;
+        payoutHoldEnabled: boolean;
+        policy: string;
+        approvedTransfers: number;
+        deliveredShipments: number;
+        currentPendingAmount: number;
+        maxAutoApprovalAmount: number;
+        payoutDelayHours: number;
+        reviewPriority: string;
+        reasons: string[];
+    }>;
+    getTravelerPayoutPolicy(travelerId: string, req: any): Promise<{
+        travelerId: string;
+        status: import(".prisma/client").$Enums.TravelerStatus;
+        kycTier: import(".prisma/client").$Enums.KycTier;
+        trustScore: number;
+        payoutHoldEnabled: boolean;
+        policy: string;
+        approvedTransfers: number;
+        deliveredShipments: number;
+        currentPendingAmount: number;
+        maxAutoApprovalAmount: number;
+        payoutDelayHours: number;
+        reviewPriority: string;
+        reasons: string[];
+    }>;
+    getReviewQueue(req: any): Promise<{
+        transferredAmount: number;
+        weeklySettlement: {
+            totalCommission: number;
+            totalPaid: number;
+            totalPending: number;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            travelerId: string;
+            dueDate: Date;
+            weekStart: Date;
+            weekEnd: Date;
+            isOverdue: boolean;
+            isBlocked: boolean;
+        } | null;
+        payoutPolicy: {
+            travelerId: string;
+            status: import(".prisma/client").$Enums.TravelerStatus;
+            kycTier: import(".prisma/client").$Enums.KycTier;
+            trustScore: number;
+            payoutHoldEnabled: boolean;
+            policy: string;
+            approvedTransfers: number;
+            deliveredShipments: number;
+            currentPendingAmount: number;
+            maxAutoApprovalAmount: number;
+            payoutDelayHours: number;
+            reviewPriority: string;
+            reasons: string[];
+        } | null;
+        traveler: {
+            travelerProfile: {
+                trustScore: number;
+                payoutHoldEnabled: boolean;
+                kycTier: import(".prisma/client").$Enums.KycTier;
+            } | null;
+            fullName: string;
+            email: string;
+        };
+        status: import(".prisma/client").$Enums.TransferStatus;
+        id: string;
+        createdAt: Date;
+        travelerId: string;
+        weeklySettlementId: string | null;
+        bankReference: string | null;
+        proofUrl: string | null;
+        reviewedAt: Date | null;
+        reviewedBy: string | null;
+    }[]>;
+    reviewTransfer(transferId: string, body: ReviewTransferDto, req: any): Promise<{
+        status: import(".prisma/client").$Enums.TransferStatus;
+        id: string;
+        createdAt: Date;
+        travelerId: string;
+        weeklySettlementId: string | null;
+        bankReference: string | null;
+        transferredAmount: import("@prisma/client/runtime/library").Decimal;
+        proofUrl: string | null;
+        reviewedAt: Date | null;
+        reviewedBy: string | null;
+    } | {
+        approved: {
+            status: import(".prisma/client").$Enums.TransferStatus;
+            id: string;
+            createdAt: Date;
+            travelerId: string;
+            weeklySettlementId: string | null;
+            bankReference: string | null;
+            transferredAmount: import("@prisma/client/runtime/library").Decimal;
+            proofUrl: string | null;
+            reviewedAt: Date | null;
+            reviewedBy: string | null;
+        };
+        paidIds: string[];
+        remaining: number;
+        currentDebt: number;
+    }>;
+}

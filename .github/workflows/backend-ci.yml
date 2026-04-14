@@ -1,0 +1,43 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Validate deploy env examples
+        run: |
+          cp .env.production.example .env.production
+          sed -i 's#iway_change_me#supersecretpass#g' .env.production
+          sed -i 's#replace-with-long-random-secret#123456789012345678901234567890#g' .env.production
+          npm run deploy:check-env
+          cp .env.staging.example .env.staging
+          sed -i 's#iway_staging_change_me#supersecretstagingpass#g' .env.staging
+          sed -i 's#replace-with-long-random-staging-secret#123456789012345678901234567890-staging#g' .env.staging
+          sh ./scripts/validate_production_env.sh .env.staging
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run prisma:validate
+      - run: DATABASE_URL=postgresql://iway:iway@127.0.0.1:5432/iway?schema=public npm run prisma:validate:postgres
+      - run: docker compose -f docker-compose.production.yml --env-file .env.production config >/dev/null
+      - run: docker compose -f docker-compose.staging.yml --env-file .env.staging config >/dev/null
+      - run: docker build -t iway-backend ./

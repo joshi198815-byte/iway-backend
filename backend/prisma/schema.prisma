@@ -1,0 +1,550 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  customer
+  traveler
+  admin
+  support
+}
+
+enum UserStatus {
+  active
+  blocked
+  pending_verification
+}
+
+enum TravelerType {
+  avion_ida_vuelta
+  avion_tierra
+  solo_tierra
+}
+
+enum TravelerStatus {
+  pending
+  verified
+  blocked
+  blocked_for_debt
+  rejected
+}
+
+enum KycTier {
+  basic
+  enhanced
+  premium
+}
+
+enum ShipmentStatus {
+  draft
+  published
+  offered
+  assigned
+  picked_up
+  in_transit
+  in_delivery
+  delivered
+  cancelled
+  disputed
+}
+
+enum OfferStatus {
+  pending
+  accepted
+  rejected
+  cancelled
+}
+
+enum CommissionStatus {
+  pending
+  due
+  paid
+  overdue
+  for_review
+}
+
+enum TransferStatus {
+  submitted
+  approved
+  rejected
+}
+
+enum LedgerEntryKind {
+  commission_accrual
+  transfer_applied
+  manual_adjustment
+}
+
+enum LedgerEntryDirection {
+  debit
+  credit
+}
+
+enum LedgerEntryStatus {
+  posted
+  reversed
+}
+
+enum MessageRiskStatus {
+  clean
+  flagged
+  blocked
+}
+
+enum ShipmentDirection {
+  gt_to_us
+  us_to_gt
+}
+
+enum VerificationChannel {
+  phone
+  email
+}
+
+enum KycCheckKind {
+  document_ocr
+  selfie_face_match
+  liveness_review
+}
+
+enum KycCheckStatus {
+  pending
+  passed
+  failed
+  manual_review
+}
+
+enum BackgroundJobStatus {
+  queued
+  processing
+  retrying
+  completed
+  failed
+}
+
+model User {
+  id                  String               @id @default(uuid())
+  role                UserRole
+  status              UserStatus           @default(active)
+  fullName            String
+  email               String               @unique
+  phone               String               @unique
+  passwordHash        String
+  countryCode         String?
+  stateRegion         String?
+  city                String?
+  address             String?
+  detectedCountryCode String?
+  phoneVerified       Boolean              @default(false)
+  emailVerified       Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  travelerProfile     TravelerProfile?
+  customerShipments   Shipment[]           @relation("CustomerShipments")
+  assignedShipments   Shipment[]           @relation("AssignedTravelerShipments")
+  offers              Offer[]
+  sentMessages        Message[]
+  sentRatings         Rating[]             @relation("SentRatings")
+  receivedRatings     Rating[]             @relation("ReceivedRatings")
+  trackingPoints      TrackingPoint[]
+  travelerCommissions TravelerCommission[]
+  weeklySettlements   WeeklySettlement[]
+  transferPayments    TransferPayment[]    @relation("TravelerTransfers")
+  reviewedTransfers   TransferPayment[]    @relation("ReviewedTransfers")
+  notifications       Notification[]
+  openedDisputes      Dispute[]
+  auditLogs           AuditLog[]
+  fraudFlags          AntiFraudFlag[]
+  uploadedFiles       UploadedFile[]
+  deviceTokens        DeviceToken[]
+  ledgerEntries       TravelerLedgerEntry[]
+  verificationCodes   VerificationCode[]
+}
+
+model TravelerProfile {
+  id                 String          @id @default(uuid())
+  userId             String          @unique
+  travelerType       TravelerType
+  status             TravelerStatus  @default(pending)
+  verificationScore  Int             @default(0)
+  ratingAvg          Decimal         @default(0)
+  ratingCount        Int             @default(0)
+  dpiOrPassport      String?
+  documentUrl        String?
+  selfieUrl          String?
+  currentDebt        Decimal         @default(0)
+  preferredCutoffDay Int             @default(4)
+  weeklyBlockEnabled Boolean         @default(true)
+  trustScore         Int             @default(0)
+  payoutHoldEnabled  Boolean         @default(false)
+  kycTier            KycTier         @default(basic)
+  lastKycReviewAt    DateTime?
+  blockedReason      String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routes             TravelerRoute[]
+  kycChecks          TravelerKycCheck[]
+}
+
+model TravelerKycCheck {
+  id                String         @id @default(uuid())
+  travelerProfileId String
+  kind              KycCheckKind
+  status            KycCheckStatus @default(pending)
+  confidence        Int            @default(0)
+  summary           String?
+  details           Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  travelerProfile   TravelerProfile @relation(fields: [travelerProfileId], references: [id], onDelete: Cascade)
+}
+
+model TravelerRoute {
+  id                String            @id @default(uuid())
+  travelerProfileId String
+  direction         ShipmentDirection
+  active            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  travelerProfile   TravelerProfile   @relation(fields: [travelerProfileId], references: [id], onDelete: Cascade)
+}
+
+model Shipment {
+  id                     String              @id @default(uuid())
+  customerId             String
+  assignedTravelerId     String?
+  status                 ShipmentStatus      @default(draft)
+  direction              ShipmentDirection
+  originCountryCode      String
+  destinationCountryCode String
+  packageType            String
+  packageCategory        String?
+  description            String?
+  declaredValue          Decimal
+  weightLb               Decimal?
+  receiverName           String
+  receiverPhone          String
+  receiverAddress        String
+  insuranceEnabled       Boolean             @default(false)
+  insuranceAmount        Decimal             @default(0)
+  pickupLat              Decimal?
+  pickupLng              Decimal?
+  deliveryLat            Decimal?
+  deliveryLng            Decimal?
+  antiFraudScore         Int                 @default(0)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  customer               User                @relation("CustomerShipments", fields: [customerId], references: [id])
+  assignedTraveler       User?               @relation("AssignedTravelerShipments", fields: [assignedTravelerId], references: [id])
+  items                  ShipmentItem[]
+  images                 ShipmentImage[]
+  events                 ShipmentEvent[]
+  offers                 Offer[]
+  chat                   Chat?
+  trackingPoints         TrackingPoint[]
+  ratings                Rating[]
+  commission             TravelerCommission?
+  disputes               Dispute[]
+  fraudFlags             AntiFraudFlag[]
+}
+
+model ShipmentItem {
+  id             String   @id @default(uuid())
+  shipmentId     String
+  itemName       String
+  quantity       Int      @default(1)
+  restrictedFlag Boolean  @default(false)
+  notes          String?
+  shipment       Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+}
+
+enum ShipmentImageKind {
+  package_reference
+  delivery_proof
+}
+
+model ShipmentImage {
+  id         String            @id @default(uuid())
+  shipmentId String
+  imageUrl   String
+  kind       ShipmentImageKind @default(package_reference)
+  createdAt  DateTime          @default(now())
+  shipment   Shipment          @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+}
+
+model ShipmentEvent {
+  id           String   @id @default(uuid())
+  shipmentId   String
+  eventType    String
+  eventPayload Json?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  shipment     Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+}
+
+model Offer {
+  id         String      @id @default(uuid())
+  shipmentId String
+  travelerId String
+  price      Decimal
+  message    String?
+  status     OfferStatus @default(pending)
+  createdAt  DateTime    @default(now())
+  shipment   Shipment    @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  traveler   User        @relation(fields: [travelerId], references: [id])
+}
+
+model Chat {
+  id         String    @id @default(uuid())
+  shipmentId String    @unique
+  createdAt  DateTime  @default(now())
+  shipment   Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  messages   Message[]
+}
+
+model Message {
+  id                   String            @id @default(uuid())
+  chatId               String
+  senderId             String
+  body                 String
+  riskStatus           MessageRiskStatus @default(clean)
+  riskFlags            Json?
+  containsPhone        Boolean           @default(false)
+  containsEmail        Boolean           @default(false)
+  containsExternalLink Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  chat                 Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender               User              @relation(fields: [senderId], references: [id])
+  fraudFlags           AntiFraudFlag[]
+}
+
+model TrackingPoint {
+  id         String   @id @default(uuid())
+  shipmentId String
+  travelerId String
+  lat        Decimal
+  lng        Decimal
+  accuracyM  Decimal?
+  recordedAt DateTime @default(now())
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  traveler   User     @relation(fields: [travelerId], references: [id])
+}
+
+model Rating {
+  id         String   @id @default(uuid())
+  shipmentId String
+  fromUserId String
+  toUserId   String
+  stars      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  fromUser   User     @relation("SentRatings", fields: [fromUserId], references: [id])
+  toUser     User     @relation("ReceivedRatings", fields: [toUserId], references: [id])
+}
+
+model TravelerCommission {
+  id               String           @id @default(uuid())
+  shipmentId       String           @unique
+  travelerId       String
+  commissionAmount Decimal
+  status           CommissionStatus @default(pending)
+  generatedAt      DateTime         @default(now())
+  dueDate          DateTime?
+  paidAt           DateTime?
+  settlementWeek   DateTime?
+  notes            String?
+  shipment         Shipment         @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  traveler         User             @relation(fields: [travelerId], references: [id])
+  ledgerEntries    TravelerLedgerEntry[]
+}
+
+model WeeklySettlement {
+  id               String            @id @default(uuid())
+  travelerId       String
+  weekStart        DateTime
+  weekEnd          DateTime
+  dueDate          DateTime
+  totalCommission  Decimal           @default(0)
+  totalPaid        Decimal           @default(0)
+  totalPending     Decimal           @default(0)
+  isOverdue        Boolean           @default(false)
+  isBlocked        Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  traveler         User              @relation(fields: [travelerId], references: [id])
+  transferPayments TransferPayment[]
+  ledgerEntries    TravelerLedgerEntry[]
+
+  @@unique([travelerId, weekStart, weekEnd])
+}
+
+model PricingSettings {
+  id                      String   @id @default("default")
+  commissionPerLb         Decimal  @default(1.5)
+  groundCommissionPercent Decimal  @default(0.04)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+}
+
+model TransferPayment {
+  id                 String            @id @default(uuid())
+  travelerId         String
+  weeklySettlementId String?
+  bankReference      String?
+  transferredAmount  Decimal
+  proofUrl           String?
+  status             TransferStatus    @default(submitted)
+  reviewedBy         String?
+  reviewedAt         DateTime?
+  createdAt          DateTime          @default(now())
+  traveler           User              @relation("TravelerTransfers", fields: [travelerId], references: [id])
+  weeklySettlement   WeeklySettlement? @relation(fields: [weeklySettlementId], references: [id])
+  reviewer           User?             @relation("ReviewedTransfers", fields: [reviewedBy], references: [id])
+  ledgerEntries      TravelerLedgerEntry[]
+}
+
+model TravelerLedgerEntry {
+  id               String               @id @default(uuid())
+  travelerId       String
+  weeklySettlementId String?
+  commissionId     String?
+  transferId       String?
+  kind             LedgerEntryKind
+  direction        LedgerEntryDirection
+  status           LedgerEntryStatus    @default(posted)
+  amount           Decimal
+  balanceAfter     Decimal?
+  description      String
+  metadata         Json?
+  occurredAt       DateTime             @default(now())
+  createdAt        DateTime             @default(now())
+  createdBy        String?
+  traveler         User                 @relation(fields: [travelerId], references: [id])
+  weeklySettlement WeeklySettlement?    @relation(fields: [weeklySettlementId], references: [id])
+  commission       TravelerCommission?  @relation(fields: [commissionId], references: [id])
+  transferPayment  TransferPayment?     @relation(fields: [transferId], references: [id])
+
+  @@index([travelerId, occurredAt])
+}
+
+model Notification {
+  id         String    @id @default(uuid())
+  userId     String
+  title      String
+  body       String
+  type       String
+  shipmentId String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Dispute {
+  id         String   @id @default(uuid())
+  shipmentId String
+  openedBy   String
+  reason     String
+  status     String   @default("open")
+  resolution String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  opener     User     @relation(fields: [openedBy], references: [id])
+}
+
+model AntiFraudFlag {
+  id         String    @id @default(uuid())
+  userId     String?
+  shipmentId String?
+  messageId  String?
+  flagType   String
+  severity   String
+  details    Json?
+  createdAt  DateTime  @default(now())
+  user       User?     @relation(fields: [userId], references: [id])
+  shipment   Shipment? @relation(fields: [shipmentId], references: [id])
+  message    Message?  @relation(fields: [messageId], references: [id])
+}
+
+model DeviceToken {
+  id             String   @id @default(uuid())
+  userId         String
+  token          String   @unique
+  platform       String
+  deviceLabel    String?
+  installationId String?
+  fingerprint    String?
+  trustScore     Int      @default(50)
+  suspicious     Boolean  @default(false)
+  trustedAt      DateTime?
+  active         Boolean  @default(true)
+  lastSeenAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationCode {
+  id         String              @id @default(uuid())
+  userId     String
+  channel    VerificationChannel
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int                 @default(0)
+  createdAt  DateTime            @default(now())
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UploadedFile {
+  id               String   @id @default(uuid())
+  ownerId          String
+  bucket           String
+  fileName         String
+  contentType      String
+  sizeBytes        Int
+  path             String
+  url              String
+  isProtected      Boolean  @default(true)
+  linkedEntityType String?
+  linkedEntityId   String?
+  purpose          String?
+  createdAt        DateTime @default(now())
+  owner            User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  entityType String
+  entityId   String?
+  action     String
+  payload    Json?
+  createdAt  DateTime @default(now())
+  actor      User?    @relation(fields: [actorId], references: [id])
+}
+
+model BackgroundJob {
+  id          String              @id @default(uuid())
+  kind        String
+  payload     Json?
+  status      BackgroundJobStatus @default(queued)
+  attempts    Int                 @default(0)
+  maxAttempts Int                 @default(3)
+  availableAt DateTime            @default(now())
+  lastError   String?
+  lockedAt    DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([status, availableAt])
+  @@index([kind, status])
+}

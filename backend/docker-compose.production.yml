@@ -1,0 +1,46 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: iway
+      POSTGRES_USER: iway
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iway_change_me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - iway_postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iway -d iway"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IWAY_BACKEND_IMAGE:-iway-backend:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://iway:${POSTGRES_PASSWORD:-iway_change_me}@postgres:5432/iway?schema=public
+    ports:
+      - "3000:3000"
+    volumes:
+      - iway_uploads_data:/app/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  iway_postgres_data:
+  iway_uploads_data:

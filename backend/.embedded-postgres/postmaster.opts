@@ -1,0 +1,1 @@
+/app/project/backend/node_modules/@embedded-postgres/linux-x64/native/bin/postgres "-D" ".embedded-postgres" "-p" "5432"
