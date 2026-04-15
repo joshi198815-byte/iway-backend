@@ -30,4 +30,4 @@ echo "[entrypoint] applying Prisma schema: ${SCHEMA}"
 npx prisma db push --schema "$SCHEMA"
 
 echo "[entrypoint] starting backend"
-exec node dist/main.js
+exec node dist/src/main.js

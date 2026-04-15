@@ -2,14 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
-import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
+import 'package:iway_app/features/shipment/services/address_search_service.dart';
 import 'package:iway_app/features/shipment/services/insurance_service.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
-import 'package:iway_app/services/upload_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
@@ -22,53 +22,66 @@ class CreateShipmentScreen extends StatefulWidget {
 }
 
 class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
+  static const Map<String, String> _countryNameToCode = {
+    'Guatemala': 'GT',
+    'Estados Unidos': 'US',
+  };
+
+  static const List<String> _restrictedProducts = [
+    'armas',
+    'arma',
+    'municiones',
+    'explosivos',
+    'droga',
+    'drogas',
+    'marihuana',
+    'cocaina',
+    'cocaína',
+    'vape',
+    'vapes',
+    'alcohol',
+    'dinero en efectivo',
+    'efectivo',
+    'animales vivos',
+    'combustible',
+    'quimicos',
+    'químicos',
+    'corrosivos',
+  ];
+
   final descripcionController = TextEditingController();
   final valorController = TextEditingController();
   final pesoController = TextEditingController();
   final receptorNombreController = TextEditingController();
   final receptorTelefonoController = TextEditingController();
   final receptorDireccionController = TextEditingController();
-  final deliveryLatController = TextEditingController();
-  final deliveryLngController = TextEditingController();
 
   final shipmentService = ShipmentService();
   final imageService = ImageService();
   final insuranceService = InsuranceService();
-  final locationService = LocationService();
-  final uploadService = UploadService();
+  final addressSearchService = AddressSearchService();
 
   List<File> images = [];
   String tipo = 'libra';
   String origen = 'GT';
   String destino = 'US';
+  String receiverCountry = 'Estados Unidos';
+  String receiverRegion = supportedRegionsByCountry['Estados Unidos']!.first;
   bool seguro = false;
-  double costoSeguro = 0;
   bool loading = false;
-  bool loadingPickup = false;
-  double? pickupLat;
-  double? pickupLng;
+  bool acceptedForeignRestrictions = false;
+  double costoSeguro = 0;
+  String? geocodedAddressLabel;
+
+  bool get isForeignDestination => destino == 'US';
+
+  List<String> get availableRegions =>
+      supportedRegionsByCountry[receiverCountry] ?? const [];
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    loadPickupLocation();
-  }
-
-  Future<void> loadPickupLocation() async {
-    setState(() => loadingPickup = true);
-    final position = await locationService.getLocation();
-    if (!mounted) return;
-    setState(() {
-      pickupLat = position?.latitude;
-      pickupLng = position?.longitude;
-      loadingPickup = false;
-    });
   }
 
   @override
@@ -79,8 +92,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     receptorNombreController.dispose();
     receptorTelefonoController.dispose();
     receptorDireccionController.dispose();
-    deliveryLatController.dispose();
-    deliveryLngController.dispose();
     super.dispose();
   }
 
@@ -100,6 +111,39 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     });
   }
 
+  void _syncReceiverCountryWithDestination(String countryCode) {
+    final nextCountry = countryCode == 'GT' ? 'Guatemala' : 'Estados Unidos';
+    final nextRegions = supportedRegionsByCountry[nextCountry] ?? const [];
+
+    setState(() {
+      destino = countryCode;
+      receiverCountry = nextCountry;
+      receiverRegion = nextRegions.isNotEmpty ? nextRegions.first : '';
+      acceptedForeignRestrictions = !isForeignDestination;
+      geocodedAddressLabel = null;
+    });
+  }
+
+  String _composeAddress() {
+    final pieces = [
+      receptorDireccionController.text.trim(),
+      if (receiverRegion.isNotEmpty) receiverRegion,
+      receiverCountry,
+    ].where((item) => item.isNotEmpty).toList();
+
+    return pieces.join(', ');
+  }
+
+  String? _findRestrictedProduct(String description) {
+    final normalized = description.toLowerCase();
+    for (final item in _restrictedProducts) {
+      if (normalized.contains(item)) {
+        return item;
+      }
+    }
+    return null;
+  }
+
   Future<void> createShipment() async {
     final descripcion = descripcionController.text.trim();
     final valor = double.tryParse(valorController.text.trim());
@@ -107,8 +151,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     final receptorNombre = receptorNombreController.text.trim();
     final receptorTelefono = receptorTelefonoController.text.trim();
     final receptorDireccion = receptorDireccionController.text.trim();
-    final deliveryLat = double.tryParse(deliveryLatController.text.trim());
-    final deliveryLng = double.tryParse(deliveryLngController.text.trim());
     final currentUserId = SessionService.currentUserId;
 
     if (currentUserId == null || currentUserId.isEmpty) {
@@ -133,7 +175,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
     if (receptorNombre.isEmpty ||
         receptorTelefono.length < 8 ||
-        receptorDireccion.isEmpty) {
+        receptorDireccion.isEmpty ||
+        receiverRegion.isEmpty) {
       showMessage('Completa correctamente los datos del receptor.');
       return;
     }
@@ -143,27 +186,30 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       return;
     }
 
-    if (pickupLat == null || pickupLng == null) {
-      showMessage('Activa tu ubicación para guardar el punto de origen del envío.');
+    if (isForeignDestination && !acceptedForeignRestrictions) {
+      showMessage('Debes confirmar la validación de productos prohibidos para envíos al extranjero.');
       return;
     }
 
-    if (deliveryLat == null || deliveryLng == null) {
-      showMessage('Ingresa coordenadas válidas de entrega para poder trazar la ruta.');
+    final restrictedMatch = _findRestrictedProduct(descripcion);
+    if (restrictedMatch != null) {
+      showMessage('El producto "$restrictedMatch" no se puede enviar por esta ruta.');
       return;
     }
 
     setState(() => loading = true);
 
     try {
-      final uploadedImageUrls = <String>[];
-      for (var i = 0; i < images.length; i++) {
-        final imageUrl = await uploadService.uploadImage(
-          file: images[i],
-          bucket: 'shipment-images',
-          fileName: 'shipment-${DateTime.now().millisecondsSinceEpoch}-$i',
-        );
-        uploadedImageUrls.add(imageUrl);
+      final fullAddress = _composeAddress();
+      final geocoded = await addressSearchService.geocodeAddress(
+        address: fullAddress,
+        countryCode: _countryNameToCode[receiverCountry] ?? destino,
+      );
+
+      if (geocoded == null) {
+        setState(() => loading = false);
+        showMessage('No pude validar la dirección. Intenta con una dirección más completa.');
+        return;
       }
 
       final shipment = ShipmentModel(
@@ -177,14 +223,12 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         destino: destino,
         receptorNombre: receptorNombre,
         receptorTelefono: receptorTelefono,
-        receptorDireccion: receptorDireccion,
-        imagenes: uploadedImageUrls,
+        receptorDireccion: geocoded.formattedAddress,
+        deliveryLat: geocoded.latitude,
+        deliveryLng: geocoded.longitude,
+        imagenes: images.map((e) => e.path).toList(),
         seguro: seguro,
         costoSeguro: costoSeguro,
-        pickupLat: pickupLat,
-        pickupLng: pickupLng,
-        deliveryLat: deliveryLat,
-        deliveryLng: deliveryLng,
         estado: 'pending',
       );
 
@@ -192,7 +236,10 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
       if (!mounted) return;
 
-      setState(() => loading = false);
+      setState(() {
+        loading = false;
+        geocodedAddressLabel = geocoded.formattedAddress;
+      });
       Navigator.pushNamed(context, '/offers', arguments: createdShipment.id);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -238,7 +285,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: tipo,
+                        value: tipo,
                         decoration: const InputDecoration(labelText: 'Tipo de paquete'),
                         items: const [
                           DropdownMenuItem(value: 'libra', child: Text('Por libra')),
@@ -255,23 +302,20 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                       TextField(
                         controller: descripcionController,
                         decoration: const InputDecoration(labelText: 'Descripción'),
-                        textInputAction: TextInputAction.next,
                         maxLines: 2,
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: pesoController,
                         decoration: const InputDecoration(labelText: 'Peso (libras)'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.number,
                         enabled: tipo == 'libra',
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: valorController,
                         decoration: const InputDecoration(labelText: 'Valor declarado'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        textInputAction: TextInputAction.next,
+                        keyboardType: TextInputType.number,
                         onChanged: (_) => calcularSeguro(),
                       ),
                       const SizedBox(height: 16),
@@ -321,7 +365,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: origen,
+                        value: origen,
                         decoration: const InputDecoration(labelText: 'Origen'),
                         items: const [
                           DropdownMenuItem(value: 'GT', child: Text('Guatemala')),
@@ -334,7 +378,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        initialValue: destino,
+                        value: destino,
                         decoration: const InputDecoration(labelText: 'Destino'),
                         items: const [
                           DropdownMenuItem(value: 'US', child: Text('Estados Unidos')),
@@ -342,49 +386,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                         ],
                         onChanged: (value) {
                           if (value == null) return;
-                          setState(() => destino = value);
+                          _syncReceiverCountryWithDestination(value);
                         },
-                      ),
-                      const SizedBox(height: 14),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceSoft,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: AppTheme.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Punto de origen del envío',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              loadingPickup
-                                  ? 'Detectando tu ubicación actual...'
-                                  : pickupLat != null && pickupLng != null
-                                      ? 'Origen listo: ${pickupLat!.toStringAsFixed(5)}, ${pickupLng!.toStringAsFixed(5)}'
-                                      : 'No pudimos detectar tu ubicación todavía.',
-                              style: const TextStyle(color: AppTheme.muted, height: 1.35),
-                            ),
-                            const SizedBox(height: 10),
-                            OutlinedButton(
-                              onPressed: loadingPickup ? null : loadPickupLocation,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: AppTheme.border),
-                                minimumSize: const Size(double.infinity, 52),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                              child: Text(loadingPickup ? 'Actualizando ubicación...' : 'Usar mi ubicación actual'),
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -407,13 +410,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                             borderRadius: BorderRadius.circular(18),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        images.isEmpty
-                            ? 'Agregar fotos ayuda a que los viajeros evalúen mejor el envío.'
-                            : '${images.length} foto(s) listas para subir y mostrar en el envío.',
-                        style: const TextStyle(color: AppTheme.muted, fontSize: 13),
                       ),
                       if (images.isNotEmpty) ...[
                         const SizedBox(height: 14),
@@ -444,43 +440,111 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                       TextField(
                         controller: receptorNombreController,
                         decoration: const InputDecoration(labelText: 'Nombre receptor'),
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.name],
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: receptorTelefonoController,
                         decoration: const InputDecoration(labelText: 'Teléfono receptor'),
                         keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.telephoneNumber],
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        value: receiverCountry,
+                        decoration: const InputDecoration(labelText: 'País del receptor'),
+                        items: supportedCountries
+                            .map(
+                              (country) => DropdownMenuItem(
+                                value: country,
+                                child: Text(country),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          final nextRegions = supportedRegionsByCountry[value] ?? const [];
+                          setState(() {
+                            receiverCountry = value;
+                            receiverRegion = nextRegions.isNotEmpty ? nextRegions.first : '';
+                            destino = _countryNameToCode[value] ?? destino;
+                            acceptedForeignRestrictions = destino != 'US';
+                            geocodedAddressLabel = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 14),
+                      DropdownButtonFormField<String>(
+                        value: receiverRegion.isNotEmpty ? receiverRegion : null,
+                        decoration: const InputDecoration(labelText: 'Departamento / Estado'),
+                        items: availableRegions
+                            .map(
+                              (region) => DropdownMenuItem(
+                                value: region,
+                                child: Text(region),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setState(() {
+                            receiverRegion = value;
+                            geocodedAddressLabel = null;
+                          });
+                        },
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: receptorDireccionController,
-                        decoration: const InputDecoration(labelText: 'Dirección receptor'),
+                        decoration: const InputDecoration(
+                          labelText: 'Buscar dirección del receptor',
+                          hintText: 'Ej. Manzana F lote 11, zona 6',
+                        ),
                         maxLines: 2,
+                        onChanged: (_) {
+                          if (geocodedAddressLabel != null) {
+                            setState(() => geocodedAddressLabel = null);
+                          }
+                        },
                       ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: deliveryLatController,
-                        decoration: const InputDecoration(labelText: 'Latitud entrega'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-                      const SizedBox(height: 14),
-                      TextField(
-                        controller: deliveryLngController,
-                        decoration: const InputDecoration(labelText: 'Longitud entrega'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      ),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Estas coordenadas permiten dibujar la ruta del envío en el mapa.',
-                        style: TextStyle(color: AppTheme.muted, fontSize: 13, height: 1.35),
-                      ),
+                      if (geocodedAddressLabel != null) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Dirección validada: $geocodedAddressLabel',
+                            style: const TextStyle(color: AppTheme.accent, fontSize: 13),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
+                if (isForeignDestination) ...[
+                  const SizedBox(height: 16),
+                  AppGlassSection(
+                    title: 'Validación de productos prohibidos',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Si el destino es Estados Unidos, recuerda que no puedes enviar armas, municiones, explosivos, drogas, vapeadores, alcohol, dinero en efectivo, animales vivos ni químicos peligrosos.',
+                          style: TextStyle(color: AppTheme.muted, height: 1.5),
+                        ),
+                        const SizedBox(height: 12),
+                        CheckboxListTile(
+                          value: acceptedForeignRestrictions,
+                          onChanged: (value) {
+                            setState(() {
+                              acceptedForeignRestrictions = value ?? false;
+                            });
+                          },
+                          contentPadding: EdgeInsets.zero,
+                          controlAffinity: ListTileControlAffinity.leading,
+                          title: const Text('Entiendo las restricciones para envíos al extranjero'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 22),
                 ElevatedButton(
                   onPressed: loading ? null : createShipment,
@@ -491,17 +555,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Text('Publicar envío'),
-                ),
-                const SizedBox(height: 12),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: Text(
-                    loading
-                        ? 'Subiendo imágenes y publicando el envío para preparar la vista de ofertas...'
-                        : 'Cuando lo publiques, los viajeros podrán enviarte ofertas de inmediato.',
-                    key: ValueKey(loading),
-                    style: const TextStyle(color: AppTheme.muted),
-                  ),
                 ),
               ],
             ),

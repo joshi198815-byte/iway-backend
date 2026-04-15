@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateShipmentDto {
   @IsString()
@@ -41,14 +41,6 @@ export class CreateShipmentDto {
 
   @IsOptional()
   @IsNumber()
-  pickupLat?: number;
-
-  @IsOptional()
-  @IsNumber()
-  pickupLng?: number;
-
-  @IsOptional()
-  @IsNumber()
   deliveryLat?: number;
 
   @IsOptional()
@@ -57,9 +49,4 @@ export class CreateShipmentDto {
 
   @IsBoolean()
   insuranceEnabled!: boolean;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  imageUrls?: string[];
 }

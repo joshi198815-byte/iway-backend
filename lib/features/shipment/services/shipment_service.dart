@@ -19,27 +19,12 @@ class ShipmentService {
       'receiverName': shipment.receptorNombre,
       'receiverPhone': shipment.receptorTelefono,
       'receiverAddress': shipment.receptorDireccion,
-      'pickupLat': shipment.pickupLat,
-      'pickupLng': shipment.pickupLng,
       'deliveryLat': shipment.deliveryLat,
       'deliveryLng': shipment.deliveryLng,
       'insuranceEnabled': shipment.seguro,
-      'imageUrls': shipment.imagenes,
     });
 
     return ShipmentModel.fromBackendJson(data);
-  }
-
-  Future<List<ShipmentModel>> getAvailableShipments() async {
-    final data = await _apiClient.get('/shipments/available');
-    if (data is! List) {
-      return const [];
-    }
-
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(ShipmentModel.fromBackendJson)
-        .toList();
   }
 
   Future<List<ShipmentModel>> getShipments() async {
@@ -62,14 +47,9 @@ class ShipmentService {
     return ShipmentModel.fromBackendJson(data);
   }
 
-  Future<ShipmentModel> updateStatus(
-    String id,
-    String status, {
-    List<String>? imageUrls,
-  }) async {
+  Future<ShipmentModel> updateStatus(String id, String status) async {
     final data = await _apiClient.patch('/shipments/$id/status', {
       'status': status,
-      'imageUrls': imageUrls,
     });
     return ShipmentModel.fromBackendJson(data);
   }
