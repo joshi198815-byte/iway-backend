@@ -304,6 +304,18 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
+  async markAllRead(requester: { sub: string; role: string }) {
+    return this.prisma.notification.updateMany({
+      where: {
+        userId: requester.sub,
+        readAt: null,
+      },
+      data: {
+        readAt: new Date(),
+      },
+    });
+  }
+
   async sendPushMany(
     userIds: string[],
     title: string,

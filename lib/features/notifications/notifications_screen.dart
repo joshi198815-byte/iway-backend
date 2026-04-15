@@ -34,6 +34,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     bindRealtime();
   }
 
+  Future<void> _markAllAsRead({bool reload = false}) async {
+    final hasUnread = notifications.any((item) => !item.leido);
+    if (!hasUnread) return;
+
+    try {
+      await service.markAllRead();
+      if (!mounted) return;
+      setState(() {
+        notifications = notifications
+            .map((item) => item.copyWith(leido: true))
+            .toList();
+      });
+      if (reload) {
+        await loadNotifications(showRefreshing: true);
+      }
+    } catch (_) {}
+  }
+
   Future<void> bindRealtime() async {
     await realtime.ensureConnected();
     notificationSubscription = realtime.notificationUpdated.listen((_) => loadNotifications(showRefreshing: true));
@@ -58,6 +76,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         notifications = data;
         loading = false;
         refreshing = false;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _markAllAsRead();
       });
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -231,6 +253,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             title: 'Notificaciones',
                             subtitle: 'Actividad reciente y movimientos importantes.',
                           ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: notifications.any((item) => !item.leido)
+                                  ? () => _markAllAsRead(reload: true)
+                                  : null,
+                              icon: const Icon(Icons.done_all_rounded),
+                              label: const Text('Marcar todas como leídas'),
+                            ),
+                          ),
                           if (refreshing) ...[
                             const SizedBox(height: 8),
                             const Text(
@@ -263,7 +296,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
                               return InkWell(
                                 borderRadius: BorderRadius.circular(22),
-                                onTap: () => openNotification(n),
+                                onTap: () async {
+                                  await _markAllAsRead();
+                                  await openNotification(n);
+                                },
                                 child: Ink(
                                   padding: const EdgeInsets.all(18),
                                   decoration: BoxDecoration(

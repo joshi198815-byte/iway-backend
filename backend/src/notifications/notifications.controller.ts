@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -58,5 +59,10 @@ export class NotificationsController {
   @Post(':id/read')
   markRead(@Param('id') id: string, @Req() req: any) {
     return this.notificationsService.markRead(id, req.user);
+  }
+
+  @Patch('read-all')
+  markAllRead(@Req() req: any) {
+    return this.notificationsService.markAllRead(req.user);
   }
 }

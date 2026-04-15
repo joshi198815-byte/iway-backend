@@ -14,6 +14,16 @@ class AddressLocationResult {
   });
 }
 
+class AddressSuggestion {
+  final String description;
+  final String placeId;
+
+  const AddressSuggestion({
+    required this.description,
+    required this.placeId,
+  });
+}
+
 class AddressSearchService {
   AddressSearchService({http.Client? client}) : _client = client ?? http.Client();
 
@@ -23,6 +33,49 @@ class AddressSearchService {
     'GOOGLE_MAPS_API_KEY',
     defaultValue: 'AIzaSyAidt2UJyI9DvKjnLltJKZ6SsnLCwservw',
   );
+
+  Future<List<AddressSuggestion>> autocompleteAddresses({
+    required String input,
+    required String countryCode,
+  }) async {
+    if (input.trim().length < 3 || _apiKey.trim().isEmpty) {
+      return const [];
+    }
+
+    final uri = Uri.https('maps.googleapis.com', '/maps/api/place/autocomplete/json', {
+      'input': input.trim(),
+      'components': 'country:${countryCode.trim()}',
+      'types': 'address',
+      'key': _apiKey,
+      'language': 'es',
+    });
+
+    final response = await _client.get(uri, headers: {
+      'Accept': 'application/json',
+    });
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      return const [];
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) return const [];
+
+    final predictions = decoded['predictions'];
+    if (predictions is! List) return const [];
+
+    return predictions
+        .whereType<Map<String, dynamic>>()
+        .map(
+          (item) => AddressSuggestion(
+            description: (item['description'] ?? '').toString(),
+            placeId: (item['place_id'] ?? '').toString(),
+          ),
+        )
+        .where((item) => item.description.isNotEmpty && item.placeId.isNotEmpty)
+        .take(6)
+        .toList();
+  }
 
   Future<AddressLocationResult?> geocodeAddress({
     required String address,

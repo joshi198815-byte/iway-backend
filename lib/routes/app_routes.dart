@@ -4,6 +4,7 @@ import '../features/home/home_screen.dart';
 import '../features/auth/login/login_screen.dart';
 import '../features/auth/register/register_screen.dart';
 import '../features/auth/register/traveler_register_screen.dart';
+import '../features/auth/verification/contact_verification_screen.dart';
 import '../features/shipment/create_shipment_screen.dart';
 import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/matching/offers_screen.dart';
@@ -40,6 +41,7 @@ class AppRoutes {
     '/login': (context) => const LoginScreen(),
     '/register': (context) => const RegisterScreen(),
     '/register_traveler': (context) => const TravelerRegisterScreen(),
+    '/verify_contact': (context) => const ContactVerificationScreen(),
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/debts': (context) => const DebtsScreen(),

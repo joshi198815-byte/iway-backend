@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/models/user_model.dart';
 import 'package:iway_app/services/session_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -21,10 +22,23 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (!mounted) return;
 
+    final currentUser = SessionService.currentUser;
+    final needsContactVerification = _needsContactVerification(currentUser);
+
     Navigator.pushReplacementNamed(
       context,
-      SessionService.isLoggedIn ? '/home' : '/login',
+      !SessionService.isLoggedIn
+          ? '/login'
+          : needsContactVerification
+              ? '/verify_contact'
+              : '/home',
     );
+  }
+
+  bool _needsContactVerification(UserModel? user) {
+    if (user == null) return false;
+    return !user.emailVerificado && !user.telefonoVerificado;
+  }
   }
 
   @override

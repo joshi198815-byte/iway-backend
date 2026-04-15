@@ -17,6 +17,26 @@ class NotificationModel {
     this.shipmentId,
   });
 
+  NotificationModel copyWith({
+    String? id,
+    String? titulo,
+    String? mensaje,
+    DateTime? fecha,
+    bool? leido,
+    String? tipo,
+    String? shipmentId,
+  }) {
+    return NotificationModel(
+      id: id ?? this.id,
+      titulo: titulo ?? this.titulo,
+      mensaje: mensaje ?? this.mensaje,
+      fecha: fecha ?? this.fecha,
+      leido: leido ?? this.leido,
+      tipo: tipo ?? this.tipo,
+      shipmentId: shipmentId ?? this.shipmentId,
+    );
+  }
+
   factory NotificationModel.fromBackendJson(Map<String, dynamic> json) {
     return NotificationModel(
       id: (json['id'] ?? '').toString(),

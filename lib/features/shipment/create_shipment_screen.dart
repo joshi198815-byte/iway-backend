@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -49,19 +50,38 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     'corrosivos',
   ];
 
+  static const List<String> _basePackageTypes = [
+    'libra',
+    'carga',
+    'documento',
+    'medicina',
+  ];
+
+  static const List<String> _vehiclePackageTypes = [
+    'carros',
+    'motos',
+    'buses',
+    'lanchas',
+  ];
+
   final descripcionController = TextEditingController();
   final valorController = TextEditingController();
   final pesoController = TextEditingController();
   final receptorNombreController = TextEditingController();
   final receptorTelefonoController = TextEditingController();
   final receptorDireccionController = TextEditingController();
+  final vinController = TextEditingController();
 
   final shipmentService = ShipmentService();
   final imageService = ImageService();
   final insuranceService = InsuranceService();
   final addressSearchService = AddressSearchService();
 
-  List<File> images = [];
+  final List<File> images = [];
+  final List<AddressSuggestion> addressSuggestions = [];
+
+  Timer? _addressDebounce;
+
   String tipo = 'libra';
   String origen = 'GT';
   String destino = 'US';
@@ -70,13 +90,21 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   bool seguro = false;
   bool loading = false;
   bool acceptedForeignRestrictions = false;
+  bool loadingAddressSuggestions = false;
   double costoSeguro = 0;
   String? geocodedAddressLabel;
 
   bool get isForeignDestination => destino == 'US';
+  bool get isUsToGtRoute => origen == 'US' && destino == 'GT';
+  bool get requiresVin => _vehiclePackageTypes.contains(tipo);
 
   List<String> get availableRegions =>
       supportedRegionsByCountry[receiverCountry] ?? const [];
+
+  List<String> get availablePackageTypes => [
+        ..._basePackageTypes,
+        if (isUsToGtRoute) ..._vehiclePackageTypes,
+      ];
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -86,12 +114,14 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
   @override
   void dispose() {
+    _addressDebounce?.cancel();
     descripcionController.dispose();
     valorController.dispose();
     pesoController.dispose();
     receptorNombreController.dispose();
     receptorTelefonoController.dispose();
     receptorDireccionController.dispose();
+    vinController.dispose();
     super.dispose();
   }
 
@@ -111,16 +141,26 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     });
   }
 
-  void _syncReceiverCountryWithDestination(String countryCode) {
-    final nextCountry = countryCode == 'GT' ? 'Guatemala' : 'Estados Unidos';
+  void _syncRouteState({String? nextOrigin, String? nextDestination}) {
+    final resolvedOrigin = nextOrigin ?? origen;
+    final resolvedDestination = nextDestination ?? destino;
+    final nextCountry = resolvedDestination == 'GT' ? 'Guatemala' : 'Estados Unidos';
     final nextRegions = supportedRegionsByCountry[nextCountry] ?? const [];
+    final vehicleStillAllowed =
+        resolvedOrigin == 'US' && resolvedDestination == 'GT' && _vehiclePackageTypes.contains(tipo);
 
     setState(() {
-      destino = countryCode;
+      origen = resolvedOrigin;
+      destino = resolvedDestination;
       receiverCountry = nextCountry;
       receiverRegion = nextRegions.isNotEmpty ? nextRegions.first : '';
-      acceptedForeignRestrictions = !isForeignDestination;
+      acceptedForeignRestrictions = resolvedDestination != 'US';
       geocodedAddressLabel = null;
+      addressSuggestions.clear();
+      if (!vehicleStillAllowed && _vehiclePackageTypes.contains(tipo)) {
+        tipo = 'libra';
+        vinController.clear();
+      }
     });
   }
 
@@ -144,6 +184,80 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     return null;
   }
 
+  String _shipmentTypeLabel(String value) {
+    switch (value) {
+      case 'libra':
+        return 'Por libra';
+      case 'carga':
+        return 'Carga grande';
+      case 'documento':
+        return 'Documentos';
+      case 'medicina':
+        return 'Medicina';
+      case 'carros':
+        return 'Carros';
+      case 'motos':
+        return 'Motos';
+      case 'buses':
+        return 'Buses';
+      case 'lanchas':
+        return 'Lanchas';
+      default:
+        return value;
+    }
+  }
+
+  Future<void> _loadAddressSuggestions(String query) async {
+    _addressDebounce?.cancel();
+
+    if (!isForeignDestination) {
+      setState(() {
+        addressSuggestions.clear();
+        loadingAddressSuggestions = false;
+      });
+      return;
+    }
+
+    if (query.trim().length < 3) {
+      setState(() {
+        addressSuggestions.clear();
+        loadingAddressSuggestions = false;
+      });
+      return;
+    }
+
+    _addressDebounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      setState(() => loadingAddressSuggestions = true);
+
+      try {
+        final suggestions = await addressSearchService.autocompleteAddresses(
+          input: query,
+          countryCode: destino,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          addressSuggestions
+            ..clear()
+            ..addAll(suggestions);
+          loadingAddressSuggestions = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => loadingAddressSuggestions = false);
+      }
+    });
+  }
+
+  Future<void> _selectAddressSuggestion(AddressSuggestion suggestion) async {
+    receptorDireccionController.text = suggestion.description;
+    setState(() {
+      geocodedAddressLabel = suggestion.description;
+      addressSuggestions.clear();
+    });
+  }
+
   Future<void> createShipment() async {
     final descripcion = descripcionController.text.trim();
     final valor = double.tryParse(valorController.text.trim());
@@ -151,6 +265,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     final receptorNombre = receptorNombreController.text.trim();
     final receptorTelefono = receptorTelefonoController.text.trim();
     final receptorDireccion = receptorDireccionController.text.trim();
+    final vin = vinController.text.trim();
     final currentUserId = SessionService.currentUserId;
 
     if (currentUserId == null || currentUserId.isEmpty) {
@@ -191,6 +306,11 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       return;
     }
 
+    if (requiresVin && vin.length < 6) {
+      showMessage('Ingresa un VIN válido para esta categoría.');
+      return;
+    }
+
     final restrictedMatch = _findRestrictedProduct(descripcion);
     if (restrictedMatch != null) {
       showMessage('El producto "$restrictedMatch" no se puede enviar por esta ruta.');
@@ -212,12 +332,16 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         return;
       }
 
+      final shipmentDescription = requiresVin
+          ? '$descripcion\nVIN: $vin'
+          : descripcion;
+
       final shipment = ShipmentModel(
         id: '',
         userId: currentUserId,
         tipo: tipo,
         peso: peso,
-        descripcion: descripcion,
+        descripcion: shipmentDescription,
         valor: valor,
         origen: origen,
         destino: destino,
@@ -229,10 +353,11 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         imagenes: images.map((e) => e.path).toList(),
         seguro: seguro,
         costoSeguro: costoSeguro,
-        estado: 'pending',
+        estado: 'published',
       );
 
-      final createdShipment = await shipmentService.createShipment(shipment);
+      await shipmentService.createShipment(shipment);
+      await shipmentService.getShipments();
 
       if (!mounted) return;
 
@@ -240,7 +365,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         loading = false;
         geocodedAddressLabel = geocoded.formattedAddress;
       });
-      Navigator.pushNamed(context, '/offers', arguments: createdShipment.id);
+
+      showMessage('Envío publicado correctamente.');
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -285,37 +412,65 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: tipo,
+                        initialValue: tipo,
+                        isExpanded: true,
+                        menuMaxHeight: 320,
                         decoration: const InputDecoration(labelText: 'Tipo de paquete'),
-                        items: const [
-                          DropdownMenuItem(value: 'libra', child: Text('Por libra')),
-                          DropdownMenuItem(value: 'carga', child: Text('Carga grande')),
-                          DropdownMenuItem(value: 'documento', child: Text('Documentos')),
-                          DropdownMenuItem(value: 'medicina', child: Text('Medicina')),
-                        ],
+                        items: availablePackageTypes
+                            .map(
+                              (value) => DropdownMenuItem(
+                                value: value,
+                                child: Text(_shipmentTypeLabel(value)),
+                              ),
+                            )
+                            .toList(),
                         onChanged: (value) {
                           if (value == null) return;
                           setState(() => tipo = value);
                         },
                       ),
+                      if (isUsToGtRoute) ...[
+                        const SizedBox(height: 10),
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Ruta USA → Guatemala habilita categorías de vehículos y maquinaria liviana.',
+                            style: TextStyle(color: AppTheme.muted, fontSize: 13),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       TextField(
                         controller: descripcionController,
                         decoration: const InputDecoration(labelText: 'Descripción'),
                         maxLines: 2,
+                        textInputAction: TextInputAction.next,
                       ),
+                      if (requiresVin) ...[
+                        const SizedBox(height: 14),
+                        TextField(
+                          controller: vinController,
+                          decoration: const InputDecoration(
+                            labelText: 'Número de VIN',
+                            hintText: 'Obligatorio para carros, motos, buses y lanchas',
+                          ),
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       TextField(
                         controller: pesoController,
                         decoration: const InputDecoration(labelText: 'Peso (libras)'),
                         keyboardType: TextInputType.number,
                         enabled: tipo == 'libra',
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: valorController,
                         decoration: const InputDecoration(labelText: 'Valor declarado'),
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textInputAction: TextInputAction.next,
                         onChanged: (_) => calcularSeguro(),
                       ),
                       const SizedBox(height: 16),
@@ -365,7 +520,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        value: origen,
+                        initialValue: origen,
+                        isExpanded: true,
+                        menuMaxHeight: 280,
                         decoration: const InputDecoration(labelText: 'Origen'),
                         items: const [
                           DropdownMenuItem(value: 'GT', child: Text('Guatemala')),
@@ -373,12 +530,14 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                         ],
                         onChanged: (value) {
                           if (value == null) return;
-                          setState(() => origen = value);
+                          _syncRouteState(nextOrigin: value);
                         },
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: destino,
+                        initialValue: destino,
+                        isExpanded: true,
+                        menuMaxHeight: 280,
                         decoration: const InputDecoration(labelText: 'Destino'),
                         items: const [
                           DropdownMenuItem(value: 'US', child: Text('Estados Unidos')),
@@ -386,7 +545,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                         ],
                         onChanged: (value) {
                           if (value == null) return;
-                          _syncReceiverCountryWithDestination(value);
+                          _syncRouteState(nextDestination: value);
                         },
                       ),
                     ],
@@ -440,16 +599,20 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                       TextField(
                         controller: receptorNombreController,
                         decoration: const InputDecoration(labelText: 'Nombre receptor'),
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: receptorTelefonoController,
                         decoration: const InputDecoration(labelText: 'Teléfono receptor'),
                         keyboardType: TextInputType.phone,
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: receiverCountry,
+                        initialValue: receiverCountry,
+                        isExpanded: true,
+                        menuMaxHeight: 280,
                         decoration: const InputDecoration(labelText: 'País del receptor'),
                         items: supportedCountries
                             .map(
@@ -461,19 +624,15 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                             .toList(),
                         onChanged: (value) {
                           if (value == null) return;
-                          final nextRegions = supportedRegionsByCountry[value] ?? const [];
-                          setState(() {
-                            receiverCountry = value;
-                            receiverRegion = nextRegions.isNotEmpty ? nextRegions.first : '';
-                            destino = _countryNameToCode[value] ?? destino;
-                            acceptedForeignRestrictions = destino != 'US';
-                            geocodedAddressLabel = null;
-                          });
+                          final nextCode = _countryNameToCode[value] ?? destino;
+                          _syncRouteState(nextDestination: nextCode);
                         },
                       ),
                       const SizedBox(height: 14),
                       DropdownButtonFormField<String>(
-                        value: receiverRegion.isNotEmpty ? receiverRegion : null,
+                        initialValue: receiverRegion.isNotEmpty ? receiverRegion : null,
+                        isExpanded: true,
+                        menuMaxHeight: 340,
                         decoration: const InputDecoration(labelText: 'Departamento / Estado'),
                         items: availableRegions
                             .map(
@@ -494,17 +653,52 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                       const SizedBox(height: 14),
                       TextField(
                         controller: receptorDireccionController,
-                        decoration: const InputDecoration(
-                          labelText: 'Buscar dirección del receptor',
-                          hintText: 'Ej. Manzana F lote 11, zona 6',
+                        decoration: InputDecoration(
+                          labelText: isForeignDestination
+                              ? 'Dirección del receptor en USA'
+                              : 'Dirección del receptor',
+                          hintText: isForeignDestination
+                              ? 'Empieza a escribir calle, ciudad, estado o ZIP code'
+                              : 'Ej. Manzana F lote 11, zona 6',
+                          suffixIcon: loadingAddressSuggestions
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              : null,
                         ),
                         maxLines: 2,
-                        onChanged: (_) {
+                        textInputAction: TextInputAction.done,
+                        onChanged: (value) {
                           if (geocodedAddressLabel != null) {
                             setState(() => geocodedAddressLabel = null);
                           }
+                          _loadAddressSuggestions(value);
                         },
                       ),
+                      if (addressSuggestions.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: 220,
+                          child: ListView.separated(
+                            itemCount: addressSuggestions.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final suggestion = addressSuggestions[index];
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const Icon(Icons.location_on_outlined),
+                                title: Text(suggestion.description),
+                                onTap: () => _selectAddressSuggestion(suggestion),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                       if (geocodedAddressLabel != null) ...[
                         const SizedBox(height: 12),
                         Align(

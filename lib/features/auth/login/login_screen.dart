@@ -33,7 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+        final currentUser = SessionService.currentUser;
+        final nextRoute = currentUser != null &&
+                !currentUser.emailVerificado &&
+                !currentUser.telefonoVerificado
+            ? '/verify_contact'
+            : '/home';
+        Navigator.pushReplacementNamed(context, nextRoute);
       });
     }
   }
@@ -69,7 +75,10 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => loading = false);
 
       if (user != null) {
-        Navigator.pushReplacementNamed(context, '/home');
+        final nextRoute = !user.emailVerificado && !user.telefonoVerificado
+            ? '/verify_contact'
+            : '/home';
+        Navigator.pushReplacementNamed(context, nextRoute);
       } else {
         showMessage('No se pudo iniciar sesión. Revisa tus datos.');
       }

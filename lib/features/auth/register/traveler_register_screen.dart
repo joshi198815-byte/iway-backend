@@ -58,7 +58,13 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+        final currentUser = SessionService.currentUser;
+        final nextRoute = currentUser != null &&
+                !currentUser.emailVerificado &&
+                !currentUser.telefonoVerificado
+            ? '/verify_contact'
+            : '/home';
+        Navigator.pushReplacementNamed(context, nextRoute);
       });
     }
   }
@@ -185,7 +191,9 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, '/home');
+      await authService.requestVerificationCode('email');
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/verify_contact');
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -297,11 +305,13 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                       TextField(
                         controller: cityController,
                         decoration: const InputDecoration(labelText: 'Ciudad'),
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: direccionController,
                         decoration: const InputDecoration(labelText: 'Dirección'),
+                        textInputAction: TextInputAction.done,
                       ),
                     ],
                   ),
@@ -324,6 +334,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                       TextField(
                         controller: documentoController,
                         decoration: const InputDecoration(labelText: 'DPI / Pasaporte'),
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       const Text(

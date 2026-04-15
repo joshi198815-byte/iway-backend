@@ -46,7 +46,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+        final currentUser = SessionService.currentUser;
+        final nextRoute = currentUser != null &&
+                !currentUser.emailVerificado &&
+                !currentUser.telefonoVerificado
+            ? '/verify_contact'
+            : '/home';
+        Navigator.pushReplacementNamed(context, nextRoute);
       });
     }
   }
@@ -120,7 +126,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return;
       }
 
-      Navigator.pushReplacementNamed(context, '/home');
+      await authService.requestVerificationCode('email');
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/verify_contact');
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -232,12 +240,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextField(
                         controller: cityController,
                         decoration: const InputDecoration(labelText: 'Ciudad'),
+                        textInputAction: TextInputAction.next,
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: addressController,
                         decoration: const InputDecoration(labelText: 'Dirección'),
                         maxLines: 2,
+                        textInputAction: TextInputAction.done,
                       ),
                     ],
                   ),

@@ -25,4 +25,8 @@ class NotificationService {
   Future<void> markRead(String id) async {
     await _apiClient.post('/notifications/$id/read', {});
   }
+
+  Future<void> markAllRead() async {
+    await _apiClient.patch('/notifications/read-all', {});
+  }
 }
