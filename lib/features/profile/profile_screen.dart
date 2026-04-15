@@ -105,7 +105,7 @@ class ProfileScreen extends StatelessWidget {
                 OutlinedButton(
                   onPressed: () async {
                     if (hasSession) {
-                      await PushNotificationService.instance.unregisterDevice();
+                      await PushNotificationService.deactivateCurrentToken();
                       await SessionService.clear();
                     }
                     if (!context.mounted) return;
