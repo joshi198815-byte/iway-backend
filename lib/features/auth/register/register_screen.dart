@@ -70,6 +70,73 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   String get countryCode => selectedCountry == 'Guatemala' ? 'GT' : 'US';
 
+  Future<void> pickRegion() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: SizedBox(
+            height: 360,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          selectedCountry == 'Guatemala' ? 'Selecciona departamento' : 'Selecciona estado',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: availableRegions.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final region = availableRegions[index];
+                      final selected = selectedRegion == region;
+                      return ListTile(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: selected ? AppTheme.accent : AppTheme.border,
+                          ),
+                        ),
+                        tileColor: AppTheme.surfaceSoft,
+                        title: Text(region),
+                        trailing: selected
+                            ? const Icon(Icons.check_circle_rounded, color: AppTheme.accent)
+                            : null,
+                        onTap: () => Navigator.pop(context, region),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (picked == null) return;
+    setState(() => selectedRegion = picked);
+  }
+
   Future<void> register() async {
     final nombre = nombreController.text.trim();
     final email = emailController.text.trim();
@@ -157,6 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,15 +294,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         },
                       ),
                       const SizedBox(height: 14),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedRegion,
-                        decoration: InputDecoration(
-                          labelText: selectedCountry == 'Guatemala' ? 'Departamento' : 'Estado',
+                      InkWell(
+                        onTap: pickRegion,
+                        borderRadius: BorderRadius.circular(18),
+                        child: InputDecorator(
+                          decoration: InputDecoration(
+                            labelText: selectedCountry == 'Guatemala' ? 'Departamento' : 'Estado',
+                            suffixIcon: const Icon(Icons.expand_more_rounded),
+                          ),
+                          child: Text(selectedRegion ?? 'Seleccionar'),
                         ),
-                        items: availableRegions
-                            .map((region) => DropdownMenuItem(value: region, child: Text(region)))
-                            .toList(),
-                        onChanged: (value) => setState(() => selectedRegion = value),
                       ),
                       const SizedBox(height: 14),
                       TextField(

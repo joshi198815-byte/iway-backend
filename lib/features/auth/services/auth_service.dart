@@ -87,7 +87,7 @@ class AuthService {
       'phone': phone.trim(),
       'password': password.trim(),
       'travelerType': travelerType.apiValue,
-      'documentNumber': documentNumber.trim(),
+      'documentNumber': documentNumber.trim().toString(),
       'countryCode': countryCode,
       'stateRegion': stateRegion,
       'city': city,
