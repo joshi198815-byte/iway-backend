@@ -33,6 +33,9 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Backend / Node
+backend/node_modules/
+
 # Symbolication related
 app.*.symbols
 
