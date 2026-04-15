@@ -27,14 +27,30 @@ migrate_working_dir/
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
 .pub-cache/
 .pub/
 /build/
 /coverage/
 
-# Backend / Node
+# Backend / Node / local runtime
 backend/node_modules/
+backend/dist/
+backend/uploads/
+backend/backups/
+backend/.embedded-postgres/
+backend/.env
+backend/.env.*
+!backend/.env.example
+!backend/.env.production.example
+!backend/.env.staging.example
+
+# Android local/release material
+android/local.properties
+android/key.properties
+android/*.jks
+android/*.keystore
 
 # Symbolication related
 app.*.symbols
