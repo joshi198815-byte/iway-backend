@@ -320,13 +320,31 @@ export class TravelersService {
       })),
     });
 
+    const summary = await this.getVerificationSummary(userId, requester);
+
+    await this.prisma.travelerProfile.update({
+      where: { userId },
+      data: {
+        verificationScore: summary.score,
+        trustScore: summary.trustScore,
+        payoutHoldEnabled: summary.payoutHoldRecommended,
+        kycTier: summary.suggestedKycTier as KycTier,
+      },
+    });
+
     runtimeObservability.recordBusinessEvent({
       type: 'traveler_kyc_analysis_run',
       actorId: requester.sub,
-      metadata: { userId, travelerProfileId: traveler.id },
+      metadata: {
+        userId,
+        travelerProfileId: traveler.id,
+        verificationScore: summary.score,
+        trustScore: summary.trustScore,
+        payoutHoldRecommended: summary.payoutHoldRecommended,
+      },
     });
 
-    return this.getVerificationSummary(userId, requester);
+    return summary;
   }
 
   async listReviewQueue(requester: { sub: string; role: string }) {

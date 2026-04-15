@@ -10,6 +10,12 @@ function main() {
     PORT: process.env.PORT || '3000',
   };
 
+  execSync('npx prisma generate', {
+    cwd: backendDir,
+    stdio: 'inherit',
+    env,
+  });
+
   execSync('npx prisma db push --skip-generate', {
     cwd: backendDir,
     stdio: 'inherit',

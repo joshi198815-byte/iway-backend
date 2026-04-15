@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -32,9 +33,21 @@ def request(method, path, payload=None, token=None):
         return error.code, body
 
 
-def assert_status(step, status, expected=(200, 201)):
+def assert_status(step, status, expected=(200, 201), body=None):
     if status not in expected:
-        raise RuntimeError(f'{step} failed with status {status}')
+        detail = f' body={json.dumps(body, ensure_ascii=False)}' if body is not None else ''
+        raise RuntimeError(f'{step} failed with status {status}{detail}')
+
+
+def find_latest_code(notifications, title_fragment):
+    for notification in reversed(notifications):
+        title = notification.get('title', '')
+        body = notification.get('body', '')
+        if title_fragment in title:
+            match = re.search(r'(\d{6})', body)
+            if match:
+                return match.group(1)
+    raise RuntimeError(f'No verification code found for {title_fragment}')
 
 
 def main():
@@ -59,6 +72,8 @@ def main():
     customer_token = customer_auth['accessToken']
     results['customer'] = customer
 
+    png_base64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WnR2kQAAAAASUVORK5CYII='
+
     status, traveler_auth = request('POST', '/auth/register/traveler', {
         'fullName': f'Smoke Traveler {TS}',
         'email': f'smoke.traveler.{TS}@example.com',
@@ -66,16 +81,54 @@ def main():
         'password': 'secret123',
         'travelerType': 'solo_tierra',
         'documentNumber': f'P{TS}',
+        'documentBase64': png_base64,
+        'selfieBase64': png_base64,
         'countryCode': 'US',
         'detectedCountryCode': 'US',
         'stateRegion': 'Florida',
         'city': 'Miami',
         'address': 'Downtown',
     })
-    assert_status('register_traveler', status)
+    assert_status('register_traveler', status, body=traveler_auth)
     traveler = traveler_auth['user']
     traveler_token = traveler_auth['accessToken']
     results['traveler'] = traveler
+
+    status, verification_phone = request('POST', '/auth/verification-code', {
+        'channel': 'phone',
+    }, token=traveler_token)
+    assert_status('request_phone_verification_code', status, body=verification_phone)
+
+    status, verification_email = request('POST', '/auth/verification-code', {
+        'channel': 'email',
+    }, token=traveler_token)
+    assert_status('request_email_verification_code', status, body=verification_email)
+
+    status, traveler_notifications = request(
+        'GET',
+        f"/notifications/user/{traveler['id']}",
+        token=traveler_token,
+    )
+    assert_status('traveler_notifications_after_verification_request', status, (200,), traveler_notifications)
+
+    phone_code = find_latest_code(traveler_notifications, 'teléfono')
+    email_code = find_latest_code(traveler_notifications, 'correo')
+
+    status, traveler_me = request('POST', '/auth/verify-contact', {
+        'channel': 'phone',
+        'code': phone_code,
+    }, token=traveler_token)
+    assert_status('verify_phone', status, body=traveler_me)
+
+    status, traveler_me = request('POST', '/auth/verify-contact', {
+        'channel': 'email',
+        'code': email_code,
+    }, token=traveler_token)
+    assert_status('verify_email', status, body=traveler_me)
+
+    status, traveler_kyc = request('POST', f"/travelers/{traveler['id']}/run-kyc-analysis", {}, token=traveler_token)
+    assert_status('run_kyc_analysis', status, body=traveler_kyc)
+    results['traveler_kyc'] = traveler_kyc
 
     status, shipment = request('POST', '/shipments', {
         'customerId': 'ignored-by-server',
@@ -95,7 +148,7 @@ def main():
         'deliveryLng': -80.1918,
         'insuranceEnabled': True,
     }, token=customer_token)
-    assert_status('create_shipment', status)
+    assert_status('create_shipment', status, body=shipment)
     results['shipment'] = shipment
 
     status, offer = request('POST', '/offers', {
@@ -103,7 +156,7 @@ def main():
         'travelerId': 'ignored-by-server',
         'price': 45,
     }, token=traveler_token)
-    assert_status('create_offer', status)
+    assert_status('create_offer', status, body=offer)
     results['offer'] = offer
 
     status, accepted = request('POST', f"/offers/{offer['id']}/accept", {
@@ -180,6 +233,8 @@ def main():
         'baseUrl': BASE_URL,
         'health_ok': results['health'].get('ok'),
         'shipment_status': results['shipment'].get('status'),
+        'traveler_verification_score': results['traveler_kyc'].get('score'),
+        'traveler_trust_score': results['traveler_kyc'].get('trustScore'),
         'offer_status': results['offer'].get('status'),
         'accepted_status': results['accepted'].get('status'),
         'chat_id': results['chat'].get('id'),
