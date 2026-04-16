@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "162918635912",
+    "project_id": "iwaygt",
+    "storage_bucket": "iwaygt.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:162918635912:android:8b80df7aa53f3e8cc4c23d",
+        "android_client_info": {
+          "package_name": "com.iway.gt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8s7KnH-gZVqtRHrz8zJWuBKwr4dnpsEI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
