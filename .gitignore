@@ -52,6 +52,9 @@ android/key.properties
 android/*.jks
 android/*.keystore
 ios/Flutter/MapsConfig.xcconfig
+android/app/google-services (1).json
+ios/Runner/GoogleService-Info.plist ios.plist
+android/replay_pid*.log
 
 # Symbolication related
 app.*.symbols
