@@ -1,12 +1,18 @@
 const { execSync, spawn } = require('child_process');
 const path = require('path');
+const dotenv = require('dotenv');
 
 const backendDir = path.resolve(__dirname, '..');
+const shellDatabaseUrl = process.env.DATABASE_URL;
+dotenv.config({ path: path.join(backendDir, '.env') });
 
 function main() {
   const env = {
     ...process.env,
-    DATABASE_URL: process.env.DATABASE_URL || 'file:./dev.db',
+    DATABASE_URL:
+      shellDatabaseUrl ||
+      process.env.LOCAL_DATABASE_URL ||
+      'postgresql://iway:iway_staging_change_me@127.0.0.1:5432/iway_staging?schema=public',
     PORT: process.env.PORT || '3000',
   };
 

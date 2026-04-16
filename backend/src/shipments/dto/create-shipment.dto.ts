@@ -1,8 +1,9 @@
 import { IsBoolean, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreateShipmentDto {
+  @IsOptional()
   @IsString()
-  customerId!: string;
+  customerId?: string;
 
   @IsString()
   originCountryCode!: string;

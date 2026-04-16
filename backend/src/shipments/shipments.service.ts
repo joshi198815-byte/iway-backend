@@ -29,6 +29,10 @@ export class ShipmentsService {
       throw new BadRequestException('Solo se permiten rutas Guatemala ↔ USA.');
     }
 
+    if (!payload.customerId) {
+      throw new BadRequestException('No se pudo identificar al cliente autenticado.');
+    }
+
     return this.prisma.shipment.create({
       data: {
         customerId: payload.customerId,
