@@ -51,6 +51,7 @@ android/local.properties
 android/key.properties
 android/*.jks
 android/*.keystore
+ios/Flutter/MapsConfig.xcconfig
 
 # Symbolication related
 app.*.symbols
