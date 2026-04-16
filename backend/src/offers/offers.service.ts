@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { OfferStatus, ShipmentStatus, TravelerStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -212,7 +212,7 @@ export class OffersService {
     }
 
     if (offer.shipment.customerId !== payload.acceptedByCustomerId) {
-      throw new BadRequestException('Solo el cliente dueño del envío puede aceptar esta oferta.');
+      throw new ForbiddenException('Solo el cliente dueño del envío puede aceptar esta oferta.');
     }
 
     await this.prisma.$transaction([
