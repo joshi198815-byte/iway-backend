@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAidt2UJyI9DvKjnLltJKZ6SsnLCwservw"></script>
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -42,6 +41,31 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="maps-config.js"></script>
+  <script>
+    (function () {
+      const key = window.GOOGLE_MAPS_API_KEY || '';
+
+      const loadFlutterApp = () => {
+        const flutterScript = document.createElement('script');
+        flutterScript.src = 'flutter_bootstrap.js';
+        flutterScript.async = true;
+        document.body.appendChild(flutterScript);
+      };
+
+      if (!key) {
+        console.warn('GOOGLE_MAPS_API_KEY is not configured for web.');
+        loadFlutterApp();
+        return;
+      }
+
+      const mapsScript = document.createElement('script');
+      mapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+      mapsScript.async = true;
+      mapsScript.onload = loadFlutterApp;
+      mapsScript.onerror = loadFlutterApp;
+      document.head.appendChild(mapsScript);
+    })();
+  </script>
 </body>
 </html>

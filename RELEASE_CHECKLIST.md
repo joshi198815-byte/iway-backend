@@ -73,6 +73,15 @@ Override opcional:
 flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000/api
 ```
 
+### Web Maps
+Archivo local no versionado: `web/maps-config.js`
+
+Crear desde `web/maps-config.example.js` y colocar:
+
+```js
+window.GOOGLE_MAPS_API_KEY = 'TU_GOOGLE_MAPS_API_KEY';
+```
+
 ## Dependencias a revisar después, no urgentes
 
 No se recomienda actualizar ahora mismo si el foco es estabilidad.
