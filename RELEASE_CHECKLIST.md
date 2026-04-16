@@ -58,8 +58,8 @@ Valores mínimos:
 
 ```env
 PORT=3000
-DATABASE_URL="file:./dev.db"
-JWT_SECRET="change-me"
+DATABASE_URL="postgresql://iway:iway_staging_change_me@127.0.0.1:5432/iway_staging?schema=public"
+JWT_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
 ```
 
 ### Frontend API
