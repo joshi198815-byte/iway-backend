@@ -1,6 +1,9 @@
 param(
   [Parameter(Mandatory = $true)]
-  [string]$ApiBaseUrl
+  [string]$ApiBaseUrl,
+
+  [Parameter(Mandatory = $true)]
+  [string]$GoogleMapsApiKey
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,7 +15,7 @@ Write-Host '[I-WAY] Descargando dependencias...'
 flutter pub get
 
 Write-Host '[I-WAY] Generando AAB release...'
-flutter build appbundle --release --dart-define="API_BASE_URL=$ApiBaseUrl"
+flutter build appbundle --release --dart-define="API_BASE_URL=$ApiBaseUrl" --dart-define="GOOGLE_MAPS_API_KEY=$GoogleMapsApiKey"
 
 Write-Host ''
 Write-Host 'OK. AAB generado en:'

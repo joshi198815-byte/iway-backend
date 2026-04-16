@@ -10,12 +10,14 @@
 1. Tener Flutter instalado en Windows
 2. Tener Android SDK instalado
 3. Confirmar backend HTTPS de producción
-4. Reemplazar `API_BASE_URL` por tu dominio real
+4. Tener Google Maps API Key real para release
+5. Reemplazar `API_BASE_URL` por tu dominio real
 
-Ejemplo esperado:
+Ejemplos esperados:
 
 ```bash
 https://api.tudominio.com/api
+AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ## Comando release recomendado
@@ -24,12 +26,12 @@ Desde la raíz del proyecto:
 ```bash
 flutter clean
 flutter pub get
-flutter build appbundle --release --dart-define=API_BASE_URL=https://api.tudominio.com/api
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.tudominio.com/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ## APK firmado opcional
 ```bash
-flutter build apk --release --dart-define=API_BASE_URL=https://api.tudominio.com/api
+flutter build apk --release --dart-define=API_BASE_URL=https://api.tudominio.com/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ## Resultado esperado
@@ -40,12 +42,13 @@ flutter build apk --release --dart-define=API_BASE_URL=https://api.tudominio.com
 - [ ] Login funciona en release
 - [ ] Registro funciona en release
 - [ ] Crear envío funciona
+- [ ] Autocomplete de direcciones funciona
+- [ ] Maps carga
 - [ ] Ofertar funciona
 - [ ] Chat funciona
 - [ ] Tracking funciona
 - [ ] Notifications llegan
-- [ ] Maps carga
 - [ ] API usa HTTPS productivo
 
 ## Nota importante
-El proyecto en desarrollo usa URLs locales por defecto. Para release, siempre compilar con `--dart-define=API_BASE_URL=...` apuntando al backend productivo.
+El proyecto en desarrollo usa URLs locales por defecto. Para release, siempre compilar con `--dart-define=API_BASE_URL=...` apuntando al backend productivo y con `--dart-define=GOOGLE_MAPS_API_KEY=...` para las búsquedas y geocodificación de direcciones.

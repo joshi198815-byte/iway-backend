@@ -4,6 +4,7 @@ class AppEnv {
   AppEnv._();
 
   static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const String _envGoogleMapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
 
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) {
@@ -16,6 +17,8 @@ class AppEnv {
 
     return 'http://127.0.0.1:3000/api';
   }
+
+  static String get googleMapsApiKey => _envGoogleMapsApiKey.trim();
 
   static String _normalize(String raw) {
     final trimmed = raw.trim().replaceAll(RegExp(r'/$'), '');

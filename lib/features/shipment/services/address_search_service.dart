@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:iway_app/config/app_env.dart';
 
 class AddressLocationResult {
   final double latitude;
@@ -29,10 +30,7 @@ class AddressSearchService {
 
   final http.Client _client;
 
-  static const String _apiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: 'AIzaSyAidt2UJyI9DvKjnLltJKZ6SsnLCwservw',
-  );
+  String get _apiKey => AppEnv.googleMapsApiKey;
 
   Future<List<AddressSuggestion>> autocompleteAddresses({
     required String input,
