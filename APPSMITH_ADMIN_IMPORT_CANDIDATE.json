@@ -1,0 +1,201 @@
+{
+  "meta": {
+    "name": "iWay Admin",
+    "type": "appsmith-admin-import-candidate",
+    "version": 1,
+    "notes": [
+      "Experimental candidate structure generated without a native Appsmith export reference.",
+      "Useful as a structured import attempt or as a build/transformation base.",
+      "Queries assume API base https://api.iway.one/api stored in appsmith.store.apiBase.",
+      "All auth-protected queries assume appsmith.store.jwt exists."
+    ]
+  },
+  "globalStore": {
+    "jwt": "",
+    "me": null,
+    "apiBase": "https://api.iway.one/api",
+    "isLoggedIn": false
+  },
+  "pages": [
+    {
+      "name": "Login",
+      "purpose": "Authenticate admin/support users",
+      "widgets": [
+        { "name": "Text_Title", "type": "Text", "text": "iWay Admin" },
+        { "name": "Input_Email", "type": "Input", "placeholder": "Correo" },
+        { "name": "Input_Password", "type": "Input", "inputType": "password", "placeholder": "Contraseña" },
+        { "name": "Input_ApiBase", "type": "Input", "defaultText": "{{appsmith.store.apiBase || 'https://api.iway.one/api'}}" },
+        { "name": "Button_Login", "type": "Button", "text": "Entrar", "onClick": "{{login.run()}}" }
+      ],
+      "queries": [
+        {
+          "name": "login",
+          "kind": "REST",
+          "method": "POST",
+          "url": "{{Input_ApiBase.text.trim()}}/auth/login",
+          "headers": { "Content-Type": "application/json" },
+          "body": {
+            "email": "{{Input_Email.text.trim().toLowerCase()}}",
+            "password": "{{Input_Password.text}}"
+          },
+          "onSuccess": "{{storeValue('jwt', login.data.accessToken); storeValue('me', login.data.user); storeValue('apiBase', Input_ApiBase.text.trim()); storeValue('isLoggedIn', true); navigateTo('Dashboard');}}",
+          "onError": "{{showAlert('Login inválido o backend no disponible', 'error')}}"
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "purpose": "Role-aware home page",
+      "onPageLoad": "{{!appsmith.store.jwt ? navigateTo('Login') : getMe.run()}}",
+      "widgets": [
+        { "name": "Text_Welcome", "type": "Text", "text": "{{`Hola ${appsmith.store.me?.fullName || ''}`}}" },
+        { "name": "Text_Role", "type": "Text", "text": "{{`Rol: ${appsmith.store.me?.role || '-'}`}}" },
+        { "name": "Button_Finance", "type": "Button", "text": "Finance", "onClick": "{{navigateTo('FinanceDashboard')}}" },
+        { "name": "Button_TravelersReview", "type": "Button", "text": "Travelers Review", "onClick": "{{navigateTo('TravelersReview')}}" },
+        { "name": "Button_TransfersReview", "type": "Button", "text": "Transfers Review", "onClick": "{{navigateTo('TransfersReview')}}" },
+        { "name": "Button_Shipments", "type": "Button", "text": "Shipments", "onClick": "{{navigateTo('Shipments')}}" },
+        { "name": "Button_Logout", "type": "Button", "text": "Logout", "onClick": "{{storeValue('jwt', ''); storeValue('me', null); storeValue('isLoggedIn', false); navigateTo('Login');}}" }
+      ],
+      "queries": [
+        {
+          "name": "getMe",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{appsmith.store.apiBase || 'https://api.iway.one/api'}}/auth/me",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" },
+          "onSuccess": "{{storeValue('me', getMe.data.user)}}",
+          "onError": "{{storeValue('jwt', ''); storeValue('me', null); storeValue('isLoggedIn', false); navigateTo('Login');}}"
+        }
+      ]
+    },
+    {
+      "name": "FinanceDashboard",
+      "purpose": "Unified executive finance dashboard",
+      "onPageLoad": "{{!appsmith.store.jwt ? navigateTo('Login') : FinanceDashboardFinalActions.refreshAll()}}",
+      "widgets": [
+        { "name": "Select_FinanceRange", "type": "Select", "defaultValue": "month" },
+        { "name": "Select_FinanceCountry", "type": "Select", "defaultValue": "" },
+        { "name": "Select_FinanceDirection", "type": "Select", "defaultValue": "" },
+        { "name": "Button_RefreshFinance", "type": "Button", "text": "Refresh", "onClick": "{{FinanceDashboardFinalActions.refreshAll()}}" },
+        { "name": "Table_Debtors", "type": "Table", "data": "{{getFinanceDebtors.data?.items || []}}" },
+        { "name": "Table_Settlements", "type": "Table", "data": "{{getFinanceSettlements.data?.items || []}}" },
+        { "name": "Table_Countries", "type": "Table", "data": "{{getFinanceCountries.data?.items || []}}" }
+      ],
+      "queries": [
+        {
+          "name": "getFinanceOverview",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/overview?range=${Select_FinanceRange.selectedOptionValue || 'month'}${Select_FinanceCountry.selectedOptionValue ? `&country=${Select_FinanceCountry.selectedOptionValue}` : ''}${Select_FinanceDirection.selectedOptionValue ? `&direction=${Select_FinanceDirection.selectedOptionValue}` : ''}`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        },
+        {
+          "name": "getFinanceDebtors",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/debtors?limit=20${Select_FinanceCountry.selectedOptionValue ? `&country=${Select_FinanceCountry.selectedOptionValue}` : ''}&sortBy=currentDebt&sortDir=desc`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        },
+        {
+          "name": "getFinanceSettlements",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/settlements?range=${Select_FinanceRange.selectedOptionValue || 'month'}${Select_FinanceCountry.selectedOptionValue ? `&country=${Select_FinanceCountry.selectedOptionValue}` : ''}`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        },
+        {
+          "name": "getFinanceCountries",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/countries?range=${Select_FinanceRange.selectedOptionValue || 'month'}`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        },
+        {
+          "name": "getFinanceRevenueSeries",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/revenue-series?range=${Select_FinanceRange.selectedOptionValue || 'month'}&granularity=day${Select_FinanceCountry.selectedOptionValue ? `&country=${Select_FinanceCountry.selectedOptionValue}` : ''}${Select_FinanceDirection.selectedOptionValue ? `&direction=${Select_FinanceDirection.selectedOptionValue}` : ''}`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        },
+        {
+          "name": "getFinanceDebtAging",
+          "kind": "REST",
+          "method": "GET",
+          "url": "{{`${appsmith.store.apiBase || 'https://api.iway.one/api'}/finance/debt-aging${Select_FinanceCountry.selectedOptionValue ? `?country=${Select_FinanceCountry.selectedOptionValue}` : ''}`}}",
+          "headers": { "Authorization": "{{`Bearer ${appsmith.store.jwt}`}}" }
+        }
+      ],
+      "jsObjects": [
+        {
+          "name": "FinanceDashboardFinalActions",
+          "code": "export default { async refreshAll() { await getFinanceOverview.run(); await getFinanceDebtors.run(); await getFinanceSettlements.run(); await getFinanceCountries.run(); await getFinanceRevenueSeries.run(); await getFinanceDebtAging.run(); } }"
+        }
+      ]
+    },
+    {
+      "name": "TravelersReview",
+      "purpose": "Traveler review queue",
+      "sourceDoc": "APPSMITH_TRAVELERS_REVIEW_PAGE.md"
+    },
+    {
+      "name": "TransfersReview",
+      "purpose": "Transfers review queue",
+      "sourceDoc": "APPSMITH_TRANSFERS_REVIEW_PAGE.md"
+    },
+    {
+      "name": "Shipments",
+      "purpose": "Shipment list",
+      "sourceDoc": "APPSMITH_SHIPMENTS_PAGE.md"
+    },
+    {
+      "name": "ShipmentDetail",
+      "purpose": "Shipment detail",
+      "sourceDoc": "APPSMITH_SHIPMENT_DETAIL_PAGE.md"
+    },
+    {
+      "name": "Disputes",
+      "purpose": "Dispute resolution",
+      "sourceDoc": "APPSMITH_DISPUTES_PAGE.md"
+    },
+    {
+      "name": "AntiFraud",
+      "purpose": "Anti-fraud review queue",
+      "sourceDoc": "APPSMITH_ANTI_FRAUD_PAGE.md"
+    },
+    {
+      "name": "Ledger",
+      "purpose": "Traveler ledger and adjustments",
+      "sourceDoc": "APPSMITH_LEDGER_PAGE.md"
+    },
+    {
+      "name": "Pricing",
+      "purpose": "Commission settings",
+      "sourceDoc": "APPSMITH_PRICING_PAGE.md"
+    },
+    {
+      "name": "AdminCollaborators",
+      "purpose": "Collaborator user management",
+      "sourceDoc": "APPSMITH_ADMIN_COLLABORATORS_PAGE.md"
+    },
+    {
+      "name": "FinanceSettlements",
+      "purpose": "Settlement finance page",
+      "sourceDoc": "APPSMITH_FINANCE_SETTLEMENTS_V1.md"
+    },
+    {
+      "name": "FinanceCountries",
+      "purpose": "Country finance page",
+      "sourceDoc": "APPSMITH_FINANCE_COUNTRIES_V1.md"
+    },
+    {
+      "name": "FinanceRevenueSeries",
+      "purpose": "Revenue series page",
+      "sourceDoc": "APPSMITH_FINANCE_REVENUE_SERIES_V1.md"
+    },
+    {
+      "name": "FinanceDebtAging",
+      "purpose": "Debt aging page",
+      "sourceDoc": "APPSMITH_FINANCE_DEBT_AGING_V1.md"
+    }
+  ]
+}
