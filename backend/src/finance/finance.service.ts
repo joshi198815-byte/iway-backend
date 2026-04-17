@@ -34,6 +34,15 @@ type CountriesParams = {
   to?: string;
 };
 
+type RevenueSeriesParams = {
+  range?: string;
+  from?: string;
+  to?: string;
+  granularity?: string;
+  country?: string;
+  direction?: string;
+};
+
 @Injectable()
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -96,6 +105,36 @@ export class FinanceService {
         end.setUTCHours(23, 59, 59, 999);
         return { range: 'today', from: start, to: end };
     }
+  }
+
+  private normalizeGranularity(granularity?: string) {
+    if (granularity === 'week' || granularity === 'month') {
+      return granularity;
+    }
+
+    return 'day';
+  }
+
+  private getBucketLabel(date: Date, granularity: string) {
+    const year = date.getUTCFullYear();
+    const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getUTCDate()}`.padStart(2, '0');
+
+    if (granularity === 'month') {
+      return `${year}-${month}`;
+    }
+
+    if (granularity === 'week') {
+      const start = new Date(date);
+      const weekday = start.getUTCDay() || 7;
+      start.setUTCDate(start.getUTCDate() - weekday + 1);
+      const wYear = start.getUTCFullYear();
+      const wMonth = `${start.getUTCMonth() + 1}`.padStart(2, '0');
+      const wDay = `${start.getUTCDate()}`.padStart(2, '0');
+      return `${wYear}-${wMonth}-${wDay}`;
+    }
+
+    return `${year}-${month}-${day}`;
   }
 
   async getOverview(params: OverviewParams) {
@@ -252,6 +291,80 @@ export class FinanceService {
       pendingTransfersAmount: Number(pendingTransfersAgg._sum.transferredAmount ?? 0),
       approvedTransfersAmount: Number(approvedTransfersAgg._sum.transferredAmount ?? 0),
       rejectedTransfersAmount: Number(rejectedTransfersAgg._sum.transferredAmount ?? 0),
+    };
+  }
+
+  async getRevenueSeries(params: RevenueSeriesParams) {
+    const country = this.normalizeCountry(params.country);
+    const direction = this.normalizeDirection(params.direction);
+    const granularity = this.normalizeGranularity(params.granularity);
+    const dateRange = this.getDateRange(params.range, params.from, params.to);
+
+    const commissions = await this.prisma.travelerCommission.findMany({
+      where: {
+        generatedAt: {
+          gte: dateRange.from,
+          lte: dateRange.to,
+        },
+        ...(country || direction
+          ? {
+              shipment: {
+                ...(country
+                  ? {
+                      OR: [
+                        { originCountryCode: country },
+                        { destinationCountryCode: country },
+                      ],
+                    }
+                  : {}),
+                ...(direction ? { direction } : {}),
+              },
+            }
+          : {}),
+      },
+      select: {
+        generatedAt: true,
+        commissionAmount: true,
+        status: true,
+      },
+      orderBy: { generatedAt: 'asc' },
+    });
+
+    const buckets = new Map<string, { bucket: string; grossCommission: number; commissionCollected: number; newDebt: number }>();
+
+    for (const commission of commissions) {
+      const bucket = this.getBucketLabel(commission.generatedAt, granularity);
+      if (!buckets.has(bucket)) {
+        buckets.set(bucket, {
+          bucket,
+          grossCommission: 0,
+          commissionCollected: 0,
+          newDebt: 0,
+        });
+      }
+
+      const entry = buckets.get(bucket)!;
+      const amount = Number(commission.commissionAmount);
+      entry.grossCommission += amount;
+      if (commission.status === CommissionStatus.paid) {
+        entry.commissionCollected += amount;
+      }
+    }
+
+    for (const item of buckets.values()) {
+      item.newDebt = Math.max(0, item.grossCommission - item.commissionCollected);
+    }
+
+    return {
+      range: dateRange.range,
+      from: dateRange.from,
+      to: dateRange.to,
+      granularity,
+      filters: {
+        country: country ?? null,
+        direction: direction ?? null,
+      },
+      points: [...buckets.values()],
     };
   }
 

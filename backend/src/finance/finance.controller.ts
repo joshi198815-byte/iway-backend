@@ -78,4 +78,21 @@ export class FinanceController {
 
     return this.financeService.getCountries({ range, from, to });
   }
+
+  @Get('revenue-series')
+  getRevenueSeries(
+    @Query('range') range: string | undefined,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @Query('granularity') granularity: string | undefined,
+    @Query('country') country: string | undefined,
+    @Query('direction') direction: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!['admin', 'support'].includes(req.user.role)) {
+      throw new ForbiddenException('Solo admin o soporte puede ver series de ingresos.');
+    }
+
+    return this.financeService.getRevenueSeries({ range, from, to, granularity, country, direction });
+  }
 }
