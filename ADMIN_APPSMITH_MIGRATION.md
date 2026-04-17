@@ -157,7 +157,15 @@ Body:
 
 ### Important note on document/selfie preview
 Evidence URLs are protected and require `Authorization` header.
-If Appsmith image widgets cannot attach auth headers cleanly, use a JSObject fetch wrapper or a small proxy layer.
+To make this easier for Appsmith, the backend now exposes an admin-friendly preview endpoint:
+- `GET /api/storage/file-preview/:bucket/:ownerId/:fileName`
+
+Response includes:
+- `contentType`
+- `sizeBytes`
+- `dataUrl`
+
+Bind `dataUrl` directly to the Image widget when you need to preview KYC/selfie/package evidence without relying on browser-level auth headers.
 
 ---
 

@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
-import { access, mkdir, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { constants as fsConstants } from 'node:fs';
 import { PrismaService } from '../database/prisma/prisma.service';
@@ -143,5 +143,44 @@ export class StorageService {
     }
 
     return absolutePath;
+  }
+
+  async getProtectedFilePreview(params: {
+    bucket: string;
+    ownerId: string;
+    fileName: string;
+    requesterId: string;
+    requesterRole?: string;
+  }) {
+    const absolutePath = await this.resolveProtectedFile(params);
+    const buffer = await readFile(absolutePath);
+
+    const uploadedFile = await this.prisma.uploadedFile.findFirst({
+      where: {
+        bucket: params.bucket,
+        ownerId: params.ownerId,
+        fileName: params.fileName,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const contentType = uploadedFile?.contentType ?? this.inferContentType(params.fileName);
+
+    return {
+      bucket: params.bucket,
+      ownerId: params.ownerId,
+      fileName: params.fileName,
+      contentType,
+      sizeBytes: buffer.byteLength,
+      dataUrl: `data:${contentType};base64,${buffer.toString('base64')}`,
+    };
+  }
+
+  private inferContentType(fileName: string) {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    return 'image/jpeg';
   }
 }

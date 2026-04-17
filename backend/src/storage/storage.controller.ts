@@ -50,4 +50,24 @@ export class StorageController {
 
     return res.sendFile(absolutePath);
   }
+
+  @Get('file-preview/:bucket/:ownerId/:fileName')
+  async getProtectedFilePreview(
+    @Param('bucket') bucket: string,
+    @Param('ownerId') ownerId: string,
+    @Param('fileName') fileName: string,
+    @Req() req: any,
+  ) {
+    if (!['admin', 'support'].includes(req.user.role)) {
+      throw new ForbiddenException('Solo admin o soporte puede previsualizar archivos protegidos en JSON.');
+    }
+
+    return this.storageService.getProtectedFilePreview({
+      bucket,
+      ownerId,
+      fileName,
+      requesterId: req.user.sub,
+      requesterRole: req.user.role,
+    });
+  }
 }

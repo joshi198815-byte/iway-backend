@@ -32,6 +32,7 @@ Set at minimum:
 - `JWT_SECRET` long random value
 - Firebase keys if push will run in production
 - `CORS_ORIGIN` to your real app domain, avoid `*` in production (for iway.one, use `https://iway.one`)
+- `CORS_ORIGINS` if you need multiple browser origins, for example Appsmith plus the main app: `https://iway.one,https://appsmith.tudominio.com`
 - `APP_BASE_URL` to your API domain (for this deploy, use `https://api.iway.one`)
 
 ## 2. Apply schema safely
@@ -84,6 +85,13 @@ Use the provided Nginx references:
 - `deploy/nginx/iway.staging.conf`
 
 Terminate TLS at the proxy and pass `/api` plus websocket traffic to the backend container.
+
+### Appsmith-specific note
+If Appsmith runs on a different origin, add that origin to `CORS_ORIGINS`.
+For protected KYC/shipment evidence previews in browser-admin flows, the backend now exposes:
+- `GET /api/storage/file-preview/:bucket/:ownerId/:fileName`
+
+This endpoint is restricted to `admin` and `support` and returns a JSON payload with a `dataUrl` field that Appsmith can bind directly into an image widget.
 
 ## 9. Rollback
 Keep the previous backend image tag available and run:
