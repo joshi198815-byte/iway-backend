@@ -48,4 +48,20 @@ export class FinanceController {
       sortDir,
     });
   }
+
+  @Get('settlements')
+  getSettlements(
+    @Query('range') range: string | undefined,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @Query('country') country: string | undefined,
+    @Query('status') status: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!['admin', 'support'].includes(req.user.role)) {
+      throw new ForbiddenException('Solo admin o soporte puede ver liquidaciones.');
+    }
+
+    return this.financeService.getSettlements({ range, from, to, country, status });
+  }
 }

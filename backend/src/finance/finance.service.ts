@@ -20,6 +20,14 @@ type DebtorsParams = {
   sortDir?: string;
 };
 
+type SettlementsParams = {
+  range?: string;
+  from?: string;
+  to?: string;
+  country?: string;
+  status?: string;
+};
+
 @Injectable()
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -238,6 +246,124 @@ export class FinanceService {
       pendingTransfersAmount: Number(pendingTransfersAgg._sum.transferredAmount ?? 0),
       approvedTransfersAmount: Number(approvedTransfersAgg._sum.transferredAmount ?? 0),
       rejectedTransfersAmount: Number(rejectedTransfersAgg._sum.transferredAmount ?? 0),
+    };
+  }
+
+  async getSettlements(params: SettlementsParams) {
+    const country = this.normalizeCountry(params.country);
+    const dateRange = this.getDateRange(params.range, params.from, params.to);
+    const status = [TransferStatus.submitted, TransferStatus.approved, TransferStatus.rejected].includes(
+      params.status as TransferStatus,
+    )
+      ? (params.status as TransferStatus)
+      : undefined;
+
+    const baseWhere = {
+      createdAt: {
+        gte: dateRange.from,
+        lte: dateRange.to,
+      },
+      ...(country
+        ? {
+            traveler: {
+              OR: [{ countryCode: country }, { detectedCountryCode: country }],
+            },
+          }
+        : {}),
+      ...(status ? { status } : {}),
+    };
+
+    const [submittedCount, approvedCount, rejectedCount, submittedAmountAgg, approvedAmountAgg, rejectedAmountAgg, items] =
+      await Promise.all([
+        this.prisma.transferPayment.count({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.submitted,
+          },
+        }),
+        this.prisma.transferPayment.count({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.approved,
+          },
+        }),
+        this.prisma.transferPayment.count({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.rejected,
+          },
+        }),
+        this.prisma.transferPayment.aggregate({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.submitted,
+          },
+          _sum: { transferredAmount: true },
+        }),
+        this.prisma.transferPayment.aggregate({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.approved,
+          },
+          _sum: { transferredAmount: true },
+        }),
+        this.prisma.transferPayment.aggregate({
+          where: {
+            ...baseWhere,
+            status: TransferStatus.rejected,
+          },
+          _sum: { transferredAmount: true },
+        }),
+        this.prisma.transferPayment.findMany({
+          where: baseWhere,
+          include: {
+            traveler: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phone: true,
+                countryCode: true,
+                detectedCountryCode: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 100,
+        }),
+      ]);
+
+    return {
+      range: dateRange.range,
+      from: dateRange.from,
+      to: dateRange.to,
+      filters: {
+        country: country ?? null,
+        status: status ?? null,
+      },
+      summary: {
+        submittedCount,
+        approvedCount,
+        rejectedCount,
+        submittedAmount: Number(submittedAmountAgg._sum.transferredAmount ?? 0),
+        approvedAmount: Number(approvedAmountAgg._sum.transferredAmount ?? 0),
+        rejectedAmount: Number(rejectedAmountAgg._sum.transferredAmount ?? 0),
+      },
+      items: items.map((item) => ({
+        transferId: item.id,
+        travelerId: item.travelerId,
+        travelerName: item.traveler.fullName,
+        travelerEmail: item.traveler.email,
+        travelerPhone: item.traveler.phone,
+        country: item.traveler.detectedCountryCode ?? item.traveler.countryCode ?? null,
+        status: item.status,
+        transferredAmount: Number(item.transferredAmount),
+        bankReference: item.bankReference,
+        weeklySettlementId: item.weeklySettlementId,
+        reviewedBy: item.reviewedBy,
+        reviewedAt: item.reviewedAt,
+        createdAt: item.createdAt,
+      })),
     };
   }
 
