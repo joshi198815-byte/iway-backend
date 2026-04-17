@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: iway-admin-web
+    runtime: node
+    rootDir: admin-web
+    plan: starter
+    buildCommand: npm install --no-fund --no-audit && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NEXT_PUBLIC_API_BASE_URL
+        value: https://api.iway.one/api
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000

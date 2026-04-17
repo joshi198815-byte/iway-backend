@@ -61,6 +61,7 @@ Requiere `API_BASE_URL`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el entorno. Más de
 - `.env.production.example`
 - `deploy/nginx/admin.iway.one.conf`
 - guía en `DEPLOYMENT.md`
+- opción Render en `render.yaml` y `RENDER_DEPLOY.md`
 
 ## Nota
 
