@@ -106,7 +106,7 @@ class NetworkDiagnostic {
       'email': 'traveler_diag_${DateTime.now().millisecondsSinceEpoch}@example.com',
       'phone': '55555555',
       'password': 'diag1234',
-      'travelerType': 'frecuente',
+      'travelerType': 'avion_ida_vuelta',
       'documentNumber': 'DIAG-${DateTime.now().millisecondsSinceEpoch}',
       'countryCode': 'GT',
       'detectedCountryCode': 'GT',
