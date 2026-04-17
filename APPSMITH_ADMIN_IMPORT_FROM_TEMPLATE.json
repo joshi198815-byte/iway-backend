@@ -1,0 +1,213 @@
+{
+  "artifactJsonType": "APPLICATION",
+  "clientSchemaVersion": 2,
+  "serverSchemaVersion": 12,
+  "exportedApplication": {
+    "name": "iWay Admin",
+    "isPublic": false,
+    "pages": [
+      { "id": "Login", "isDefault": true },
+      { "id": "Dashboard", "isDefault": false },
+      { "id": "FinanceDashboard", "isDefault": false },
+      { "id": "TravelersReview", "isDefault": false },
+      { "id": "TransfersReview", "isDefault": false },
+      { "id": "Shipments", "isDefault": false },
+      { "id": "ShipmentDetail", "isDefault": false },
+      { "id": "Disputes", "isDefault": false },
+      { "id": "AntiFraud", "isDefault": false },
+      { "id": "Ledger", "isDefault": false },
+      { "id": "Pricing", "isDefault": false },
+      { "id": "AdminCollaborators", "isDefault": false },
+      { "id": "FinanceSettlements", "isDefault": false },
+      { "id": "FinanceCountries", "isDefault": false },
+      { "id": "FinanceRevenueSeries", "isDefault": false },
+      { "id": "FinanceDebtAging", "isDefault": false }
+    ],
+    "publishedPages": [
+      { "id": "Login", "isDefault": true },
+      { "id": "Dashboard", "isDefault": false },
+      { "id": "FinanceDashboard", "isDefault": false },
+      { "id": "TravelersReview", "isDefault": false },
+      { "id": "TransfersReview", "isDefault": false },
+      { "id": "Shipments", "isDefault": false },
+      { "id": "ShipmentDetail", "isDefault": false },
+      { "id": "Disputes", "isDefault": false },
+      { "id": "AntiFraud", "isDefault": false },
+      { "id": "Ledger", "isDefault": false },
+      { "id": "Pricing", "isDefault": false },
+      { "id": "AdminCollaborators", "isDefault": false },
+      { "id": "FinanceSettlements", "isDefault": false },
+      { "id": "FinanceCountries", "isDefault": false },
+      { "id": "FinanceRevenueSeries", "isDefault": false },
+      { "id": "FinanceDebtAging", "isDefault": false }
+    ],
+    "viewMode": false,
+    "appIsExample": false,
+    "unreadCommentThreads": 0,
+    "color": "#FFEBFB",
+    "slug": "iway-admin",
+    "unpublishedCustomJSLibs": [],
+    "publishedCustomJSLibs": [],
+    "evaluationVersion": 2,
+    "applicationVersion": 2,
+    "collapseInvisibleWidgets": true,
+    "isManualUpdate": false,
+    "deleted": false
+  },
+  "datasourceList": [],
+  "customJSLibList": [],
+  "pageList": [
+    {
+      "unpublishedPage": {
+        "name": "Login",
+        "slug": "login",
+        "layouts": [
+          {
+            "viewMode": false,
+            "dsl": {
+              "widgetName": "MainContainer",
+              "backgroundColor": "none",
+              "rightColumn": 1224,
+              "snapColumns": 16,
+              "detachFromLayout": true,
+              "widgetId": "0",
+              "topRow": 0,
+              "bottomRow": 1250,
+              "containerStyle": "none",
+              "snapRows": 33,
+              "parentRowSpace": 1,
+              "type": "CANVAS_WIDGET",
+              "canExtend": true,
+              "version": 4,
+              "minHeight": 1292,
+              "dynamicTriggerPathList": [],
+              "parentColumnSpace": 1,
+              "dynamicBindingPathList": [],
+              "leftColumn": 0,
+              "children": [
+                { "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "login_text_1", "text": "iWay Admin", "topRow": 4, "bottomRow": 9, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_Email", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_1", "label": "Correo", "topRow": 12, "bottomRow": 19, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_Password", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_2", "label": "Contraseña", "inputType": "PASSWORD", "topRow": 21, "bottomRow": 28, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_ApiBase", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_3", "label": "API Base", "defaultText": "https://api.iway.one/api", "topRow": 30, "bottomRow": 37, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Button_Login", "type": "BUTTON_WIDGET", "widgetId": "login_button_1", "text": "Entrar", "topRow": 40, "bottomRow": 46, "leftColumn": 6, "rightColumn": 10, "version": 1 }
+              ]
+            },
+            "validOnPageLoadActions": true,
+            "id": "Login",
+            "deleted": false,
+            "policies": [],
+            "userPermissions": []
+          }
+        ],
+        "userPermissions": [],
+        "policyMap": {}
+      },
+      "publishedPage": {
+        "name": "Login",
+        "slug": "login",
+        "layouts": [
+          {
+            "viewMode": false,
+            "dsl": {
+              "widgetName": "MainContainer",
+              "backgroundColor": "none",
+              "rightColumn": 1224,
+              "snapColumns": 16,
+              "detachFromLayout": true,
+              "widgetId": "0",
+              "topRow": 0,
+              "bottomRow": 1250,
+              "containerStyle": "none",
+              "snapRows": 33,
+              "parentRowSpace": 1,
+              "type": "CANVAS_WIDGET",
+              "canExtend": true,
+              "version": 4,
+              "minHeight": 1292,
+              "dynamicTriggerPathList": [],
+              "parentColumnSpace": 1,
+              "dynamicBindingPathList": [],
+              "leftColumn": 0,
+              "children": [
+                { "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "login_text_1", "text": "iWay Admin", "topRow": 4, "bottomRow": 9, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_Email", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_1", "label": "Correo", "topRow": 12, "bottomRow": 19, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_Password", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_2", "label": "Contraseña", "inputType": "PASSWORD", "topRow": 21, "bottomRow": 28, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Input_ApiBase", "type": "INPUT_WIDGET_V2", "widgetId": "login_input_3", "label": "API Base", "defaultText": "https://api.iway.one/api", "topRow": 30, "bottomRow": 37, "leftColumn": 3, "rightColumn": 13, "version": 1 },
+                { "widgetName": "Button_Login", "type": "BUTTON_WIDGET", "widgetId": "login_button_1", "text": "Entrar", "topRow": 40, "bottomRow": 46, "leftColumn": 6, "rightColumn": 10, "version": 1 }
+              ]
+            },
+            "validOnPageLoadActions": true,
+            "id": "Login",
+            "deleted": false,
+            "policies": [],
+            "userPermissions": []
+          }
+        ],
+        "userPermissions": [],
+        "policyMap": {}
+      },
+      "gitSyncId": "template_login",
+      "deleted": false
+    },
+    {
+      "unpublishedPage": {
+        "name": "Dashboard",
+        "slug": "dashboard",
+        "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [
+          { "widgetName": "Text_DashboardTitle", "type": "TEXT_WIDGET", "widgetId": "dashboard_text_1", "text": "Dashboard", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 },
+          { "widgetName": "Button_Finance", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_1", "text": "Finance", "topRow": 14, "bottomRow": 20, "leftColumn": 2, "rightColumn": 6, "version": 1 },
+          { "widgetName": "Button_Travelers", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_2", "text": "Travelers Review", "topRow": 14, "bottomRow": 20, "leftColumn": 7, "rightColumn": 12, "version": 1 },
+          { "widgetName": "Button_Transfers", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_3", "text": "Transfers Review", "topRow": 22, "bottomRow": 28, "leftColumn": 2, "rightColumn": 6, "version": 1 },
+          { "widgetName": "Button_Shipments", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_4", "text": "Shipments", "topRow": 22, "bottomRow": 28, "leftColumn": 7, "rightColumn": 12, "version": 1 }
+        ] }, "validOnPageLoadActions": true, "id": "Dashboard", "deleted": false, "policies": [], "userPermissions": [] }],
+        "userPermissions": [], "policyMap": {}
+      },
+      "publishedPage": { "name": "Dashboard", "slug": "dashboard", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [
+          { "widgetName": "Text_DashboardTitle", "type": "TEXT_WIDGET", "widgetId": "dashboard_text_1", "text": "Dashboard", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 },
+          { "widgetName": "Button_Finance", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_1", "text": "Finance", "topRow": 14, "bottomRow": 20, "leftColumn": 2, "rightColumn": 6, "version": 1 },
+          { "widgetName": "Button_Travelers", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_2", "text": "Travelers Review", "topRow": 14, "bottomRow": 20, "leftColumn": 7, "rightColumn": 12, "version": 1 },
+          { "widgetName": "Button_Transfers", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_3", "text": "Transfers Review", "topRow": 22, "bottomRow": 28, "leftColumn": 2, "rightColumn": 6, "version": 1 },
+          { "widgetName": "Button_Shipments", "type": "BUTTON_WIDGET", "widgetId": "dashboard_btn_4", "text": "Shipments", "topRow": 22, "bottomRow": 28, "leftColumn": 7, "rightColumn": 12, "version": 1 }
+        ] }, "validOnPageLoadActions": true, "id": "Dashboard", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} },
+      "gitSyncId": "template_dashboard",
+      "deleted": false
+    },
+    {
+      "unpublishedPage": { "name": "FinanceDashboard", "slug": "financedashboard", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [
+        { "widgetName": "Text_FinanceTitle", "type": "TEXT_WIDGET", "widgetId": "finance_text_1", "text": "Finance Dashboard", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 },
+        { "widgetName": "Select_FinanceRange", "type": "SELECT_WIDGET", "widgetId": "finance_select_1", "topRow": 12, "bottomRow": 18, "leftColumn": 2, "rightColumn": 5, "version": 1 },
+        { "widgetName": "Select_FinanceCountry", "type": "SELECT_WIDGET", "widgetId": "finance_select_2", "topRow": 12, "bottomRow": 18, "leftColumn": 6, "rightColumn": 9, "version": 1 },
+        { "widgetName": "Button_RefreshFinance", "type": "BUTTON_WIDGET", "widgetId": "finance_btn_1", "text": "Refresh", "topRow": 12, "bottomRow": 18, "leftColumn": 10, "rightColumn": 13, "version": 1 },
+        { "widgetName": "Table_Debtors", "type": "TABLE_WIDGET_V2", "widgetId": "finance_table_1", "topRow": 24, "bottomRow": 40, "leftColumn": 1, "rightColumn": 15, "version": 1 },
+        { "widgetName": "Table_Settlements", "type": "TABLE_WIDGET_V2", "widgetId": "finance_table_2", "topRow": 42, "bottomRow": 58, "leftColumn": 1, "rightColumn": 15, "version": 1 }
+      ] }, "validOnPageLoadActions": true, "id": "FinanceDashboard", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} },
+      "publishedPage": { "name": "FinanceDashboard", "slug": "financedashboard", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [
+        { "widgetName": "Text_FinanceTitle", "type": "TEXT_WIDGET", "widgetId": "finance_text_1", "text": "Finance Dashboard", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 },
+        { "widgetName": "Select_FinanceRange", "type": "SELECT_WIDGET", "widgetId": "finance_select_1", "topRow": 12, "bottomRow": 18, "leftColumn": 2, "rightColumn": 5, "version": 1 },
+        { "widgetName": "Select_FinanceCountry", "type": "SELECT_WIDGET", "widgetId": "finance_select_2", "topRow": 12, "bottomRow": 18, "leftColumn": 6, "rightColumn": 9, "version": 1 },
+        { "widgetName": "Button_RefreshFinance", "type": "BUTTON_WIDGET", "widgetId": "finance_btn_1", "text": "Refresh", "topRow": 12, "bottomRow": 18, "leftColumn": 10, "rightColumn": 13, "version": 1 },
+        { "widgetName": "Table_Debtors", "type": "TABLE_WIDGET_V2", "widgetId": "finance_table_1", "topRow": 24, "bottomRow": 40, "leftColumn": 1, "rightColumn": 15, "version": 1 },
+        { "widgetName": "Table_Settlements", "type": "TABLE_WIDGET_V2", "widgetId": "finance_table_2", "topRow": 42, "bottomRow": 58, "leftColumn": 1, "rightColumn": 15, "version": 1 }
+      ] }, "validOnPageLoadActions": true, "id": "FinanceDashboard", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} },
+      "gitSyncId": "template_finance",
+      "deleted": false
+    },
+    { "unpublishedPage": { "name": "TravelersReview", "slug": "travelersreview", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "tr_title", "text": "Travelers Review", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "TravelersReview", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "TravelersReview", "slug": "travelersreview", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "tr_title", "text": "Travelers Review", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "TravelersReview", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_travelers", "deleted": false },
+    { "unpublishedPage": { "name": "TransfersReview", "slug": "transfersreview", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "tf_title", "text": "Transfers Review", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "TransfersReview", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "TransfersReview", "slug": "transfersreview", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "tf_title", "text": "Transfers Review", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "TransfersReview", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_transfers", "deleted": false },
+    { "unpublishedPage": { "name": "Shipments", "slug": "shipments", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "sh_title", "text": "Shipments", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Shipments", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "Shipments", "slug": "shipments", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "sh_title", "text": "Shipments", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Shipments", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_shipments", "deleted": false },
+    { "unpublishedPage": { "name": "ShipmentDetail", "slug": "shipmentdetail", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "sd_title", "text": "Shipment Detail", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "ShipmentDetail", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "ShipmentDetail", "slug": "shipmentdetail", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "sd_title", "text": "Shipment Detail", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "ShipmentDetail", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_shipment_detail", "deleted": false },
+    { "unpublishedPage": { "name": "Disputes", "slug": "disputes", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "dp_title", "text": "Disputes", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Disputes", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "Disputes", "slug": "disputes", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "dp_title", "text": "Disputes", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Disputes", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_disputes", "deleted": false },
+    { "unpublishedPage": { "name": "AntiFraud", "slug": "antifraud", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "af_title", "text": "Anti-Fraud", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "AntiFraud", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "AntiFraud", "slug": "antifraud", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "af_title", "text": "Anti-Fraud", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "AntiFraud", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_anti_fraud", "deleted": false },
+    { "unpublishedPage": { "name": "Ledger", "slug": "ledger", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "lg_title", "text": "Ledger", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Ledger", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "Ledger", "slug": "ledger", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "lg_title", "text": "Ledger", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Ledger", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_ledger", "deleted": false },
+    { "unpublishedPage": { "name": "Pricing", "slug": "pricing", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "pr_title", "text": "Pricing", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Pricing", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "Pricing", "slug": "pricing", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "pr_title", "text": "Pricing", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 8, "version": 1 }] }, "validOnPageLoadActions": true, "id": "Pricing", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_pricing", "deleted": false },
+    { "unpublishedPage": { "name": "AdminCollaborators", "slug": "admincollaborators", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "ac_title", "text": "Admin Collaborators", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "AdminCollaborators", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "AdminCollaborators", "slug": "admincollaborators", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "ac_title", "text": "Admin Collaborators", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "AdminCollaborators", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_admin_collab", "deleted": false },
+    { "unpublishedPage": { "name": "FinanceSettlements", "slug": "financesettlements", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fs_title", "text": "Finance Settlements", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceSettlements", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "FinanceSettlements", "slug": "financesettlements", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fs_title", "text": "Finance Settlements", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceSettlements", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_finance_settlements", "deleted": false },
+    { "unpublishedPage": { "name": "FinanceCountries", "slug": "financecountries", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fc_title", "text": "Finance Countries", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceCountries", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "FinanceCountries", "slug": "financecountries", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fc_title", "text": "Finance Countries", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceCountries", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_finance_countries", "deleted": false },
+    { "unpublishedPage": { "name": "FinanceRevenueSeries", "slug": "financerevenueseries", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fr_title", "text": "Finance Revenue Series", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 11, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceRevenueSeries", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "FinanceRevenueSeries", "slug": "financerevenueseries", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fr_title", "text": "Finance Revenue Series", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 11, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceRevenueSeries", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_finance_revenue", "deleted": false },
+    { "unpublishedPage": { "name": "FinanceDebtAging", "slug": "financedebtaging", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fd_title", "text": "Finance Debt Aging", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceDebtAging", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "publishedPage": { "name": "FinanceDebtAging", "slug": "financedebtaging", "layouts": [{ "viewMode": false, "dsl": { "widgetName": "MainContainer", "backgroundColor": "none", "rightColumn": 1224, "snapColumns": 16, "detachFromLayout": true, "widgetId": "0", "topRow": 0, "bottomRow": 1250, "containerStyle": "none", "snapRows": 33, "parentRowSpace": 1, "type": "CANVAS_WIDGET", "canExtend": true, "version": 4, "minHeight": 1292, "dynamicTriggerPathList": [], "parentColumnSpace": 1, "dynamicBindingPathList": [], "leftColumn": 0, "children": [{ "widgetName": "Text_Title", "type": "TEXT_WIDGET", "widgetId": "fd_title", "text": "Finance Debt Aging", "topRow": 4, "bottomRow": 9, "leftColumn": 2, "rightColumn": 10, "version": 1 }] }, "validOnPageLoadActions": true, "id": "FinanceDebtAging", "deleted": false, "policies": [], "userPermissions": [] }], "userPermissions": [], "policyMap": {} }, "gitSyncId": "template_finance_aging", "deleted": false }
+  ],
+  "actionList": [],
+  "actionCollectionList": [],
+  "editModeTheme": { "name": "Default-New", "displayName": "Modern", "isSystemTheme": true, "deleted": false },
+  "publishedTheme": { "name": "Default-New", "displayName": "Modern", "isSystemTheme": true, "deleted": false }
+}
