@@ -11,6 +11,21 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const corsOriginEnv = process.env.CORS_ORIGINS?.trim();
+  const corsOrigins = corsOriginEnv
+    ? corsOriginEnv
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    : true;
+
+  app.enableCors({
+    origin: corsOrigins,
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  });
+
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ extended: true, limit: '50mb' }));
   app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
