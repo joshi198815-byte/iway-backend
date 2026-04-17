@@ -43,6 +43,10 @@ type RevenueSeriesParams = {
   direction?: string;
 };
 
+type DebtAgingParams = {
+  country?: string;
+};
+
 @Injectable()
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -135,6 +139,65 @@ export class FinanceService {
     }
 
     return `${year}-${month}-${day}`;
+  }
+
+  async getDebtAging(params: DebtAgingParams) {
+    const country = this.normalizeCountry(params.country);
+    const now = new Date();
+
+    const commissions = await this.prisma.travelerCommission.findMany({
+      where: {
+        status: {
+          in: [CommissionStatus.pending, CommissionStatus.due, CommissionStatus.overdue],
+        },
+        dueDate: {
+          not: null,
+          lt: now,
+        },
+        ...(country
+          ? {
+              traveler: {
+                OR: [{ countryCode: country }, { detectedCountryCode: country }],
+              },
+            }
+          : {}),
+      },
+      select: {
+        travelerId: true,
+        commissionAmount: true,
+        dueDate: true,
+      },
+    });
+
+    const buckets = [
+      { label: '0-7', min: 0, max: 7, amount: 0, travelers: new Set<string>() },
+      { label: '8-30', min: 8, max: 30, amount: 0, travelers: new Set<string>() },
+      { label: '31-60', min: 31, max: 60, amount: 0, travelers: new Set<string>() },
+      { label: '61+', min: 61, max: Number.POSITIVE_INFINITY, amount: 0, travelers: new Set<string>() },
+    ];
+
+    for (const commission of commissions) {
+      const dueDate = commission.dueDate;
+      if (!dueDate) continue;
+      const diffMs = now.getTime() - dueDate.getTime();
+      const ageDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const bucket = buckets.find((item) => ageDays >= item.min && ageDays <= item.max);
+      if (!bucket) continue;
+
+      bucket.amount += Number(commission.commissionAmount);
+      bucket.travelers.add(commission.travelerId);
+    }
+
+    return {
+      filters: {
+        country: country ?? null,
+      },
+      buckets: buckets.map((bucket) => ({
+        label: bucket.label,
+        amount: bucket.amount,
+        travelers: bucket.travelers.size,
+      })),
+    };
   }
 
   async getOverview(params: OverviewParams) {

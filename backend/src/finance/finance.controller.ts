@@ -95,4 +95,16 @@ export class FinanceController {
 
     return this.financeService.getRevenueSeries({ range, from, to, granularity, country, direction });
   }
+
+  @Get('debt-aging')
+  getDebtAging(
+    @Query('country') country: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!['admin', 'support'].includes(req.user.role)) {
+      throw new ForbiddenException('Solo admin o soporte puede ver antigüedad de deuda.');
+    }
+
+    return this.financeService.getDebtAging({ country });
+  }
 }
