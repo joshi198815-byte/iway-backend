@@ -41,7 +41,7 @@ Queda muy cerca, pero depende de:
 Comando esperado al final:
 
 ```bash
-flutter build appbundle --release --dart-define=API_BASE_URL=https://api.tudominio.com/api --dart-define=GOOGLE_MAPS_API_KEY=TU_KEY
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.iway.one/api --dart-define=GOOGLE_MAPS_API_KEY=TU_KEY
 ```
 
 ### iOS prep

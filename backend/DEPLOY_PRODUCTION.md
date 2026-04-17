@@ -31,7 +31,8 @@ Set at minimum:
 - `POSTGRES_PASSWORD` in shell or secret manager
 - `JWT_SECRET` long random value
 - Firebase keys if push will run in production
-- `CORS_ORIGIN` to your real app domain, avoid `*` in production
+- `CORS_ORIGIN` to your real app domain, avoid `*` in production (for iway.one, use `https://iway.one`)
+- `APP_BASE_URL` to your API domain (for this deploy, use `https://api.iway.one`)
 
 ## 2. Apply schema safely
 ```bash
@@ -48,7 +49,7 @@ docker compose -f docker-compose.production.yml --env-file .env.production up -d
 ## 4. Validate
 ```bash
 npm run deploy:smoke
-npm run health:external -- https://api.example.com
+npm run health:external -- https://api.iway.one
 ```
 
 ## 5. Backup
