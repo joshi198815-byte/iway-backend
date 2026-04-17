@@ -1,16 +1,25 @@
 # iWay Admin Web
 
-Base inicial de admin web en código, hecha con Next.js, conectada al backend actual de iWay.
+Admin web principal de iWay, hecha en código con Next.js y conectada al backend actual.
+
+## Estado de la dirección técnica
+
+- **esta es la ruta principal**
+- **Appsmith ya no forma parte del plan de producto**
+- el objetivo es tener una admin durable, versionable y cómoda para operar todos los días
 
 ## Qué incluye hoy
 
 - login con `/auth/login`
 - sesión por cookies HttpOnly
 - layout protegido
-- dashboard inicial con conteos de:
-  - travelers review queue
-  - transfers review queue
-  - shipments
+- dashboard operativo
+- pantallas base de:
+  - Travelers Review
+  - Transfers Review
+  - Shipments
+  - Shipment Detail
+  - Finance Dashboard
 - fallback automático `https://api.iway.one/api` -> `https://api.iway.one`
 
 ## Variables de entorno
@@ -29,15 +38,14 @@ npm install
 npm run dev
 ```
 
-## Siguiente implementación recomendada
+## Próxima fase recomendada
 
-1. Travelers Review
-2. Transfers Review
-3. Shipments
-4. Shipment Detail
-5. Finance Dashboard
-6. Admin Collaborators
+1. validar login y payloads reales
+2. pulir tablas, filtros y estados vacíos
+3. agregar Admin Collaborators
+4. endurecer permisos por rol
+5. mejorar visualización de finanzas y charts
 
 ## Nota
 
-Esto reemplaza mejor a Appsmith si quieres una admin duradera, versionable y más cómoda de operar a diario.
+La meta ya no es migrar a una herramienta low-code. La meta es cerrar una admin web propia, mantenible y lista para operación real.

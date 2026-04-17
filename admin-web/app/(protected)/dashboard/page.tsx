@@ -1,8 +1,33 @@
-import { getReviewQueue, getShipments, getTransfersQueue } from '@/lib/api';
+import Link from 'next/link';
+import { StatCard } from '@/components/stat-card';
+import { getCollection, getShipments, getTransfersReviewQueue, getTravelersReviewQueue } from '@/lib/api';
 import { requireSession } from '@/lib/auth';
 
+const shortcuts = [
+  {
+    href: '/travelers-review',
+    title: 'Travelers Review',
+    description: 'Aprobación KYC, payout hold y revisión operativa.',
+  },
+  {
+    href: '/transfers-review',
+    title: 'Transfers Review',
+    description: 'Validación de comprobantes y decisiones de settlement.',
+  },
+  {
+    href: '/shipments',
+    title: 'Shipments',
+    description: 'Seguimiento general, filtros y cambios rápidos de estado.',
+  },
+  {
+    href: '/finance-dashboard',
+    title: 'Finance Dashboard',
+    description: 'KPIs, deuda, settlements y lectura ejecutiva.',
+  },
+];
+
 function countOf(value: unknown) {
-  return Array.isArray(value) ? value.length : 0;
+  return getCollection(value).length;
 }
 
 export default async function DashboardPage() {
@@ -10,8 +35,8 @@ export default async function DashboardPage() {
   const token = session.token as string;
 
   const [travelers, transfers, shipments] = await Promise.allSettled([
-    getReviewQueue(token),
-    getTransfersQueue(token),
+    getTravelersReviewQueue(token),
+    getTransfersReviewQueue(token),
     getShipments(token),
   ]);
 
@@ -26,35 +51,33 @@ export default async function DashboardPage() {
   return (
     <div className="grid" style={{ gap: 24 }}>
       <section className="grid cols-3">
-        <div className="card kpi">
-          <div className="label">Travelers por revisar</div>
-          <div className="value">{travelersCount}</div>
-        </div>
-        <div className="card kpi">
-          <div className="label">Transfers en cola</div>
-          <div className="value">{transfersCount}</div>
-        </div>
-        <div className="card kpi">
-          <div className="label">Shipments</div>
-          <div className="value">{shipmentsCount}</div>
+        <StatCard label="Travelers por revisar" value={String(travelersCount)} />
+        <StatCard label="Transfers en cola" value={String(transfersCount)} />
+        <StatCard label="Shipments" value={String(shipmentsCount)} />
+      </section>
+
+      {errors.length ? <section className="alert error">{errors.join(' | ')}</section> : null}
+
+      <section className="card panel">
+        <h2>Operación principal</h2>
+        <div className="grid cols-2">
+          {shortcuts.map((item) => (
+            <Link key={item.href} href={item.href} className="card panel" style={{ minHeight: 160 }}>
+              <div className="badge">Abrir</div>
+              <h3 style={{ margin: '12px 0 8px' }}>{item.title}</h3>
+              <p className="muted" style={{ margin: 0 }}>{item.description}</p>
+            </Link>
+          ))}
         </div>
       </section>
 
-      {errors.length ? (
-        <section className="alert error">
-          {errors.join(' | ')}
-        </section>
-      ) : null}
-
       <section className="card panel">
-        <h2 style={{ marginTop: 0 }}>Siguiente fase sugerida</h2>
-        <ol style={{ margin: '12px 0 0', paddingLeft: 20 }}>
-          <li>Agregar tabla real de Travelers Review</li>
-          <li>Agregar revisión de transfers con preview de evidencia</li>
-          <li>Agregar shipments y detalle</li>
-          <li>Agregar finance dashboard</li>
-          <li>Agregar gestión de colaboradores</li>
-        </ol>
+        <h2>Dirección del proyecto</h2>
+        <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <li>Esta admin web en Next.js es ahora el frente principal.</li>
+          <li>Appsmith queda descartado para la ruta de producto.</li>
+          <li>Lo siguiente es validar login y payloads reales, luego pulir UX y roles.</li>
+        </ul>
       </section>
     </div>
   );
