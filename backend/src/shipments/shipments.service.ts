@@ -156,7 +156,19 @@ export class ShipmentsService {
     });
   }
 
-  async findOne(id: string) {
+  private ensureShipmentAccess(
+    shipment: { customerId: string; assignedTravelerId: string | null },
+    requester: { sub: string; role: string },
+  ) {
+    const isPrivileged = ['admin', 'support'].includes(requester.role);
+    const isParticipant = shipment.customerId === requester.sub || shipment.assignedTravelerId === requester.sub;
+
+    if (!isPrivileged && !isParticipant) {
+      throw new ForbiddenException('No tienes acceso a este envío.');
+    }
+  }
+
+  async findOne(id: string, requester: { sub: string; role: string }) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id },
       include: {
@@ -170,11 +182,17 @@ export class ShipmentsService {
       throw new NotFoundException('Envío no encontrado.');
     }
 
+    this.ensureShipmentAccess(shipment, requester);
+
     return shipment;
   }
 
   async updateStatus(id: string, payload: UpdateShipmentStatusDto) {
-    const shipment = await this.findOne(id);
+    const shipment = await this.prisma.shipment.findUnique({ where: { id } });
+
+    if (!shipment) {
+      throw new NotFoundException('Envío no encontrado.');
+    }
 
     const updated = await this.prisma.shipment.update({
       where: { id },
@@ -198,6 +216,13 @@ export class ShipmentsService {
       await this.commissionsService.createCommissionForDeliveredShipment(updated);
     }
 
-    return this.findOne(id);
+    return this.prisma.shipment.findUnique({
+      where: { id },
+      include: {
+        offers: true,
+        events: true,
+        commission: true,
+      },
+    });
   }
 }

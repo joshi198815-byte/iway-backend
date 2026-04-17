@@ -215,6 +215,14 @@ export class OffersService {
       throw new ForbiddenException('Solo el cliente dueño del envío puede aceptar esta oferta.');
     }
 
+    if (offer.status !== OfferStatus.pending) {
+      throw new BadRequestException('Esta oferta ya no se puede aceptar.');
+    }
+
+    if (offer.shipment.assignedTravelerId) {
+      throw new BadRequestException('Este envío ya fue asignado a un viajero.');
+    }
+
     await this.prisma.$transaction([
       this.prisma.offer.updateMany({
         where: {
