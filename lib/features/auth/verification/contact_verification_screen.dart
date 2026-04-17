@@ -59,8 +59,13 @@ class _ContactVerificationScreenState extends State<ContactVerificationScreen> {
     setState(() => sendingCode = true);
     try {
       await authService.requestVerificationCode('phone');
+      final refreshedUser = await authService.refreshCurrentUser();
       if (!mounted) return;
       setState(() => sendingCode = false);
+      if (refreshedUser?.telefonoVerificado == true) {
+        showMessage('Teléfono validado automáticamente en modo pruebas.');
+        return;
+      }
       showMessage('Te envié un código de 6 dígitos a tu teléfono.');
     } on ApiException catch (e) {
       if (!mounted) return;
