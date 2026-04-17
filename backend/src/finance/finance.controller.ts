@@ -64,4 +64,18 @@ export class FinanceController {
 
     return this.financeService.getSettlements({ range, from, to, country, status });
   }
+
+  @Get('countries')
+  getCountries(
+    @Query('range') range: string | undefined,
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!['admin', 'support'].includes(req.user.role)) {
+      throw new ForbiddenException('Solo admin o soporte puede ver finanzas por país.');
+    }
+
+    return this.financeService.getCountries({ range, from, to });
+  }
 }

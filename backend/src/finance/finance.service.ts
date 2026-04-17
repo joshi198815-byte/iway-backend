@@ -28,6 +28,12 @@ type SettlementsParams = {
   status?: string;
 };
 
+type CountriesParams = {
+  range?: string;
+  from?: string;
+  to?: string;
+};
+
 @Injectable()
 export class FinanceService {
   constructor(private readonly prisma: PrismaService) {}
@@ -246,6 +252,178 @@ export class FinanceService {
       pendingTransfersAmount: Number(pendingTransfersAgg._sum.transferredAmount ?? 0),
       approvedTransfersAmount: Number(approvedTransfersAgg._sum.transferredAmount ?? 0),
       rejectedTransfersAmount: Number(rejectedTransfersAgg._sum.transferredAmount ?? 0),
+    };
+  }
+
+  async getCountries(params: CountriesParams) {
+    const dateRange = this.getDateRange(params.range, params.from, params.to);
+
+    const [shipments, profiles, transfers] = await Promise.all([
+      this.prisma.shipment.findMany({
+        where: {
+          createdAt: {
+            gte: dateRange.from,
+            lte: dateRange.to,
+          },
+        },
+        select: {
+          originCountryCode: true,
+          destinationCountryCode: true,
+        },
+      }),
+      this.prisma.travelerProfile.findMany({
+        where: { currentDebt: { gt: 0 } },
+        select: {
+          user: {
+            select: {
+              countryCode: true,
+              detectedCountryCode: true,
+            },
+          },
+        },
+      }),
+      this.prisma.transferPayment.findMany({
+        where: {
+          createdAt: {
+            gte: dateRange.from,
+            lte: dateRange.to,
+          },
+        },
+        select: {
+          traveler: {
+            select: {
+              countryCode: true,
+              detectedCountryCode: true,
+            },
+          },
+        },
+      }),
+    ]);
+
+    const countries = new Set<string>();
+    for (const shipment of shipments) {
+      if (shipment.originCountryCode) countries.add(shipment.originCountryCode.toUpperCase());
+      if (shipment.destinationCountryCode) countries.add(shipment.destinationCountryCode.toUpperCase());
+    }
+    for (const profile of profiles) {
+      const country = profile.user.detectedCountryCode ?? profile.user.countryCode;
+      if (country) countries.add(country.toUpperCase());
+    }
+    for (const transfer of transfers) {
+      const country = transfer.traveler.detectedCountryCode ?? transfer.traveler.countryCode;
+      if (country) countries.add(country.toUpperCase());
+    }
+
+    const items = await Promise.all(
+      [...countries].sort().map(async (country) => {
+        const [grossCommissionAgg, paidCommissionAgg, outstandingDebtAgg, travelersWithDebt, shipmentsCount, approvedTransfersAgg, rejectedTransfersAgg] =
+          await Promise.all([
+            this.prisma.travelerCommission.aggregate({
+              where: {
+                generatedAt: {
+                  gte: dateRange.from,
+                  lte: dateRange.to,
+                },
+                shipment: {
+                  OR: [
+                    { originCountryCode: country },
+                    { destinationCountryCode: country },
+                  ],
+                },
+              },
+              _sum: { commissionAmount: true },
+            }),
+            this.prisma.travelerCommission.aggregate({
+              where: {
+                generatedAt: {
+                  gte: dateRange.from,
+                  lte: dateRange.to,
+                },
+                status: CommissionStatus.paid,
+                shipment: {
+                  OR: [
+                    { originCountryCode: country },
+                    { destinationCountryCode: country },
+                  ],
+                },
+              },
+              _sum: { commissionAmount: true },
+            }),
+            this.prisma.travelerProfile.aggregate({
+              where: {
+                currentDebt: { gt: 0 },
+                user: {
+                  OR: [{ countryCode: country }, { detectedCountryCode: country }],
+                },
+              },
+              _sum: { currentDebt: true },
+            }),
+            this.prisma.travelerProfile.count({
+              where: {
+                currentDebt: { gt: 0 },
+                user: {
+                  OR: [{ countryCode: country }, { detectedCountryCode: country }],
+                },
+              },
+            }),
+            this.prisma.shipment.count({
+              where: {
+                createdAt: {
+                  gte: dateRange.from,
+                  lte: dateRange.to,
+                },
+                OR: [
+                  { originCountryCode: country },
+                  { destinationCountryCode: country },
+                ],
+              },
+            }),
+            this.prisma.transferPayment.aggregate({
+              where: {
+                createdAt: {
+                  gte: dateRange.from,
+                  lte: dateRange.to,
+                },
+                status: TransferStatus.approved,
+                traveler: {
+                  OR: [{ countryCode: country }, { detectedCountryCode: country }],
+                },
+              },
+              _sum: { transferredAmount: true },
+            }),
+            this.prisma.transferPayment.aggregate({
+              where: {
+                createdAt: {
+                  gte: dateRange.from,
+                  lte: dateRange.to,
+                },
+                status: TransferStatus.rejected,
+                traveler: {
+                  OR: [{ countryCode: country }, { detectedCountryCode: country }],
+                },
+              },
+              _sum: { transferredAmount: true },
+            }),
+          ]);
+
+        return {
+          country,
+          grossCommission: Number(grossCommissionAgg._sum.commissionAmount ?? 0),
+          commissionCollected: Number(paidCommissionAgg._sum.commissionAmount ?? 0),
+          outstandingDebt: Number(outstandingDebtAgg._sum.currentDebt ?? 0),
+          travelersWithDebt,
+          shipmentsCount,
+          approvedTransfersAmount: Number(approvedTransfersAgg._sum.transferredAmount ?? 0),
+          rejectedTransfersAmount: Number(rejectedTransfersAgg._sum.transferredAmount ?? 0),
+        };
+      }),
+    );
+
+    return {
+      range: dateRange.range,
+      from: dateRange.from,
+      to: dateRange.to,
+      items,
     };
   }
 
