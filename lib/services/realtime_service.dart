@@ -57,7 +57,7 @@ class RealtimeService {
 
     _socket = socket;
     _bindCoreListeners();
-    await completer.future.timeout(const Duration(seconds: 4), onTimeout: () {});
+    await completer.future.timeout(ApiClient.requestTimeout, onTimeout: () {});
   }
 
   Future<void> joinChat(String shipmentId) async {

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:iway_app/config/app_env.dart';
+import 'package:iway_app/services/api_client.dart';
 
 class NetworkDiagnostic {
   static Uri _uri(String path) => Uri.parse('${AppEnv.apiBaseUrl}$path');
@@ -21,7 +22,7 @@ class NetworkDiagnostic {
             },
             body: jsonEncode(body),
           )
-          .timeout(const Duration(seconds: 30));
+          .timeout(ApiClient.requestTimeout);
 
       final elapsed = DateTime.now().difference(started).inMilliseconds;
       print('');

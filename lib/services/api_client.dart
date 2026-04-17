@@ -20,6 +20,8 @@ class ApiClient {
 
   final http.Client _client;
 
+  static const Duration requestTimeout = Duration(seconds: 60);
+
   static String get baseUrl => AppEnv.apiBaseUrl;
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
@@ -42,7 +44,7 @@ class ApiClient {
   Future<dynamic> get(String path) async {
     final response = await _client
         .get(_uri(path), headers: _headers())
-        .timeout(const Duration(seconds: 20));
+        .timeout(requestTimeout);
 
     return _decodeResponse(response);
   }
@@ -54,7 +56,7 @@ class ApiClient {
           headers: _headers(json: true),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 20));
+        .timeout(requestTimeout);
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {
@@ -70,7 +72,7 @@ class ApiClient {
           headers: _headers(json: true),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 20));
+        .timeout(requestTimeout);
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {
@@ -86,7 +88,7 @@ class ApiClient {
           headers: _headers(json: true),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 20));
+        .timeout(requestTimeout);
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {

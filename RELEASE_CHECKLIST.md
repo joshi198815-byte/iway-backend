@@ -64,13 +64,12 @@ JWT_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
 
 ### Frontend API
 Por defecto:
-- Android emulator -> `http://10.0.2.2:3000/api`
-- Desktop/local -> `http://127.0.0.1:3000/api`
+- Producción -> `https://iway-backend-prod1.onrender.com/api`
 
 Override opcional:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000/api
+flutter run --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api
 ```
 
 ### Web Maps

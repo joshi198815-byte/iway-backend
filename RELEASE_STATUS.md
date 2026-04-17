@@ -35,13 +35,13 @@
 ### Android release real
 Queda muy cerca, pero depende de:
 - compilar en la máquina del usuario con Flutter/Android SDK real
-- definir `API_BASE_URL` final HTTPS
+- verificar wake-up y estabilidad del backend Render en `https://iway-backend-prod1.onrender.com/api`
 - usar keys finales restringidas de Maps/Firebase
 
 Comando esperado al final:
 
 ```bash
-flutter build appbundle --release --dart-define=API_BASE_URL=https://api.iway.one/api --dart-define=GOOGLE_MAPS_API_KEY=TU_KEY
+flutter build appbundle --release --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api --dart-define=GOOGLE_MAPS_API_KEY=TU_KEY
 ```
 
 ### iOS prep

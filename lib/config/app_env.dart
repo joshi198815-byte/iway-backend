@@ -1,21 +1,16 @@
-import 'package:flutter/foundation.dart';
-
 class AppEnv {
   AppEnv._();
 
   static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _envGoogleMapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
+  static const String _defaultBaseUrl = 'https://iway-backend-prod1.onrender.com/api';
 
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) {
       return _normalize(_envBaseUrl);
     }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000/api';
-    }
-
-    return 'http://127.0.0.1:3000/api';
+    return _defaultBaseUrl;
   }
 
   static String get googleMapsApiKey => _envGoogleMapsApiKey.trim();

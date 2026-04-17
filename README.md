@@ -22,14 +22,13 @@ El proyecto ya cubre el flujo principal:
 
 ## Configuración de API
 
-El frontend resuelve la API así:
-- Android emulator → `http://10.0.2.2:3000/api`
-- Linux desktop y otros entornos locales → `http://127.0.0.1:3000/api`
+El frontend usa por defecto esta API productiva:
+- `https://iway-backend-prod1.onrender.com/api`
 
 También puedes sobreescribirla con `--dart-define`:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000/api
+flutter run --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api
 ```
 
 Si pasas una URL sin `/api`, la app la normaliza automáticamente.
@@ -42,10 +41,10 @@ npm install --include=dev
 npm run start:dev
 ```
 
-Backend esperado en:
+Backend esperado en producción:
 
 ```bash
-http://127.0.0.1:3000/api
+https://iway-backend-prod1.onrender.com/api
 ```
 
 ## Cómo correr Flutter
