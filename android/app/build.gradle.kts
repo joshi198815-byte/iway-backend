@@ -23,7 +23,7 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.iway.app"
+    namespace = "com.iway.gt"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.iway.app"
+        applicationId = "com.iway.gt"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

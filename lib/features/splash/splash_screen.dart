@@ -39,7 +39,6 @@ class _SplashScreenState extends State<SplashScreen> {
     if (user == null) return false;
     return !user.emailVerificado && !user.telefonoVerificado;
   }
-  }
 
   @override
   Widget build(BuildContext context) {

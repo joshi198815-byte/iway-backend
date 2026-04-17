@@ -115,6 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
+                    // ignore: deprecated_member_use
                     color: AppTheme.surface.withOpacity(0.96),
                     borderRadius: BorderRadius.circular(28),
                     border: Border.all(color: AppTheme.border),
@@ -220,8 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 }
 
@@ -237,6 +237,7 @@ class _TopAction extends StatelessWidget {
       width: 48,
       height: 48,
       decoration: BoxDecoration(
+        // ignore: deprecated_member_use
         color: AppTheme.surface.withOpacity(0.92),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.border),

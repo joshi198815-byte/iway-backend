@@ -1,0 +1,23 @@
+Entonces Bloque 1 queda así
+Casi cerrado, pendiente solo:
+
+dominio + backend HTTPS final
+Apple Developer para iOS
+
+:: 1. Definir las variables
+set MAPS_KEY=AIzaSyAidt2UJyI9DvKjnLltJKZ6SsnLCwservw
+set BASE_URL=https://iway.one
+
+:: 2. Limpiar y compilar APK
+flutter clean && flutter pub get && flutter build apk --release --dart-define=API_BASE_URL=%BASE_URL% --dart-define=GOOGLE_MAPS_API_KEY=%MAPS_KEY%
+
+:: 3. Compilar App Bundle (para subir a la Play Store)
+flutter build appbundle --release --dart-define=API_BASE_URL=%BASE_URL% --dart-define=GOOGLE_MAPS_API_KEY=%MAPS_KEY%
+
+
+set MAPS_KEY=AIzaSyAidt2UJyI9DvKjnLltJKZ6SsnLCwservw
+set MI_IP=172.24.128.1
+
+flutter build apk --release --dart-define=API_BASE_URL=http://%MI_IP%:3000 --dart-define=GOOGLE_MAPS_API_KEY=%MAPS_KEY%
+
+http://172.24.128.1:3000/api/health
