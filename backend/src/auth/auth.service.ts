@@ -196,6 +196,44 @@ export class AuthService implements OnModuleInit {
     return { channel, sent: true, expiresInMinutes: 10 };
   }
 
+  async updatePendingPhone(userId: string, phone: string) {
+    const user = await this.usersService.findByIdForSession(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Sesión inválida.');
+    }
+
+    if (user.phoneVerified) {
+      throw new BadRequestException('Tu teléfono ya fue verificado y no se puede cambiar desde esta pantalla.');
+    }
+
+    const normalizedPhone = phone.trim();
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        phone: normalizedPhone,
+        id: { not: userId },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Ese teléfono ya está en uso por otra cuenta.');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.verificationCode.updateMany({
+        where: { userId, channel: 'phone', consumedAt: null },
+        data: { consumedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { phone: normalizedPhone, phoneVerified: false },
+      }),
+    ]);
+
+    return this.me(userId);
+  }
+
   async verifyContactCode(userId: string, channel: VerificationChannel, code: string) {
     const verification = await this.prisma.verificationCode.findFirst({
       where: { userId, channel, consumedAt: null },

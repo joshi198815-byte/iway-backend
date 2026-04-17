@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   bool _needsContactVerification(UserModel? user) {
     if (user == null) return false;
-    return !user.emailVerificado && !user.telefonoVerificado;
+    return !user.telefonoVerificado;
   }
 
   @override

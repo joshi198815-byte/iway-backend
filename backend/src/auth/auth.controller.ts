@@ -6,6 +6,7 @@ import { RegisterTravelerAuthDto } from './dto/register-traveler-auth.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { RequestVerificationCodeDto } from './dto/request-verification-code.dto';
 import { VerifyContactCodeDto } from './dto/verify-contact-code.dto';
+import { UpdatePendingPhoneDto } from './dto/update-pending-phone.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -36,6 +37,12 @@ export class AuthController {
   @Post('verify-contact')
   verifyContact(@Body() body: VerifyContactCodeDto, @Req() req: any) {
     return this.authService.verifyContactCode(req.user.sub, body.channel, body.code);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('update-pending-phone')
+  updatePendingPhone(@Body() body: UpdatePendingPhoneDto, @Req() req: any) {
+    return this.authService.updatePendingPhone(req.user.sub, body.phone);
   }
 
   @UseGuards(JwtAuthGuard)

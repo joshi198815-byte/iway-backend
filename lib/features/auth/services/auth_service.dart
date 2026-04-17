@@ -139,6 +139,22 @@ class AuthService {
     return parsedUser;
   }
 
+  Future<UserModel?> updatePendingPhone(String phone) async {
+    final data = await _apiClient.post('/auth/update-pending-phone', {
+      'phone': phone.trim(),
+    });
+
+    final user = data['user'];
+    if (user is! Map<String, dynamic>) return null;
+
+    final parsedUser = UserModel.fromBackendJson(user);
+    await SessionService.setUser(
+      parsedUser,
+      accessToken: SessionService.currentAccessToken,
+    );
+    return parsedUser;
+  }
+
   Future<UserModel?> refreshCurrentUser() async {
     final data = await _apiClient.get('/auth/me');
     if (data is! Map<String, dynamic>) return null;
