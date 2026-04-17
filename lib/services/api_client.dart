@@ -24,8 +24,6 @@ class ApiClient {
 
   static String get baseUrl => AppEnv.apiBaseUrl;
 
-  Uri _uri(String path) => Uri.parse('$baseUrl$path');
-
   Map<String, String> _headers({bool json = false}) {
     final headers = <String, String>{'Accept': 'application/json'};
 
@@ -41,22 +39,63 @@ class ApiClient {
     return headers;
   }
 
+  List<Uri> _candidateUris(String path) {
+    final normalizedPath = path.startsWith('/') ? path : '/$path';
+    final primaryBase = baseUrl.replaceAll(RegExp(r'/$'), '');
+    final fallbackBase = primaryBase.endsWith('/api')
+        ? primaryBase.substring(0, primaryBase.length - 4)
+        : primaryBase;
+
+    final candidates = <Uri>[
+      Uri.parse('$primaryBase$normalizedPath'),
+    ];
+
+    final fallbackUri = Uri.parse('$fallbackBase$normalizedPath');
+    if (fallbackUri.toString() != candidates.first.toString()) {
+      candidates.add(fallbackUri);
+    }
+
+    return candidates;
+  }
+
+  Future<http.Response> _sendWith404Fallback(
+    String path,
+    Future<http.Response> Function(Uri uri) sender,
+  ) async {
+    final candidates = _candidateUris(path);
+    http.Response? lastResponse;
+
+    for (var index = 0; index < candidates.length; index++) {
+      final response = await sender(candidates[index]).timeout(requestTimeout);
+      lastResponse = response;
+
+      final shouldRetryWithFallback = response.statusCode == 404 && index < candidates.length - 1;
+      if (!shouldRetryWithFallback) {
+        return response;
+      }
+    }
+
+    return lastResponse!;
+  }
+
   Future<dynamic> get(String path) async {
-    final response = await _client
-        .get(_uri(path), headers: _headers())
-        .timeout(requestTimeout);
+    final response = await _sendWith404Fallback(
+      path,
+      (uri) => _client.get(uri, headers: _headers()),
+    );
 
     return _decodeResponse(response);
   }
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
-    final response = await _client
-        .post(
-          _uri(path),
-          headers: _headers(json: true),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
+    final response = await _sendWith404Fallback(
+      path,
+      (uri) => _client.post(
+        uri,
+        headers: _headers(json: true),
+        body: jsonEncode(body),
+      ),
+    );
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {
@@ -66,13 +105,14 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) async {
-    final response = await _client
-        .patch(
-          _uri(path),
-          headers: _headers(json: true),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
+    final response = await _sendWith404Fallback(
+      path,
+      (uri) => _client.patch(
+        uri,
+        headers: _headers(json: true),
+        body: jsonEncode(body),
+      ),
+    );
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {
@@ -82,13 +122,14 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> put(String path, Map<String, dynamic> body) async {
-    final response = await _client
-        .put(
-          _uri(path),
-          headers: _headers(json: true),
-          body: jsonEncode(body),
-        )
-        .timeout(requestTimeout);
+    final response = await _sendWith404Fallback(
+      path,
+      (uri) => _client.put(
+        uri,
+        headers: _headers(json: true),
+        body: jsonEncode(body),
+      ),
+    );
 
     final decoded = _decodeResponse(response);
     if (decoded is Map<String, dynamic>) {

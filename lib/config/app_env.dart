@@ -3,7 +3,7 @@ class AppEnv {
 
   static const String _envBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const String _envGoogleMapsApiKey = String.fromEnvironment('GOOGLE_MAPS_API_KEY');
-  static const String _defaultBaseUrl = 'https://iway-backend-prod1.onrender.com/api';
+  static const String _defaultBaseUrl = 'https://api.iway.one/api';
 
   static String get apiBaseUrl {
     if (_envBaseUrl.isNotEmpty) {

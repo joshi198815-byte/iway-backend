@@ -23,12 +23,13 @@ El proyecto ya cubre el flujo principal:
 ## Configuración de API
 
 El frontend usa por defecto esta API productiva:
-- `https://iway-backend-prod1.onrender.com/api`
+- `https://api.iway.one/api`
+- Si ese prefijo devuelve `404`, el cliente reintenta automáticamente contra `https://api.iway.one`
 
 También puedes sobreescribirla con `--dart-define`:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api
+flutter run --dart-define=API_BASE_URL=https://api.iway.one/api
 ```
 
 Si pasas una URL sin `/api`, la app la normaliza automáticamente.
@@ -44,7 +45,7 @@ npm run start:dev
 Backend esperado en producción:
 
 ```bash
-https://iway-backend-prod1.onrender.com/api
+https://api.iway.one/api
 ```
 
 ## Cómo correr Flutter

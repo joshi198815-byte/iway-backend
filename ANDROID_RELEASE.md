@@ -16,7 +16,7 @@
 Ejemplos esperados para producción actual:
 
 ```bash
-https://iway-backend-prod1.onrender.com/api
+https://api.iway.one/api
 AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
@@ -26,12 +26,12 @@ Desde la raíz del proyecto:
 ```bash
 flutter clean
 flutter pub get
-flutter build appbundle --release --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+flutter build appbundle --release --dart-define=API_BASE_URL=https://api.iway.one/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ## APK firmado opcional
 ```bash
-flutter build apk --release --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+flutter build apk --release --dart-define=API_BASE_URL=https://api.iway.one/api --dart-define=GOOGLE_MAPS_API_KEY=AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
 ## Resultado esperado

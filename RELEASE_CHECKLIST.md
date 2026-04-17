@@ -64,12 +64,13 @@ JWT_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
 
 ### Frontend API
 Por defecto:
-- Producción -> `https://iway-backend-prod1.onrender.com/api`
+- Producción -> `https://api.iway.one/api`
+- Si responde `404`, el cliente también intenta automáticamente `https://api.iway.one`
 
 Override opcional:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=https://iway-backend-prod1.onrender.com/api
+flutter run --dart-define=API_BASE_URL=https://api.iway.one/api
 ```
 
 ### Web Maps
