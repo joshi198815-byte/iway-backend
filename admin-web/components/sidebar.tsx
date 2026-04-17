@@ -2,11 +2,10 @@ import Link from 'next/link';
 
 const links = [
   { href: '/dashboard', label: 'Dashboard' },
-  { href: '#', label: 'Travelers Review' },
-  { href: '#', label: 'Transfers Review' },
-  { href: '#', label: 'Shipments' },
-  { href: '#', label: 'Finance' },
-  { href: '#', label: 'Disputes' },
+  { href: '/travelers-review', label: 'Travelers Review' },
+  { href: '/transfers-review', label: 'Transfers Review' },
+  { href: '/shipments', label: 'Shipments' },
+  { href: '/finance-dashboard', label: 'Finance Dashboard' },
 ];
 
 export function Sidebar() {

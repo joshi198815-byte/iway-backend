@@ -141,8 +141,16 @@ button, input, select, textarea {
   gap: 16px;
 }
 
+.grid.cols-2 {
+  grid-template-columns: minmax(320px, 0.95fr) minmax(420px, 1.05fr);
+}
+
 .grid.cols-3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.grid.cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .kpi {
@@ -162,6 +170,15 @@ button, input, select, textarea {
 
 .panel {
   padding: 20px;
+}
+
+.panel h2,
+.panel h3 {
+  margin-top: 0;
+}
+
+.panel + .panel {
+  margin-top: 16px;
 }
 
 .table {
@@ -187,6 +204,73 @@ button, input, select, textarea {
   font-size: 12px;
   background: #eef3ff;
   color: var(--primary);
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.kv-list {
+  display: grid;
+  gap: 12px;
+}
+
+.kv-item {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+}
+
+.kv-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.filters input,
+.filters select,
+.filters textarea {
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  background: #fff;
+}
+
+.filters textarea {
+  min-height: 92px;
+}
+
+.code {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #0f172a;
+  color: #dbe7ff;
+  padding: 14px;
+  border-radius: 12px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .alert {
