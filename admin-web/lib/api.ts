@@ -220,6 +220,51 @@ export async function getFinanceDebtAging(token: string, query = '') {
   return apiRequest<unknown>(`/finance/debt-aging${query}`, { token });
 }
 
+export async function getCollaborators(token: string) {
+  return apiRequest<unknown>('/users/admin/collaborators', { token });
+}
+
+export async function createCollaborator(
+  token: string,
+  payload: {
+    fullName: string;
+    email: string;
+    phone: string;
+    role: string;
+    password?: string;
+  },
+) {
+  return apiRequest<unknown>('/users/admin/collaborators', {
+    token,
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateCollaborator(
+  token: string,
+  userId: string,
+  payload: { role?: string; status?: string; fullName?: string },
+) {
+  return apiRequest<unknown>(`/users/admin/collaborators/${userId}`, {
+    token,
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetCollaboratorPassword(
+  token: string,
+  userId: string,
+  password?: string,
+) {
+  return apiRequest<unknown>(`/users/admin/collaborators/${userId}/reset-password`, {
+    token,
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
 export async function getProtectedFilePreview(token: string, protectedUrl?: string | null) {
   const parts = parseProtectedFileParts(protectedUrl);
   if (!parts) return null;

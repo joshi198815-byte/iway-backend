@@ -6,6 +6,7 @@ const links = [
   { href: '/transfers-review', label: 'Transfers Review' },
   { href: '/shipments', label: 'Shipments' },
   { href: '/finance-dashboard', label: 'Finance Dashboard' },
+  { href: '/admin-collaborators', label: 'Admin Collaborators' },
 ];
 
 export function Sidebar() {

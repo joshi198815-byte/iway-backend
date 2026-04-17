@@ -20,6 +20,7 @@ Admin web principal de iWay, hecha en código con Next.js y conectada al backend
   - Shipments
   - Shipment Detail
   - Finance Dashboard
+  - Admin Collaborators
 - fallback automático `https://api.iway.one/api` -> `https://api.iway.one`
 
 ## Variables de entorno
@@ -42,9 +43,17 @@ npm run dev
 
 1. validar login y payloads reales
 2. pulir tablas, filtros y estados vacíos
-3. agregar Admin Collaborators
-4. endurecer permisos por rol
-5. mejorar visualización de finanzas y charts
+3. endurecer permisos por rol
+4. mejorar visualización de finanzas y charts
+5. validar end-to-end con credenciales reales
+
+## Validación rápida
+
+```bash
+npm run validate:api
+```
+
+Requiere `API_BASE_URL`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el entorno. Más detalle en `VALIDATION.md`.
 
 ## Nota
 
