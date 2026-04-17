@@ -160,7 +160,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async requestVerificationCode(userId: string, channel: VerificationChannel) {
-    const user = await this.usersService.findPublicById(userId);
+    const user = await this.usersService.findByIdForSession(userId);
 
     if (!user) {
       throw new UnauthorizedException('Sesión inválida.');
@@ -229,7 +229,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async me(userId: string) {
-    const user = await this.usersService.findPublicById(userId);
+    const user = await this.usersService.findByIdForSession(userId);
 
     if (!user) {
       throw new UnauthorizedException('Sesión inválida.');

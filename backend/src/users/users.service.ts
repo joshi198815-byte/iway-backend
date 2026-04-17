@@ -60,7 +60,7 @@ export class UsersService {
     });
   }
 
-  async findPublicById(id: string) {
+  async findByIdForSession(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
       select: {
@@ -75,6 +75,29 @@ export class UsersService {
         phoneVerified: true,
         emailVerified: true,
         travelerProfile: true,
+      },
+    });
+  }
+
+  async findPublicById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        fullName: true,
+        countryCode: true,
+        detectedCountryCode: true,
+        travelerProfile: {
+          select: {
+            travelerType: true,
+            status: true,
+            ratingAvg: true,
+            ratingCount: true,
+            kycTier: true,
+          },
+        },
       },
     });
   }
