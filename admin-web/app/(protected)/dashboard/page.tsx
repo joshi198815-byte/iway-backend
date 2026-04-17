@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { ErrorPanel } from '@/components/error-panel';
 import { StatCard } from '@/components/stat-card';
 import { getCollection, getShipments, getTransfersReviewQueue, getTravelersReviewQueue } from '@/lib/api';
 import { requireSession } from '@/lib/auth';
@@ -56,7 +57,7 @@ export default async function DashboardPage() {
         <StatCard label="Shipments" value={String(shipmentsCount)} />
       </section>
 
-      {errors.length ? <section className="alert error">{errors.join(' | ')}</section> : null}
+      {errors.length ? <ErrorPanel message={errors.join(' | ')} /> : null}
 
       <section className="card panel">
         <h2>Operación principal</h2>

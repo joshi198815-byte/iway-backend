@@ -1,4 +1,5 @@
 import { DataTable } from '@/components/data-table';
+import { EmptyState } from '@/components/empty-state';
 import { KeyValueList } from '@/components/key-value-list';
 import { createCollaboratorAction, resetCollaboratorPasswordAction, updateCollaboratorAction } from '@/app/(protected)/mutations';
 import { getCollaborators, getCollection, formatDate } from '@/lib/api';
@@ -101,7 +102,7 @@ export default async function AdminCollaboratorsPage({ searchParams }: { searchP
                 ]}
               />
             ) : (
-              <div className="muted">Selecciona un colaborador.</div>
+              <EmptyState title="Sin colaborador seleccionado" description="Selecciona un admin o support para editar rol, estado o resetear su contraseña." />
             )}
           </div>
 

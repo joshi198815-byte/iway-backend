@@ -273,6 +273,12 @@ button, input, select, textarea {
   gap: 8px;
 }
 
+.empty-state {
+  min-height: 180px;
+  display: grid;
+  align-content: center;
+}
+
 .alert {
   margin-top: 12px;
   padding: 12px 14px;

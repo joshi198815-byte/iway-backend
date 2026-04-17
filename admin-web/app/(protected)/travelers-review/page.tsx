@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { EmptyState } from '@/components/empty-state';
 import { getProtectedFilePreview, getCollection, getTravelersReviewQueue, formatDate } from '@/lib/api';
 import { requireSession } from '@/lib/auth';
 import { DataTable } from '@/components/data-table';
@@ -118,7 +119,7 @@ export default async function TravelersReviewPage({ searchParams }: { searchPara
                 ]}
               />
             ) : (
-              <div className="muted">Selecciona un traveler.</div>
+              <EmptyState title="Sin selección" description="Elige un traveler de la cola para revisar KYC, payout hold y evidencia." />
             )}
           </div>
 

@@ -55,6 +55,13 @@ npm run validate:api
 
 Requiere `API_BASE_URL`, `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el entorno. Más detalle en `VALIDATION.md`.
 
+## Despliegue
+
+- `Dockerfile`
+- `.env.production.example`
+- `deploy/nginx/admin.iway.one.conf`
+- guía en `DEPLOYMENT.md`
+
 ## Nota
 
 La meta ya no es migrar a una herramienta low-code. La meta es cerrar una admin web propia, mantenible y lista para operación real.
