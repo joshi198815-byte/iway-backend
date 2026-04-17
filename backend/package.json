@@ -10,6 +10,7 @@
     "start:dev": "ts-node --transpile-only src/main.ts",
     "prisma:generate:postgres": "prisma generate --schema prisma/schema.postgres.prisma",
     "db:push:postgres": "prisma db push --schema prisma/schema.postgres.prisma",
+    "seed:production": "ts-node --transpile-only prisma/seed.production.ts",
     "postinstall": "npm run prisma:generate:postgres",
     "typecheck": "tsc --noEmit"
   },
