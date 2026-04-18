@@ -8,6 +8,7 @@ import '../features/auth/verification/contact_verification_screen.dart';
 import '../features/shipment/create_shipment_screen.dart';
 import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/shipment/my_orders_screen.dart';
+import '../features/map/map_screen.dart';
 import '../features/matching/offers_screen.dart';
 import '../features/shipment/tracking_screen.dart';
 import '../features/notifications/notifications_screen.dart';
@@ -39,6 +40,10 @@ class AppRoutes {
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/my_orders': (context) => const MyOrdersScreen(),
     '/debts': (context) => const DebtsScreen(),
+    '/map': (context) {
+      final id = ModalRoute.of(context)?.settings.arguments;
+      return MapScreen(shipmentId: id is String && id.isNotEmpty ? id : null);
+    },
     '/profile': (context) => const ProfileScreen(),
     '/rating': (context) {
       final id = ModalRoute.of(context)?.settings.arguments;

@@ -535,6 +535,25 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           onPressed: () {
                             Navigator.pushNamed(
                               context,
+                              '/map',
+                              arguments: widget.shipmentId,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppTheme.border),
+                            minimumSize: const Size(double.infinity, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          child: const Text('Ver ruta y ubicación'),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
                               '/chat',
                               arguments: widget.shipmentId,
                             );

@@ -17,6 +17,29 @@ class _HomeScreenState extends State<HomeScreen> {
   final _shipmentService = ShipmentService();
   late Future<List<ShipmentModel>> _myShipmentsFuture;
 
+  Future<bool> _confirmExit() async {
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('¿Salir de la app?'),
+        content: const Text('Si sales ahora, se cerrará iWay en este dispositivo.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+
+    return shouldExit == true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -94,7 +117,15 @@ class _HomeScreenState extends State<HomeScreen> {
     final isTraveler = user?.tipo == 'traveler';
     final routes = _travelerRoutes();
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await _confirmExit();
+        if (!mounted || !shouldExit) return;
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -395,7 +426,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
