@@ -3,6 +3,7 @@ import { ShipmentStatus, TravelerStatus, type ShipmentDirection } from '@prisma/
 import { CommissionsService } from '../commissions/commissions.service';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { GeoService } from '../geo/geo.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
 
@@ -12,6 +13,7 @@ export class ShipmentsService {
     private readonly prisma: PrismaService,
     private readonly geoService: GeoService,
     private readonly commissionsService: CommissionsService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private normalizeDecimal(value: unknown) {
@@ -46,7 +48,7 @@ export class ShipmentsService {
       throw new ForbiddenException('Debes validar tu número de teléfono antes de crear un envío.');
     }
 
-    return this.prisma.shipment.create({
+    const shipment = await this.prisma.shipment.create({
       data: {
         customerId: payload.customerId,
         status: ShipmentStatus.published,
@@ -67,7 +69,35 @@ export class ShipmentsService {
         deliveryLng: payload.deliveryLng,
         insuranceEnabled: payload.insuranceEnabled,
       },
+      include: {
+        images: true,
+      },
     });
+
+    const eligibleTravelers = await this.prisma.travelerProfile.findMany({
+      where: {
+        status: TravelerStatus.verified,
+        routes: {
+          some: {
+            active: true,
+            direction,
+          },
+        },
+      },
+      select: {
+        userId: true,
+      },
+    });
+
+    await this.notificationsService.sendPushMany(
+      eligibleTravelers.map((item) => item.userId),
+      'Nuevo envío disponible',
+      `Hay un envío ${payload.originCountryCode.toUpperCase()} → ${payload.destinationCountryCode.toUpperCase()} esperando ofertas.`,
+      'shipment_published',
+      shipment.id,
+    );
+
+    return shipment;
   }
 
   async findAvailableForTraveler(travelerId: string, role: string) {

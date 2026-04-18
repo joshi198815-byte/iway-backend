@@ -213,6 +213,11 @@ export class UsersService {
             routes: true,
           },
         },
+        uploadedFiles: {
+          where: { purpose: 'profile_selfie' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     });
   }
@@ -237,6 +242,11 @@ export class UsersService {
           include: {
             routes: true,
           },
+        },
+        uploadedFiles: {
+          where: { purpose: 'profile_selfie' },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
     });
@@ -297,13 +307,42 @@ export class UsersService {
       },
     });
 
-    if (existing.role === 'traveler' && existing.travelerProfile && payload.selfieUrl != null) {
-      await this.prisma.travelerProfile.update({
-        where: { userId },
+    if (payload.selfieUrl != null) {
+      const trimmedSelfieUrl = payload.selfieUrl.trim();
+
+      await this.prisma.uploadedFile.updateMany({
+        where: {
+          ownerId: userId,
+          purpose: 'profile_selfie',
+          ...(trimmedSelfieUrl == '' ? {} : { url: { not: trimmedSelfieUrl } }),
+        },
         data: {
-          selfieUrl: payload.selfieUrl.trim() == '' ? null : payload.selfieUrl.trim(),
+          purpose: 'profile_selfie_archive',
         },
       });
+
+      if (trimmedSelfieUrl != '') {
+        await this.prisma.uploadedFile.updateMany({
+          where: {
+            ownerId: userId,
+            url: trimmedSelfieUrl,
+          },
+          data: {
+            linkedEntityType: 'user_profile',
+            linkedEntityId: userId,
+            purpose: 'profile_selfie',
+          },
+        });
+      }
+
+      if (existing.role === 'traveler' && existing.travelerProfile) {
+        await this.prisma.travelerProfile.update({
+          where: { userId },
+          data: {
+            selfieUrl: trimmedSelfieUrl == '' ? null : trimmedSelfieUrl,
+          },
+        });
+      }
     }
 
     return this.findByIdForSession(userId);

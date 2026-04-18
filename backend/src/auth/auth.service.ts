@@ -349,6 +349,7 @@ export class AuthService implements OnModuleInit {
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,
         travelerProfile: user.travelerProfile,
+        selfieUrl: user.travelerProfile?.selfieUrl ?? user.uploadedFiles?.[0]?.url ?? null,
       },
     };
   }
@@ -416,6 +417,7 @@ export class AuthService implements OnModuleInit {
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,
         travelerProfile: user.travelerProfile,
+        selfieUrl: user.travelerProfile?.selfieUrl ?? user.uploadedFiles?.[0]?.url ?? null,
       },
     };
   }

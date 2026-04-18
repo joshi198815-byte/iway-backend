@@ -9,8 +9,9 @@ class StorageUploadService {
   final ApiClient _apiClient;
   final ImagePicker _picker = ImagePicker();
 
-
-  Future<Map<String, dynamic>?> pickAndUploadProfilePhoto({ImageSource source = ImageSource.gallery}) async {
+  Future<Map<String, dynamic>?> pickAndUploadProfilePhoto({
+    ImageSource source = ImageSource.gallery,
+  }) async {
     final file = await _picker.pickImage(source: source, imageQuality: 85);
     if (file == null) return null;
 
@@ -20,13 +21,15 @@ class StorageUploadService {
     final base64 = 'data:$mimeType;base64,${base64Encode(bytes)}';
 
     return _apiClient.post('/storage/upload-base64', {
-      'bucket': 'identity-verification',
-      'fileName': 'traveler-selfie-${DateTime.now().millisecondsSinceEpoch}',
+      'bucket': 'documents',
+      'fileName': 'profile-selfie-${DateTime.now().millisecondsSinceEpoch}',
       'base64': base64,
     });
   }
 
-  Future<Map<String, dynamic>?> pickAndUploadTransferProof({ImageSource source = ImageSource.gallery}) async {
+  Future<Map<String, dynamic>?> pickAndUploadTransferProof({
+    ImageSource source = ImageSource.gallery,
+  }) async {
     final file = await _picker.pickImage(source: source, imageQuality: 85);
     if (file == null) return null;
 

@@ -81,6 +81,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = SessionService.currentUser;
     if (user == null) return;
 
+    if ((_photoUrl ?? '').trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes subir una selfie para guardar tu perfil.')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
       await _authService.updateProfile(
@@ -197,6 +204,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       Text(
                                         user.email.isNotEmpty ? user.email : 'Sin correo',
                                         style: const TextStyle(color: AppTheme.muted),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        photoUrl == null || photoUrl.isEmpty
+                                            ? 'La selfie es obligatoria para mantener el perfil activo.'
+                                            : 'Selfie cargada y lista para edición.',
+                                        style: TextStyle(
+                                          color: photoUrl == null || photoUrl.isEmpty ? Colors.amber[300] : AppTheme.muted,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),

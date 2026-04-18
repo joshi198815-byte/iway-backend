@@ -343,6 +343,11 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       return;
     }
 
+    if ((SessionService.currentUser?.selfiePath ?? '').trim().isEmpty) {
+      showMessage('Antes de publicar, sube tu selfie en Perfil.');
+      return;
+    }
+
     if (descripcion.isEmpty) {
       showMessage('Ingresa una descripción del envío.');
       return;
@@ -436,7 +441,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       } else {
         showMessage('Envío publicado correctamente.');
       }
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/my_orders', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);

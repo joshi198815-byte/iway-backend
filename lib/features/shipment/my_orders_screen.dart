@@ -3,6 +3,7 @@ import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
@@ -115,6 +116,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isTraveler = SessionService.currentUser?.tipo == 'traveler';
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -138,9 +141,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                     children: [
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
-                      const AppPageIntro(
+                      AppPageIntro(
                         title: 'Mis pedidos',
-                        subtitle: 'Revisa lo que llevas en ruta y lo que ya completaste.',
+                        subtitle: isTraveler
+                            ? 'Revisa lo que llevas en ruta y lo que ya completaste.'
+                            : 'Revisa lo publicado, lo asignado y lo que ya se entregó.',
                       ),
                       const SizedBox(height: 18),
                       Row(

@@ -65,8 +65,8 @@ class UserModel {
           ? travelerProfile['documentNumber']?.toString()
           : json['documento']?.toString(),
       selfiePath: travelerProfile is Map<String, dynamic>
-          ? travelerProfile['selfieUrl']?.toString()
-          : json['selfiePath']?.toString(),
+          ? travelerProfile['selfieUrl']?.toString() ?? json['selfieUrl']?.toString()
+          : json['selfieUrl']?.toString() ?? json['selfiePath']?.toString(),
       rutas: derivedRoutes.isNotEmpty
           ? derivedRoutes
           : travelerProfile is Map<String, dynamic>
