@@ -53,9 +53,12 @@ export class TrackingService {
     }
 
     const isPrivileged = ['admin', 'support'].includes(requester.role);
+    const isAssignedTraveler = shipment.assignedTravelerId === requester.sub;
 
-    if (shipment.assignedTravelerId && shipment.assignedTravelerId !== payload.travelerId && !isPrivileged) {
-      throw new ForbiddenException('Solo el viajero asignado puede reportar tracking.');
+    if (!isPrivileged) {
+      if (!shipment.assignedTravelerId || !isAssignedTraveler || payload.travelerId !== requester.sub) {
+        throw new ForbiddenException('Solo el viajero asignado puede reportar tracking.');
+      }
     }
 
     const trackingPoint = await this.prisma.trackingPoint.create({

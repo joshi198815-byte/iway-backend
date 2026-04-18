@@ -118,7 +118,26 @@ export class OffersService {
     return offer;
   }
 
-  async findByShipment(shipmentId: string) {
+  async findByShipment(shipmentId: string, requester: { sub: string; role: string }) {
+    const shipment = await this.prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      select: { customerId: true, assignedTravelerId: true },
+    });
+
+    if (!shipment) {
+      throw new NotFoundException('Envío no encontrado.');
+    }
+
+    const canAccess =
+      ['admin', 'support'].includes(requester.role) ||
+      requester.role === 'traveler' ||
+      shipment.customerId === requester.sub ||
+      shipment.assignedTravelerId === requester.sub;
+
+    if (!canAccess) {
+      throw new ForbiddenException('No tienes acceso a las ofertas de este envío.');
+    }
+
     const offers = await this.prisma.offer.findMany({
       where: { shipmentId },
       include: {

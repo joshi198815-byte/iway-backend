@@ -27,8 +27,8 @@ export class OffersController {
   }
 
   @Get('shipment/:shipmentId')
-  findByShipment(@Param('shipmentId') shipmentId: string) {
-    return this.offersService.findByShipment(shipmentId);
+  findByShipment(@Param('shipmentId') shipmentId: string, @Req() req: any) {
+    return this.offersService.findByShipment(shipmentId, req.user);
   }
 
   @Post(':id/accept')

@@ -45,6 +45,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
   StreamSubscription<dynamic>? trackingSubscription;
   StreamSubscription<dynamic>? shipmentStatusSubscription;
 
+  bool get _isPrivilegedOperator {
+    final role = SessionService.currentUser?.tipo;
+    return role == 'admin' || role == 'support';
+  }
+
+  bool get _isAssignedTraveler {
+    final currentUserId = SessionService.currentUserId;
+    if (shipment == null || currentUserId == null || currentUserId.isEmpty) return false;
+    return shipment!.assignedTravelerId == currentUserId;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -496,15 +507,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         ),
                         const SizedBox(height: 14),
                       ],
+                      if (_isPrivilegedOperator) ...[
+                        ElevatedButton(
+                          onPressed: updatingStatus || currentStep >= 2
+                              ? null
+                              : () => updateStatus('assigned'),
+                          child: const Text('Marcar asignado'),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       ElevatedButton(
-                        onPressed: updatingStatus || currentStep >= 2
-                            ? null
-                            : () => updateStatus('assigned'),
-                        child: const Text('Marcar asignado'),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton(
-                        onPressed: updatingStatus || currentStep >= 3
+                        onPressed: updatingStatus || currentStep >= 3 || (!_isPrivilegedOperator && !_isAssignedTraveler)
                             ? null
                             : () => updateStatus('delivered'),
                         child: const Text('Marcar entregado'),

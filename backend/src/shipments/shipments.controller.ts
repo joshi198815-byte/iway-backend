@@ -49,10 +49,6 @@ export class ShipmentsController {
 
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() body: UpdateShipmentStatusDto, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede actualizar estados.');
-    }
-
-    return this.shipmentsService.updateStatus(id, body);
+    return this.shipmentsService.updateStatus(id, body, req.user);
   }
 }

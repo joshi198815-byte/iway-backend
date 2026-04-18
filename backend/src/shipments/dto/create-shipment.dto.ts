@@ -42,6 +42,14 @@ export class CreateShipmentDto {
 
   @IsOptional()
   @IsNumber()
+  pickupLat?: number;
+
+  @IsOptional()
+  @IsNumber()
+  pickupLng?: number;
+
+  @IsOptional()
+  @IsNumber()
   deliveryLat?: number;
 
   @IsOptional()

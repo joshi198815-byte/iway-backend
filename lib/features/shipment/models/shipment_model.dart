@@ -1,6 +1,7 @@
 class ShipmentModel {
   final String id;
   final String userId;
+  final String? assignedTravelerId;
   final String tipo;
   final double? peso;
   final String? descripcion;
@@ -28,6 +29,7 @@ class ShipmentModel {
   ShipmentModel({
     required this.id,
     required this.userId,
+    this.assignedTravelerId,
     required this.tipo,
     this.peso,
     this.descripcion,
@@ -72,6 +74,7 @@ class ShipmentModel {
     return ShipmentModel(
       id: (json['id'] ?? '').toString(),
       userId: (json['customerId'] ?? json['userId'] ?? '').toString(),
+      assignedTravelerId: json['assignedTravelerId']?.toString(),
       tipo: (json['packageType'] ?? json['tipo'] ?? '').toString(),
       peso: _toDouble(json['weightLb'] ?? json['peso']),
       descripcion: json['description']?.toString() ?? json['descripcion']?.toString(),

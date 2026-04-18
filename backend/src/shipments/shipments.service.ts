@@ -61,6 +61,8 @@ export class ShipmentsService {
         receiverName: payload.receiverName,
         receiverPhone: payload.receiverPhone,
         receiverAddress: payload.receiverAddress,
+        pickupLat: payload.pickupLat,
+        pickupLng: payload.pickupLng,
         deliveryLat: payload.deliveryLat,
         deliveryLng: payload.deliveryLng,
         insuranceEnabled: payload.insuranceEnabled,
@@ -200,11 +202,27 @@ export class ShipmentsService {
     return shipment;
   }
 
-  async updateStatus(id: string, payload: UpdateShipmentStatusDto) {
+  async updateStatus(id: string, payload: UpdateShipmentStatusDto, requester: { sub: string; role: string }) {
     const shipment = await this.prisma.shipment.findUnique({ where: { id } });
 
     if (!shipment) {
       throw new NotFoundException('Envío no encontrado.');
+    }
+
+    const isPrivileged = ['admin', 'support'].includes(requester.role);
+    const isAssignedTraveler = shipment.assignedTravelerId === requester.sub;
+
+    if (!isPrivileged) {
+      const travelerAllowedStatuses: ShipmentStatus[] = [
+        ShipmentStatus.picked_up,
+        ShipmentStatus.in_transit,
+        ShipmentStatus.in_delivery,
+        ShipmentStatus.delivered,
+      ];
+
+      if (!isAssignedTraveler || !travelerAllowedStatuses.includes(payload.status)) {
+        throw new ForbiddenException('No tienes permiso para actualizar este estado.');
+      }
     }
 
     const updated = await this.prisma.shipment.update({
@@ -213,6 +231,16 @@ export class ShipmentsService {
         status: payload.status,
       },
     });
+
+    if (payload.status === ShipmentStatus.delivered && payload.imageUrls?.length) {
+      await this.prisma.shipmentImage.createMany({
+        data: payload.imageUrls.map((imageUrl) => ({
+          shipmentId: id,
+          imageUrl,
+          kind: 'delivery_proof',
+        })),
+      });
+    }
 
     await this.prisma.shipmentEvent.create({
       data: {

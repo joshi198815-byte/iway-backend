@@ -69,6 +69,14 @@ export class ChatService {
       throw new NotFoundException('Chat no encontrado.');
     }
 
+    const canAccess =
+      chat.shipment.customerId === payload.senderId ||
+      chat.shipment.assignedTravelerId === payload.senderId;
+
+    if (!canAccess) {
+      throw new ForbiddenException('No tienes acceso a este chat.');
+    }
+
     const analysis = this.antiFraudService.analyzeMessage(payload.body);
 
     const message = await this.prisma.message.create({

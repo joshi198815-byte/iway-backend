@@ -423,7 +423,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       );
 
       await shipmentService.createShipment(shipment);
-      await shipmentService.getShipments();
 
       if (!mounted) return;
 
