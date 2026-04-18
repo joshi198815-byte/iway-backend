@@ -396,11 +396,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         countryCode: _countryNameToCode[receiverCountry] ?? destino,
       );
 
-      if (geocoded == null) {
-        setState(() => loading = false);
-        showMessage('No pude validar la dirección. Intenta con una dirección más completa.');
-        return;
-      }
+      final resolvedAddress = geocoded?.formattedAddress ?? fullAddress;
 
       final shipmentDescription = requiresVin
           ? '$descripcion\nVIN: $vin'
@@ -417,9 +413,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         destino: destino,
         receptorNombre: receptorNombre,
         receptorTelefono: receptorTelefono,
-        receptorDireccion: geocoded.formattedAddress,
-        deliveryLat: geocoded.latitude,
-        deliveryLng: geocoded.longitude,
+        receptorDireccion: resolvedAddress,
+        deliveryLat: geocoded?.latitude,
+        deliveryLng: geocoded?.longitude,
         imagenes: images.map((e) => e.path).toList(),
         seguro: seguro,
         costoSeguro: costoSeguro,
@@ -433,10 +429,14 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
       setState(() {
         loading = false;
-        geocodedAddressLabel = geocoded.formattedAddress;
+        geocodedAddressLabel = geocoded?.formattedAddress;
       });
 
-      showMessage('Envío publicado correctamente.');
+      if (geocoded == null) {
+        showMessage('Envío publicado. La dirección quedó guardada sin validación automática.');
+      } else {
+        showMessage('Envío publicado correctamente.');
+      }
       Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
