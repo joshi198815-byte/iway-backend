@@ -15,6 +15,7 @@ import '../features/notifications/notifications_screen.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/payments/debts_screen.dart';
 import '../features/rating/rating_screen.dart';
+import '../features/rating/my_ratings_screen.dart';
 import '../features/profile/profile_screen.dart';
 
 class AppRoutes {
@@ -52,6 +53,7 @@ class AppRoutes {
       }
       return RatingScreen(shipmentId: id);
     },
+    '/my_ratings': (context) => const MyRatingsScreen(),
     '/offers': (context) {
       final id = ModalRoute.of(context)?.settings.arguments;
       if (id is! String || id.isEmpty) {

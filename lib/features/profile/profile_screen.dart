@@ -321,6 +321,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                             ],
                             const SizedBox(height: 18),
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.pushNamed(context, '/my_ratings'),
+                              icon: const Icon(Icons.star_outline_rounded),
+                              label: const Text('Ver mis calificaciones'),
+                            ),
+                            const SizedBox(height: 18),
                             _ProfileStatusRow(
                               label: 'Estado de verificación',
                               value: user.verificado ? 'Perfil aprobado' : 'Pendiente de revisión',

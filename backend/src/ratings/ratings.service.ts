@@ -26,6 +26,15 @@ export class RatingsService {
 
     return this.prisma.rating.findMany({
       where: { toUserId: userId },
+      include: {
+        fromUser: {
+          select: {
+            id: true,
+            fullName: true,
+            role: true,
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

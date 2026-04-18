@@ -161,6 +161,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return 'Operación';
       case 'tracking_updated':
         return 'Tracking';
+      case 'rating':
+        return 'Calificación';
       case 'traveler_verification':
         return 'Verificación';
       case 'transfer_review':
@@ -185,6 +187,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case 'shipment_status_changed':
       case 'tracking_updated':
         return 'Toca para abrir el tracking';
+      case 'rating':
+        return 'Toca para ver tus calificaciones';
       case 'traveler_verification':
         return 'Toca para revisar tu perfil';
       case 'transfer_review':
@@ -219,6 +223,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         final shipmentId = notification.shipmentId;
         if (shipmentId == null || shipmentId.isEmpty) return;
         await Navigator.pushNamed(context, '/tracking', arguments: shipmentId);
+        break;
+      case 'rating':
+        await Navigator.pushNamed(context, '/my_ratings');
         break;
       case 'traveler_verification':
         await Navigator.pushNamed(context, '/profile');
