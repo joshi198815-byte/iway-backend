@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/disputes/services/dispute_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
@@ -17,14 +21,32 @@ class MyOrdersScreen extends StatefulWidget {
 
 class _MyOrdersScreenState extends State<MyOrdersScreen> {
   final _shipmentService = ShipmentService();
+  final _disputeService = DisputeService();
+  final _realtime = RealtimeService.instance;
   List<ShipmentModel> _shipments = [];
   bool _loading = true;
   String _filter = 'ruta';
+  StreamSubscription<dynamic>? _notificationSubscription;
+  StreamSubscription<dynamic>? _shipmentStatusSubscription;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _bindRealtime();
+  }
+
+  Future<void> _bindRealtime() async {
+    await _realtime.ensureConnected();
+    _notificationSubscription = _realtime.notificationUpdated.listen((_) => _load());
+    _shipmentStatusSubscription = _realtime.shipmentStatusChanged.listen((_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    _shipmentStatusSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -75,15 +97,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     }
   }
 
-  void _showSupport() {
-    showModalBottomSheet<void>(
+  Future<void> _showSupport(ShipmentModel shipment) async {
+    final reasonController = TextEditingController();
+    final contextController = TextEditingController();
+    final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
+      isScrollControlled: true,
       builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+        padding: EdgeInsets.fromLTRB(22, 18, 22, 28 + MediaQuery.of(context).viewInsets.bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -93,25 +118,52 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Si ves un pedido con datos incorrectos o un problema de entrega, avisa al soporte de iWay con el número del pedido.',
-              style: TextStyle(color: AppTheme.muted, height: 1.4),
+            Text(
+              'Esto abrirá una incidencia operativa para el pedido ${shipment.id} y la verá el equipo de admin/soporte.',
+              style: const TextStyle(color: AppTheme.muted, height: 1.4),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: '¿Qué problema tienes?'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: contextController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Detalle adicional (opcional)'),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/notifications');
-                },
-                child: const Text('Contactar soporte'),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enviar a soporte'),
               ),
             ),
           ],
         ),
       ),
     );
+
+    if (confirmed != true || reasonController.text.trim().length < 8) return;
+
+    try {
+      await _disputeService.createDispute(
+        shipmentId: shipment.id,
+        reason: reasonController.text.trim(),
+        context: contextController.text.trim(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incidencia enviada a soporte.')),
+      );
+      await _load();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    }
   }
 
   @override
@@ -234,7 +286,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
                                               child: const Text('Ver seguimiento'),
                                             ),
                                             OutlinedButton(
-                                              onPressed: _showSupport,
+                                              onPressed: () => _showSupport(shipment),
                                               child: const Text('Soporte técnico'),
                                             ),
                                           ],

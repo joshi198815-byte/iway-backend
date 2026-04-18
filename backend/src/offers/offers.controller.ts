@@ -36,4 +36,11 @@ export class OffersController {
       acceptedByCustomerId: req.user.sub,
     });
   }
+
+  @Post(':id/reject')
+  reject(@Param('id') id: string, @Req() req: any) {
+    return this.offersService.rejectOffer(id, {
+      rejectedByCustomerId: req.user.sub,
+    });
+  }
 }

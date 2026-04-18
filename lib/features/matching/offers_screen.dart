@@ -149,6 +149,27 @@ class _OffersScreenState extends State<OffersScreen> {
     }
   }
 
+  Future<void> reject(OfferModel offer) async {
+    try {
+      await matchingService.rejectOffer(offer);
+      await loadOffers();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Oferta rechazada. El viajero puede enviar otra propuesta.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo rechazar la oferta.')),
+      );
+    }
+  }
+
   String formatStatus(String estado) {
     switch (estado) {
       case 'accepted':
@@ -363,11 +384,23 @@ class _OffersScreenState extends State<OffersScreen> {
                                       ],
                                       if (!isTraveler) ...[
                                         const SizedBox(height: 16),
-                                        ElevatedButton(
-                                          onPressed: offer.estado == 'accepted' || SessionService.currentUserId == null
-                                              ? null
-                                              : () => accept(offer),
-                                          child: const Text('Aceptar oferta'),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            ElevatedButton(
+                                              onPressed: offer.estado == 'accepted' || SessionService.currentUserId == null
+                                                  ? null
+                                                  : () => accept(offer),
+                                              child: const Text('Aceptar oferta'),
+                                            ),
+                                            OutlinedButton(
+                                              onPressed: offer.estado != 'pending' || SessionService.currentUserId == null
+                                                  ? null
+                                                  : () => reject(offer),
+                                              child: const Text('Rechazar / pedir nueva'),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ],

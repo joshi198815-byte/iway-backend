@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_action_cards.dart';
 import 'package:iway_app/shared/ui/app_info_chip.dart';
@@ -15,7 +18,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _shipmentService = ShipmentService();
+  final _realtime = RealtimeService.instance;
   late Future<List<ShipmentModel>> _myShipmentsFuture;
+  StreamSubscription<dynamic>? _notificationSubscription;
+  StreamSubscription<dynamic>? _shipmentStatusSubscription;
+  StreamSubscription<dynamic>? _offerSubscription;
 
   Future<bool> _confirmExit() async {
     final shouldExit = await showDialog<bool>(
@@ -44,6 +51,30 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _myShipmentsFuture = _shipmentService.getMyShipments();
+    _bindRealtime();
+  }
+
+  Future<void> _bindRealtime() async {
+    await _realtime.ensureConnected();
+    _notificationSubscription = _realtime.notificationUpdated.listen((_) => _refreshShipments());
+    _shipmentStatusSubscription = _realtime.shipmentStatusChanged.listen((_) => _refreshShipments());
+    _offerSubscription = _realtime.offerUpdated.listen((_) => _refreshShipments());
+  }
+
+  Future<void> _refreshShipments() async {
+    if (!mounted) return;
+    setState(() {
+      _myShipmentsFuture = _shipmentService.getMyShipments();
+    });
+    await _myShipmentsFuture;
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    _shipmentStatusSubscription?.cancel();
+    _offerSubscription?.cancel();
+    super.dispose();
   }
 
   List<String> _travelerRoutes() {

@@ -47,4 +47,14 @@ class MatchingService {
 
     await _apiClient.post('/offers/${offer.id}/accept', {});
   }
+
+  Future<void> rejectOffer(OfferModel offer) async {
+    final customerId = SessionService.currentUserId;
+
+    if (customerId == null || customerId.isEmpty) {
+      throw ApiException('Debes iniciar sesión como cliente para rechazar una oferta.');
+    }
+
+    await _apiClient.post('/offers/${offer.id}/reject', {});
+  }
 }

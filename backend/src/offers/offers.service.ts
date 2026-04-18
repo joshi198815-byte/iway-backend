@@ -7,6 +7,7 @@ import { CreateOfferDto } from './dto/create-offer.dto';
 
 type CreateOfferPayload = CreateOfferDto & { travelerId: string };
 type AcceptOfferPayload = AcceptOfferDto & { acceptedByCustomerId: string };
+type RejectOfferPayload = { rejectedByCustomerId: string };
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { runtimeObservability } from '../common/observability/runtime-observability';
 
@@ -330,5 +331,71 @@ export class OffersService {
     });
 
     return acceptedOffer;
+  }
+
+  async rejectOffer(offerId: string, payload: RejectOfferPayload) {
+    const offer = await this.prisma.offer.findUnique({
+      where: { id: offerId },
+      include: { shipment: true },
+    });
+
+    if (!offer) {
+      throw new NotFoundException('Oferta no encontrada.');
+    }
+
+    if (offer.shipment.customerId !== payload.rejectedByCustomerId) {
+      throw new ForbiddenException('Solo el cliente dueño del envío puede rechazar esta oferta.');
+    }
+
+    if (offer.status !== OfferStatus.pending) {
+      throw new BadRequestException('Esta oferta ya no se puede rechazar.');
+    }
+
+    await this.prisma.offer.update({
+      where: { id: offerId },
+      data: { status: OfferStatus.rejected },
+    });
+
+    const remainingPending = await this.prisma.offer.count({
+      where: { shipmentId: offer.shipmentId, status: OfferStatus.pending },
+    });
+
+    await this.prisma.shipment.update({
+      where: { id: offer.shipmentId },
+      data: {
+        status: remainingPending > 0 ? ShipmentStatus.offered : ShipmentStatus.published,
+      },
+    });
+
+    await this.notificationsService.sendPush(
+      offer.travelerId,
+      'Oferta rechazada',
+      `El cliente rechazó tu oferta para el envío ${offer.shipmentId}. Puedes enviar una nueva propuesta.`,
+      'offer_rejected',
+      offer.shipmentId,
+    );
+
+    this.realtimeGateway.emitOfferUpdated(offer.shipmentId, {
+      shipmentId: offer.shipmentId,
+      action: 'rejected',
+      offerId,
+      travelerId: offer.travelerId,
+    });
+
+    this.realtimeGateway.emitShipmentStatusChanged(offer.shipmentId, {
+      shipmentId: offer.shipmentId,
+      previousStatus: offer.shipment.status,
+      nextStatus: remainingPending > 0 ? 'offered' : 'published',
+    });
+
+    runtimeObservability.recordBusinessEvent({
+      type: 'offer_rejected',
+      entityId: offerId,
+      actorId: payload.rejectedByCustomerId,
+      shipmentId: offer.shipmentId,
+      metadata: { travelerId: offer.travelerId },
+    });
+
+    return this.prisma.offer.findUnique({ where: { id: offerId } });
   }
 }
