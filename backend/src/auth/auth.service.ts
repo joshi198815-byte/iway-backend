@@ -10,6 +10,7 @@ import { hashPassword, verifyPassword } from '../common/utils/password.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterCustomerDto } from './dto/register-customer.dto';
 import { RegisterTravelerAuthDto } from './dto/register-traveler-auth.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
 import { AntiFraudService } from '../anti-fraud/anti-fraud.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../database/prisma/prisma.service';
@@ -49,6 +50,8 @@ export class AuthService implements OnModuleInit {
         email: true,
         phone: true,
         countryCode: true,
+        stateRegion: true,
+        address: true,
         detectedCountryCode: true,
         createdAt: true,
         updatedAt: true,
@@ -339,12 +342,20 @@ export class AuthService implements OnModuleInit {
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
+        countryCode: user.countryCode,
+        stateRegion: user.stateRegion,
+        address: user.address,
         detectedCountryCode: user.detectedCountryCode,
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,
         travelerProfile: user.travelerProfile,
       },
     };
+  }
+
+  async updateMe(userId: string, payload: UpdateMeDto) {
+    await this.usersService.updateSelfProfile(userId, payload);
+    return this.me(userId);
   }
 
   async login(payload: LoginDto) {
@@ -398,6 +409,9 @@ export class AuthService implements OnModuleInit {
         fullName: user.fullName,
         email: user.email,
         phone: user.phone,
+        countryCode: user.countryCode,
+        stateRegion: user.stateRegion,
+        address: user.address,
         detectedCountryCode: user.detectedCountryCode,
         phoneVerified: user.phoneVerified,
         emailVerified: user.emailVerified,

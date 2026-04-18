@@ -1,18 +1,123 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/services/auth_service.dart';
 import 'package:iway_app/features/notifications/services/push_notification_service.dart';
+import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
+import 'package:iway_app/services/storage_upload_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _authService = AuthService();
+  final _storageUploadService = StorageUploadService();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _routeController = TextEditingController();
+
+  bool _saving = false;
+  bool _uploadingPhoto = false;
+  List<String> _routes = [];
+  String? _photoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = SessionService.currentUser;
+    _nameController.text = user?.nombre ?? '';
+    _phoneController.text = user?.telefono ?? '';
+    _addressController.text = user?.direccion ?? '';
+    _routes = [...?user?.rutas];
+    _photoUrl = user?.selfiePath;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _routeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickProfilePhoto(ImageSource source) async {
+    setState(() => _uploadingPhoto = true);
+    try {
+      final result = await _storageUploadService.pickAndUploadProfilePhoto(source: source);
+      if (!mounted) return;
+      setState(() {
+        _photoUrl = result?['url']?.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingPhoto = false);
+      }
+    }
+  }
+
+  void _addRoute() {
+    final value = _routeController.text.trim();
+    if (value.isEmpty) return;
+    if (_routes.any((route) => route.toLowerCase() == value.toLowerCase())) {
+      _routeController.clear();
+      return;
+    }
+    setState(() {
+      _routes = [..._routes, value];
+      _routeController.clear();
+    });
+  }
+
+  Future<void> _saveProfile() async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+
+    setState(() => _saving = true);
+    try {
+      await _authService.updateProfile(
+        fullName: _nameController.text,
+        phone: _phoneController.text,
+        countryCode: user.pais,
+        stateRegion: _routes.join(', '),
+        address: _addressController.text,
+        selfieUrl: _photoUrl,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Perfil actualizado.')),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo guardar el perfil.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser;
-
     final hasSession = user != null;
+    final isTraveler = user?.tipo == 'traveler';
+    final photoUrl = _photoUrl;
 
     return Scaffold(
       body: Container(
@@ -37,7 +142,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 const AppPageIntro(
                   title: 'Tu perfil',
-                  subtitle: 'Sesión, rol y estado operativo dentro de iWay.',
+                  subtitle: 'Edita tus datos, tus rutas y tu foto de viajero.',
                 ),
                 const SizedBox(height: 20),
                 Container(
@@ -53,14 +158,31 @@ class ProfileScreen extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Container(
-                                  width: 60,
-                                  height: 60,
-                                  decoration: BoxDecoration(
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    width: 74,
+                                    height: 74,
                                     color: AppTheme.surfaceSoft,
-                                    borderRadius: BorderRadius.circular(20),
+                                    child: photoUrl != null && photoUrl.isNotEmpty
+                                        ? Image.network(
+                                            '${ApiClient.baseUrl}$photoUrl',
+                                            fit: BoxFit.cover,
+                                            headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
+                                                ? null
+                                                : {'Authorization': 'Bearer ${SessionService.currentAccessToken!}'},
+                                            errorBuilder: (_, __, ___) => const Icon(
+                                              Icons.person_outline_rounded,
+                                              size: 34,
+                                              color: AppTheme.accent,
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.person_outline_rounded,
+                                            size: 34,
+                                            color: AppTheme.accent,
+                                          ),
                                   ),
-                                  child: const Icon(Icons.person_outline_rounded, size: 30, color: AppTheme.accent),
                                 ),
                                 const SizedBox(width: 14),
                                 Expanded(
@@ -68,7 +190,7 @@ class ProfileScreen extends StatelessWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        user.nombre.isNotEmpty ? user.nombre : 'Usuario iWay',
+                                        isTraveler ? 'Perfil del viajero' : 'Perfil de usuario',
                                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                                       ),
                                       const SizedBox(height: 4),
@@ -81,23 +203,126 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 18),
-                            _ProfileRow(label: 'Rol', value: user.tipo.isNotEmpty ? user.tipo : 'Sin rol'),
-                            _ProfileRow(label: 'País', value: user.pais.isNotEmpty ? user.pais : 'Sin dato'),
-                            _ProfileRow(label: 'Región', value: user.estado.isNotEmpty ? user.estado : 'Sin dato'),
-                            _ProfileRow(label: 'Teléfono', value: user.telefono.isNotEmpty ? user.telefono : 'Sin dato'),
-                            _ProfileRow(
-                              label: 'Estado de verificación',
-                              value: user.verificado ? 'Verificado' : 'Pendiente',
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                OutlinedButton.icon(
+                                  onPressed: _uploadingPhoto ? null : () => _pickProfilePhoto(ImageSource.gallery),
+                                  icon: const Icon(Icons.photo_library_outlined),
+                                  label: const Text('Galería'),
+                                ),
+                                OutlinedButton.icon(
+                                  onPressed: _uploadingPhoto ? null : () => _pickProfilePhoto(ImageSource.camera),
+                                  icon: const Icon(Icons.photo_camera_outlined),
+                                  label: const Text('Cámara'),
+                                ),
+                              ],
                             ),
-                            _ProfileRow(
+                            if (_uploadingPhoto) ...[
+                              const SizedBox(height: 12),
+                              const LinearProgressIndicator(),
+                            ],
+                            const SizedBox(height: 18),
+                            TextField(
+                              controller: _nameController,
+                              decoration: const InputDecoration(labelText: 'Nombre completo'),
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _phoneController,
+                              decoration: const InputDecoration(labelText: 'Teléfono'),
+                              keyboardType: TextInputType.phone,
+                            ),
+                            const SizedBox(height: 14),
+                            TextField(
+                              controller: _addressController,
+                              decoration: const InputDecoration(labelText: 'Dirección base'),
+                              maxLines: 2,
+                            ),
+                            if (isTraveler) ...[
+                              const SizedBox(height: 18),
+                              const Text(
+                                'Rutas / estados donde viajas en USA',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Agrega uno o varios estados para que quede claro por dónde operas.',
+                                style: TextStyle(color: AppTheme.muted, height: 1.4),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _routeController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Ejemplo: Florida, Texas, New York',
+                                      ),
+                                      onSubmitted: (_) => _addRoute(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  ElevatedButton(
+                                    onPressed: _addRoute,
+                                    child: const Text('Agregar'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              if (_routes.isEmpty)
+                                const Text(
+                                  'Todavía no has agregado rutas.',
+                                  style: TextStyle(color: AppTheme.muted),
+                                )
+                              else
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: _routes
+                                      .map(
+                                        (route) => Chip(
+                                          label: Text(route),
+                                          deleteIcon: const Icon(Icons.close, size: 18),
+                                          onDeleted: () {
+                                            setState(() {
+                                              _routes = _routes.where((item) => item != route).toList();
+                                            });
+                                          },
+                                        ),
+                                      )
+                                      .toList(),
+                                ),
+                            ],
+                            const SizedBox(height: 18),
+                            _ProfileStatusRow(
+                              label: 'Estado de verificación',
+                              value: user.verificado ? 'Perfil aprobado' : 'Pendiente de revisión',
+                            ),
+                            _ProfileStatusRow(
                               label: 'Estado operativo',
-                              value: user.bloqueado ? 'Bloqueado' : 'Activo',
+                              value: user.bloqueado ? 'Con restricción' : 'Activo',
+                            ),
+                            const SizedBox(height: 18),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _saving ? null : _saveProfile,
+                                child: _saving
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                      )
+                                    : const Text('Guardar cambios'),
+                              ),
                             ),
                           ],
                         )
                       : const Text(
-                          'No hay una sesión activa. Inicia sesión para ver tu perfil y tu estado operativo.',
+                          'No hay una sesión activa. Inicia sesión para ver tu perfil.',
                           style: TextStyle(color: AppTheme.muted, height: 1.5),
                         ),
                 ),
@@ -130,16 +355,16 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class _ProfileRow extends StatelessWidget {
+class _ProfileStatusRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _ProfileRow({required this.label, required this.value});
+  const _ProfileStatusRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           Expanded(
@@ -153,7 +378,7 @@ class _ProfileRow extends StatelessWidget {
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
           ),
         ],

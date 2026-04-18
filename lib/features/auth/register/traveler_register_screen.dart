@@ -399,6 +399,24 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                             .toList(),
                         onChanged: (value) => setState(() => selectedType = value),
                       ),
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceSoft,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppTheme.border),
+                        ),
+                        child: Text(
+                          selectedType == null
+                              ? 'Selecciona tu tipo de viajero para mostrar qué rutas cubres.'
+                              : selectedType == TravelerType.soloTierra
+                                  ? 'Cubres la ruta USA → Guatemala. Luego en tu perfil podrás indicar los estados de USA donde operas.'
+                                  : 'Cubres Guatemala ↔ USA. Luego en tu perfil podrás indicar los estados de USA donde operas.',
+                          style: const TextStyle(color: AppTheme.muted, height: 1.35),
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: documentoController,

@@ -7,13 +7,13 @@ import '../features/auth/register/traveler_register_screen.dart';
 import '../features/auth/verification/contact_verification_screen.dart';
 import '../features/shipment/create_shipment_screen.dart';
 import '../features/shipment/traveler_opportunities_screen.dart';
+import '../features/shipment/my_orders_screen.dart';
 import '../features/matching/offers_screen.dart';
 import '../features/shipment/tracking_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/payments/debts_screen.dart';
 import '../features/rating/rating_screen.dart';
-import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
 
 class AppRoutes {
@@ -37,12 +37,9 @@ class AppRoutes {
     '/verify_contact': (context) => const ContactVerificationScreen(),
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
+    '/my_orders': (context) => const MyOrdersScreen(),
     '/debts': (context) => const DebtsScreen(),
     '/profile': (context) => const ProfileScreen(),
-    '/map': (context) {
-      final shipmentId = ModalRoute.of(context)?.settings.arguments;
-      return MapScreen(shipmentId: shipmentId is String ? shipmentId : null);
-    },
     '/rating': (context) {
       final id = ModalRoute.of(context)?.settings.arguments;
       if (id is! String || id.isEmpty) {

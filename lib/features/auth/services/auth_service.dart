@@ -169,4 +169,32 @@ class AuthService {
     );
     return parsedUser;
   }
+
+  Future<UserModel?> updateProfile({
+    required String fullName,
+    required String phone,
+    String? countryCode,
+    String? stateRegion,
+    String? address,
+    String? selfieUrl,
+  }) async {
+    final data = await _apiClient.patch('/auth/me', {
+      'fullName': fullName.trim(),
+      'phone': phone.trim(),
+      'countryCode': countryCode,
+      'stateRegion': stateRegion,
+      'address': address,
+      'selfieUrl': selfieUrl,
+    });
+
+    final user = data['user'];
+    if (user is! Map<String, dynamic>) return null;
+
+    final parsedUser = UserModel.fromBackendJson(user);
+    await SessionService.setUser(
+      parsedUser,
+      accessToken: SessionService.currentAccessToken,
+    );
+    return parsedUser;
+  }
 }

@@ -42,6 +42,11 @@ export class ShipmentsController {
     return this.shipmentsService.findAll();
   }
 
+  @Get('mine')
+  findMine(@Req() req: any) {
+    return this.shipmentsService.findMine(req.user);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Req() req: any) {
     return this.shipmentsService.findOne(id, req.user);

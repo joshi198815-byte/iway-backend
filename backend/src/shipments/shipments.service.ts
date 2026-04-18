@@ -190,6 +190,41 @@ export class ShipmentsService {
     });
   }
 
+
+  async findMine(requester: { sub: string; role: string }) {
+    const where = requester.role === 'traveler'
+      ? { assignedTravelerId: requester.sub }
+      : { customerId: requester.sub };
+
+    return this.prisma.shipment.findMany({
+      where,
+      include: {
+        offers: true,
+        commission: true,
+        customer: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        assignedTraveler: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        images: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   private ensureShipmentAccess(
     shipment: { customerId: string; assignedTravelerId: string | null },
     requester: { sub: string; role: string },

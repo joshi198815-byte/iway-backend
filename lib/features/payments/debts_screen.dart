@@ -401,7 +401,7 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
         child: SafeArea(
           child: loading
               ? const Center(child: CircularProgressIndicator())
-              : Padding(
+              : SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(22, 12, 22, 22),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -409,8 +409,8 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
                       const AppPageIntro(
-                        title: 'Comisiones y deudas',
-                        subtitle: 'Resumen semanal con la tarifa activa y el cálculo aplicado por envío.',
+                        title: 'Pagos y comisiones',
+                        subtitle: 'Revisa lo que debes, cuánto te toca pagar y el estado de tus pagos.',
                       ),
                       const SizedBox(height: 20),
                       if (isBlocked || total > 0) ...[
@@ -519,17 +519,17 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                       const SizedBox(height: 16),
                       if (payoutPolicy != null) ...[
                         AppGlassSection(
-                          title: 'Política de payout',
+                          title: 'Estado de pagos',
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Modo: ${payoutPolicy!['policy'] ?? 'manual_review'} • KYC ${payoutPolicy!['kycTier'] ?? 'basic'} • Trust ${(payoutPolicy!['trustScore'] ?? 0)}',
+                                'Revisión: ${payoutPolicy!['policy'] == 'manual_review' ? 'manual' : 'automática'} • Nivel de verificación: ${payoutPolicy!['kycTier'] == 'premium' ? 'alto' : payoutPolicy!['kycTier'] == 'enhanced' ? 'medio' : 'básico'} • Confianza: ${(payoutPolicy!['trustScore'] ?? 0)} / 100',
                                 style: const TextStyle(fontWeight: FontWeight.w700),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                'Delay esperado: ${(payoutPolicy!['payoutDelayHours'] ?? 0)}h • Auto-approval máx: \$${((payoutPolicy!['maxAutoApprovalAmount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
+                                'Tiempo estimado de pago: ${(payoutPolicy!['payoutDelayHours'] ?? 0)}h • Monto máximo con aprobación automática: \$${((payoutPolicy!['maxAutoApprovalAmount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
                                 style: const TextStyle(color: AppTheme.muted),
                               ),
                               if (payoutPolicy!['reasons'] is List && (payoutPolicy!['reasons'] as List).isNotEmpty) ...[
@@ -595,7 +595,7 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                       ],
                       if (ledger.isNotEmpty) ...[
                         AppGlassSection(
-                          title: 'Ledger reciente',
+                          title: 'Movimientos recientes',
                           child: Column(
                             children: ledger.take(4).map((item) {
                               final amount = (item['amount'] as num?)?.toDouble() ?? 0;
@@ -667,63 +667,66 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      Expanded(
-                        child: commissions.isEmpty
-                            ? const Center(child: Text('No hay comisiones pendientes.'))
-                            : ListView.separated(
-                                itemCount: commissions.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                  final item = commissions[index];
-                                  final amount = (item['commissionAmount'] as num?)?.toDouble() ?? 0;
-                                  final shipmentId = item['shipmentId']?.toString() ?? 'Sin envío';
-                                  final status = item['status']?.toString() ?? 'pending';
+                      commissions.isEmpty
+                          ? const Padding(
+                              padding: EdgeInsets.only(top: 8, bottom: 8),
+                              child: Center(child: Text('No hay comisiones pendientes.')),
+                            )
+                          : ListView.separated(
+                              itemCount: commissions.length,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final item = commissions[index];
+                                final amount = (item['commissionAmount'] as num?)?.toDouble() ?? 0;
+                                final shipmentId = item['shipmentId']?.toString() ?? 'Sin envío';
+                                final status = item['status']?.toString() ?? 'pending';
 
-                                  return Container(
-                                    padding: const EdgeInsets.all(18),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surface,
-                                      borderRadius: BorderRadius.circular(22),
-                                      border: Border.all(color: AppTheme.border),
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          width: 42,
-                                          height: 42,
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.surfaceSoft,
-                                            borderRadius: BorderRadius.circular(14),
-                                          ),
-                                          child: const Icon(Icons.account_balance_wallet_outlined, color: AppTheme.accent),
+                                return Container(
+                                  padding: const EdgeInsets.all(18),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.surface,
+                                    borderRadius: BorderRadius.circular(22),
+                                    border: Border.all(color: AppTheme.border),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 42,
+                                        height: 42,
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceSoft,
+                                          borderRadius: BorderRadius.circular(14),
                                         ),
-                                        const SizedBox(width: 14),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text('Shipment $shipmentId', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                              const SizedBox(height: 6),
-                                              Text('Estado: ${_formatStatus(status)}', style: const TextStyle(color: AppTheme.muted)),
-                                              const SizedBox(height: 6),
-                                              Text(
-                                                'Cálculo: ${_formatRule(item)}',
-                                                style: const TextStyle(color: AppTheme.muted),
-                                              ),
-                                            ],
-                                          ),
+                                        child: const Icon(Icons.account_balance_wallet_outlined, color: AppTheme.accent),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text('Pedido $shipmentId', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                            const SizedBox(height: 6),
+                                            Text('Estado: ${_formatStatus(status)}', style: const TextStyle(color: AppTheme.muted)),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              'Cálculo: ${_formatRule(item)}',
+                                              style: const TextStyle(color: AppTheme.muted),
+                                            ),
+                                          ],
                                         ),
-                                        Text(
-                                          '\$${amount.toStringAsFixed(2)}',
-                                          style: const TextStyle(fontWeight: FontWeight.w700),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
+                                      ),
+                                      Text(
+                                        '\$${amount.toStringAsFixed(2)}',
+                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
                     ],
                   ),
                 ),

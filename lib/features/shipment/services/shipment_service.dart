@@ -53,6 +53,19 @@ class ShipmentService {
         .toList();
   }
 
+
+  Future<List<ShipmentModel>> getMyShipments() async {
+    final data = await _apiClient.get('/shipments/mine');
+    if (data is! List) {
+      return const [];
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(ShipmentModel.fromBackendJson)
+        .toList();
+  }
+
   Future<ShipmentModel> getShipmentById(String id) async {
     final data = await _apiClient.get('/shipments/$id');
     if (data is! Map<String, dynamic>) {

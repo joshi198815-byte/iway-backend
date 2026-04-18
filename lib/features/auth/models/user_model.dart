@@ -40,6 +40,12 @@ class UserModel {
   factory UserModel.fromBackendJson(Map<String, dynamic> json) {
     final travelerProfile = json['travelerProfile'];
     final status = (json['status'] ?? '').toString();
+    final stateRegion = (json['stateRegion'] ?? json['estado'] ?? '').toString();
+    final derivedRoutes = stateRegion
+        .split(RegExp(r'[,\n|/]'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
 
     return UserModel(
       id: (json['id'] ?? '').toString(),
@@ -47,7 +53,7 @@ class UserModel {
       email: (json['email'] ?? '').toString(),
       telefono: (json['phone'] ?? json['telefono'] ?? '').toString(),
       pais: (json['detectedCountryCode'] ?? json['countryCode'] ?? '').toString(),
-      estado: (json['stateRegion'] ?? json['estado'] ?? '').toString(),
+      estado: stateRegion,
       direccion: (json['address'] ?? json['direccion'] ?? '').toString(),
       tipo: (json['role'] ?? json['tipo'] ?? '').toString(),
       travelerType: travelerProfile is Map<String, dynamic>
@@ -58,13 +64,17 @@ class UserModel {
       documento: travelerProfile is Map<String, dynamic>
           ? travelerProfile['documentNumber']?.toString()
           : json['documento']?.toString(),
-      selfiePath: json['selfiePath']?.toString(),
-      rutas: travelerProfile is Map<String, dynamic>
-          ? ((travelerProfile['allowedRoutes'] as List?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [])
-          : (json['rutas'] as List?)?.map((e) => e.toString()).toList(),
+      selfiePath: travelerProfile is Map<String, dynamic>
+          ? travelerProfile['selfieUrl']?.toString()
+          : json['selfiePath']?.toString(),
+      rutas: derivedRoutes.isNotEmpty
+          ? derivedRoutes
+          : travelerProfile is Map<String, dynamic>
+              ? ((travelerProfile['allowedRoutes'] as List?)
+                      ?.map((e) => e.toString())
+                      .toList() ??
+                  [])
+              : (json['rutas'] as List?)?.map((e) => e.toString()).toList(),
       verificado: status == 'active' ||
           (travelerProfile is Map<String, dynamic> &&
               travelerProfile['status'] == 'verified'),

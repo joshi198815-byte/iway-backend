@@ -67,6 +67,8 @@ export class UsersService {
         email: true,
         phone: true,
         countryCode: true,
+        stateRegion: true,
+        address: true,
         detectedCountryCode: true,
         createdAt: true,
         updatedAt: true,
@@ -226,10 +228,16 @@ export class UsersService {
         email: true,
         phone: true,
         countryCode: true,
+        stateRegion: true,
+        address: true,
         detectedCountryCode: true,
         phoneVerified: true,
         emailVerified: true,
-        travelerProfile: true,
+        travelerProfile: {
+          include: {
+            routes: true,
+          },
+        },
       },
     });
   }
@@ -243,6 +251,8 @@ export class UsersService {
         status: true,
         fullName: true,
         countryCode: true,
+        stateRegion: true,
+        address: true,
         detectedCountryCode: true,
         travelerProfile: {
           select: {
@@ -255,6 +265,48 @@ export class UsersService {
         },
       },
     });
+  }
+
+
+  async updateSelfProfile(
+    userId: string,
+    payload: {
+      fullName?: string;
+      phone?: string;
+      countryCode?: string;
+      stateRegion?: string;
+      address?: string;
+      selfieUrl?: string;
+    },
+  ) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { travelerProfile: true },
+    });
+
+    if (!existing) return null;
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        fullName: payload.fullName?.trim() || existing.fullName,
+        phone: payload.phone?.trim() || existing.phone,
+        countryCode: payload.countryCode?.trim() || existing.countryCode,
+        stateRegion: payload.stateRegion?.trim() || null,
+        address: payload.address?.trim() || null,
+      },
+    });
+
+    if (existing.role === 'traveler' && existing.travelerProfile && payload.selfieUrl != null) {
+      await this.prisma.travelerProfile.update({
+        where: { userId },
+        data: {
+          selfieUrl: payload.selfieUrl.trim() == '' ? null : payload.selfieUrl.trim(),
+        },
+      });
+    }
+
+    return this.findByIdForSession(userId);
   }
 
   getBlueprint() {
