@@ -362,33 +362,34 @@ export class NotificationsService implements OnModuleInit {
     });
 
     const providerConfigured = this.firebaseConfigured();
-    const dispatchJob = providerConfigured && activeDevices.length > 0
-      ? await this.jobsService.enqueue({
-          name: 'push-dispatch-batch',
-          payload: {
-            actorId: uniqueUserIds[0],
-            title,
-            body,
-            type,
-            shipmentId: shipmentId ?? null,
-            userCount: uniqueUserIds.length,
-            devices: activeDevices.map((device) => ({
+    let sentCount = 0;
+
+    if (providerConfigured && activeDevices.length > 0) {
+      const accessToken = await this.getFirebaseAccessToken();
+      if (accessToken) {
+        const results = await Promise.all(
+          activeDevices.map((device) =>
+            this.sendFirebasePushToToken({
               token: device.token,
-              userId: device.userId,
-              platform: device.platform,
-            })),
-          },
-          maxAttempts: 4,
-        })
-      : null;
+              title,
+              body,
+              type,
+              shipmentId,
+              accessToken,
+            }),
+          ),
+        );
+        sentCount = results.filter((result) => result.sent).length;
+      }
+    }
 
     return {
-      queued: Boolean(dispatchJob),
+      queued: false,
       providerConfigured,
       userCount: uniqueUserIds.length,
       deviceCount: activeDevices.length,
-      sentCount: 0,
-      jobId: dispatchJob?.id ?? null,
+      sentCount,
+      jobId: null,
     };
   }
 
@@ -473,35 +474,37 @@ export class NotificationsService implements OnModuleInit {
     });
 
     const providerConfigured = this.firebaseConfigured();
-    const dispatchJob = providerConfigured && activeDevices.length > 0
-      ? await this.jobsService.enqueue({
-          name: 'push-dispatch-single',
-          payload: {
-            userId,
-            title,
-            body,
-            type,
-            shipmentId: shipmentId ?? null,
-            devices: activeDevices.map((device) => ({
+    let pushResults: Array<{ sent: boolean; status?: number }> = [];
+
+    if (providerConfigured && activeDevices.length > 0) {
+      const accessToken = await this.getFirebaseAccessToken();
+      if (accessToken) {
+        pushResults = await Promise.all(
+          activeDevices.map((device) =>
+            this.sendFirebasePushToToken({
               token: device.token,
-              platform: device.platform,
-            })),
-          },
-          maxAttempts: 4,
-        })
-      : null;
+              title,
+              body,
+              type,
+              shipmentId,
+              accessToken,
+            }),
+          ),
+        );
+      }
+    }
 
     return {
       ...notification,
-      queued: Boolean(dispatchJob),
+      queued: false,
       providerConfigured,
       deviceCount: activeDevices.length,
-      sentCount: 0,
-      jobId: dispatchJob?.id ?? null,
-      devices: activeDevices.map((device) => ({
+      sentCount: pushResults.filter((result) => result.sent).length,
+      jobId: null,
+      devices: activeDevices.map((device, index) => ({
         id: device.id,
         platform: device.platform,
-        sent: false,
+        sent: index < pushResults.length ? pushResults[index].sent : false,
       })),
     };
   }
