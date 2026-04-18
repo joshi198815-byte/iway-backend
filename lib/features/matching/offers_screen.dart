@@ -24,7 +24,7 @@ class OffersScreen extends StatefulWidget {
   State<OffersScreen> createState() => _OffersScreenState();
 }
 
-class _OffersScreenState extends State<OffersScreen> {
+class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver {
   final matchingService = MatchingService();
   final shipmentService = ShipmentService();
   final priceController = TextEditingController();
@@ -36,12 +36,14 @@ class _OffersScreenState extends State<OffersScreen> {
   bool creatingOffer = false;
   StreamSubscription<dynamic>? offerSubscription;
   StreamSubscription<dynamic>? shipmentStatusSubscription;
+  StreamSubscription<dynamic>? notificationSubscription;
 
   bool get isTraveler => SessionService.currentUser?.tipo == 'traveler';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadOffers();
     bindRealtime();
   }
@@ -58,14 +60,28 @@ class _OffersScreenState extends State<OffersScreen> {
         loadOffers();
       }
     });
+    notificationSubscription = realtime.notificationUpdated.listen((data) {
+      if (data is Map && data['shipmentId']?.toString() == widget.shipmentId) {
+        loadOffers();
+      }
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     offerSubscription?.cancel();
     shipmentStatusSubscription?.cancel();
+    notificationSubscription?.cancel();
     priceController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadOffers();
+    }
   }
 
   Future<void> loadOffers() async {

@@ -22,7 +22,7 @@ class MapScreen extends StatefulWidget {
   State<MapScreen> createState() => _MapScreenState();
 }
 
-class _MapScreenState extends State<MapScreen> {
+class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   GoogleMapController? mapController;
 
   final locationService = LocationService();
@@ -64,6 +64,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     startTracking();
     loadShipment();
     loadLatestTracking();
@@ -387,11 +388,21 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     locationSubscription?.cancel();
     trackingSubscription?.cancel();
     shipmentStatusSubscription?.cancel();
     mapController?.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadShipment();
+      loadLatestTracking();
+      loadRoute();
+    }
   }
 
   @override

@@ -27,7 +27,7 @@ class TrackingScreen extends StatefulWidget {
   State<TrackingScreen> createState() => _TrackingScreenState();
 }
 
-class _TrackingScreenState extends State<TrackingScreen> {
+class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObserver {
   final shipmentService = ShipmentService();
   final trackingService = TrackingService();
   final imageService = ImageService();
@@ -65,6 +65,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadTrackingData();
     bindRealtime();
   }
@@ -468,9 +469,17 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     trackingSubscription?.cancel();
     shipmentStatusSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadTrackingData();
+    }
   }
 
   @override

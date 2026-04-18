@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/disputes/services/dispute_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
@@ -13,15 +16,26 @@ class SupportCenterScreen extends StatefulWidget {
   State<SupportCenterScreen> createState() => _SupportCenterScreenState();
 }
 
-class _SupportCenterScreenState extends State<SupportCenterScreen> {
+class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsBindingObserver {
   final _disputeService = DisputeService();
+  final _realtime = RealtimeService.instance;
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+  StreamSubscription<dynamic>? _notificationSubscription;
+  StreamSubscription<dynamic>? _shipmentStatusSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+    _bindRealtime();
+  }
+
+  Future<void> _bindRealtime() async {
+    await _realtime.ensureConnected();
+    _notificationSubscription = _realtime.notificationUpdated.listen((_) => _load());
+    _shipmentStatusSubscription = _realtime.shipmentStatusChanged.listen((_) => _load());
   }
 
   Future<void> _load() async {
@@ -70,6 +84,21 @@ class _SupportCenterScreenState extends State<SupportCenterScreen> {
         return AppTheme.muted;
       default:
         return AppTheme.primary;
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _notificationSubscription?.cancel();
+    _shipmentStatusSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load();
     }
   }
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
@@ -17,25 +19,29 @@ class TravelerOpportunitiesScreen extends StatefulWidget {
   State<TravelerOpportunitiesScreen> createState() => _TravelerOpportunitiesScreenState();
 }
 
-class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScreen> {
+class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScreen> with WidgetsBindingObserver {
   final shipmentService = ShipmentService();
   final realtime = RealtimeService.instance;
 
   List<ShipmentModel> shipments = [];
   bool loading = true;
+  StreamSubscription<dynamic>? notificationSubscription;
+  StreamSubscription<dynamic>? offerSubscription;
+  StreamSubscription<dynamic>? shipmentStatusSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadShipments();
     _bindRealtime();
   }
 
   Future<void> _bindRealtime() async {
     await realtime.ensureConnected();
-    realtime.notificationUpdated.listen((_) => loadShipments());
-    realtime.offerUpdated.listen((_) => loadShipments());
-    realtime.shipmentStatusChanged.listen((_) => loadShipments());
+    notificationSubscription = realtime.notificationUpdated.listen((_) => loadShipments());
+    offerSubscription = realtime.offerUpdated.listen((_) => loadShipments());
+    shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((_) => loadShipments());
   }
 
   Future<void> loadShipments() async {
@@ -58,6 +64,22 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No se pudieron cargar las oportunidades.')),
       );
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    notificationSubscription?.cancel();
+    offerSubscription?.cancel();
+    shipmentStatusSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadShipments();
     }
   }
 

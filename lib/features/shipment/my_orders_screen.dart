@@ -19,7 +19,7 @@ class MyOrdersScreen extends StatefulWidget {
   State<MyOrdersScreen> createState() => _MyOrdersScreenState();
 }
 
-class _MyOrdersScreenState extends State<MyOrdersScreen> {
+class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObserver {
   final _shipmentService = ShipmentService();
   final _disputeService = DisputeService();
   final _realtime = RealtimeService.instance;
@@ -28,10 +28,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
   String _filter = 'ruta';
   StreamSubscription<dynamic>? _notificationSubscription;
   StreamSubscription<dynamic>? _shipmentStatusSubscription;
+  StreamSubscription<dynamic>? _offerSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
     _bindRealtime();
   }
@@ -40,13 +42,23 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
     await _realtime.ensureConnected();
     _notificationSubscription = _realtime.notificationUpdated.listen((_) => _load());
     _shipmentStatusSubscription = _realtime.shipmentStatusChanged.listen((_) => _load());
+    _offerSubscription = _realtime.offerUpdated.listen((_) => _load());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _notificationSubscription?.cancel();
     _shipmentStatusSubscription?.cancel();
+    _offerSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
   }
 
   Future<void> _load() async {

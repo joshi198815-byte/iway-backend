@@ -18,7 +18,7 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsBindingObserver {
   final service = NotificationService();
   final realtime = RealtimeService.instance;
 
@@ -26,10 +26,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool loading = true;
   bool refreshing = false;
   StreamSubscription<dynamic>? notificationSubscription;
+  StreamSubscription<dynamic>? offerSubscription;
+  StreamSubscription<dynamic>? shipmentStatusSubscription;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadNotifications();
     bindRealtime();
   }
@@ -55,12 +58,24 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> bindRealtime() async {
     await realtime.ensureConnected();
     notificationSubscription = realtime.notificationUpdated.listen((_) => loadNotifications(showRefreshing: true));
+    offerSubscription = realtime.offerUpdated.listen((_) => loadNotifications(showRefreshing: true));
+    shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((_) => loadNotifications(showRefreshing: true));
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     notificationSubscription?.cancel();
+    offerSubscription?.cancel();
+    shipmentStatusSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadNotifications(showRefreshing: true);
+    }
   }
 
   Future<void> loadNotifications({bool showRefreshing = false}) async {
