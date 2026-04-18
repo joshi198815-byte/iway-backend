@@ -11,6 +11,7 @@ import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
+import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -90,24 +91,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
     return _shipments.where((item) => item.estado != 'delivered').toList();
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'assigned':
-        return 'Asignado';
-      case 'picked_up':
-        return 'Recogido';
-      case 'in_transit':
-        return 'En ruta';
-      case 'in_delivery':
-        return 'Por entregar';
-      case 'delivered':
-        return 'Completado';
-      case 'published':
-        return 'Publicado';
-      default:
-        return status;
-    }
-  }
+  String _statusLabel(String status) => ShipmentStatusPresenter.label(status);
 
   Future<void> _showSupport(ShipmentModel shipment) async {
     final reasonController = TextEditingController();

@@ -17,6 +17,7 @@ import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/ui/app_skeleton.dart';
+import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class TrackingScreen extends StatefulWidget {
   final String shipmentId;
@@ -304,26 +305,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     }
   }
 
-  String formatStatus(String estado) {
-    switch (estado) {
-      case 'published':
-        return 'Publicado';
-      case 'offered':
-        return 'Con ofertas';
-      case 'assigned':
-        return 'Asignado';
-      case 'picked_up':
-        return 'Recogido';
-      case 'in_transit':
-        return 'En ruta';
-      case 'in_delivery':
-        return 'Por entregar';
-      case 'delivered':
-        return 'Entregado';
-      default:
-        return estado;
-    }
-  }
+  String formatStatus(String estado) => ShipmentStatusPresenter.label(estado);
 
   int statusIndex(String estado) {
     switch (estado) {

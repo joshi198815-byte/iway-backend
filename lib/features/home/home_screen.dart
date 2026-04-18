@@ -9,6 +9,7 @@ import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_action_cards.dart';
 import 'package:iway_app/shared/ui/app_info_chip.dart';
+import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -131,26 +132,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
-      case 'published':
-        return 'Publicado';
-      case 'offered':
-        return 'Con ofertas';
-      case 'assigned':
-        return 'Asignado';
-      case 'picked_up':
-        return 'Recogido';
-      case 'in_transit':
-        return 'En ruta';
-      case 'in_delivery':
-        return 'Por entregar';
-      case 'delivered':
-        return 'Completado';
-      default:
-        return status;
-    }
-  }
+  String _statusLabel(String status) => ShipmentStatusPresenter.label(status);
 
   @override
   Widget build(BuildContext context) {
