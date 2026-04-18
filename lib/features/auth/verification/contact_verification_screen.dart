@@ -164,8 +164,8 @@ class _ContactVerificationScreenState extends State<ContactVerificationScreen> {
   Widget build(BuildContext context) {
     final currentUser = user;
 
-    return WillPopScope(
-      onWillPop: () async => false,
+    return PopScope(
+      canPop: false,
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
