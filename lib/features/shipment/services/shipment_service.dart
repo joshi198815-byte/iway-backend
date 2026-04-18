@@ -19,12 +19,9 @@ class ShipmentService {
       'receiverName': shipment.receptorNombre,
       'receiverPhone': shipment.receptorTelefono,
       'receiverAddress': shipment.receptorDireccion,
-      'pickupLat': shipment.pickupLat,
-      'pickupLng': shipment.pickupLng,
       'deliveryLat': shipment.deliveryLat,
       'deliveryLng': shipment.deliveryLng,
       'insuranceEnabled': shipment.seguro,
-      'imageUrls': shipment.imagenes,
     });
 
     return ShipmentModel.fromBackendJson(data);
