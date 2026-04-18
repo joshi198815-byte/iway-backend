@@ -8,7 +8,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
 
   return (
     <div className="layout">
-      <Sidebar />
+      <Sidebar role={session.user.role} />
       <main className="content">
         <div className="header">
           <div>

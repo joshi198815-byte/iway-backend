@@ -3,7 +3,7 @@ import { EmptyState } from '@/components/empty-state';
 import { KeyValueList } from '@/components/key-value-list';
 import { createCollaboratorAction, resetCollaboratorPasswordAction, updateCollaboratorAction } from '@/app/(protected)/mutations';
 import { getCollaborators, getCollection, formatDate } from '@/lib/api';
-import { requireSession } from '@/lib/auth';
+import { requireAdminSession } from '@/lib/auth';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -12,16 +12,7 @@ function getParam(value: string | string[] | undefined) {
 }
 
 export default async function AdminCollaboratorsPage({ searchParams }: { searchParams: SearchParams }) {
-  const session = await requireSession();
-
-  if (session.user?.role !== 'admin') {
-    return (
-      <section className="card panel">
-        <h2>Admin Collaborators</h2>
-        <p className="muted">Esta pantalla es solo para usuarios con rol admin.</p>
-      </section>
-    );
-  }
+  const session = await requireAdminSession();
 
   const token = session.token as string;
   const params = await searchParams;
