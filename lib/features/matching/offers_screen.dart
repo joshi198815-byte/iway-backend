@@ -239,6 +239,37 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     }
   }
 
+  String? emptyStateHint() {
+    final status = shipment?.estado ?? '';
+    if (isTraveler) {
+      if (status == 'assigned' || status == 'picked_up' || status == 'in_transit' || status == 'in_delivery' || status == 'delivered') {
+        return 'Este envío ya avanzó demasiado para recibir nuevas propuestas.';
+      }
+      return 'Propón un precio competitivo para entrar en la conversación.';
+    }
+
+    if (status == 'published') {
+      return 'Cuando lleguen propuestas de viajeros, aparecerán aquí para compararlas.';
+    }
+    if (status == 'assigned') {
+      return 'Este envío ya tiene viajero asignado. Si esperabas más opciones, revisa tracking.';
+    }
+    return 'Todavía no hay propuestas visibles para este envío.';
+  }
+
+  String? disabledActionHint(OfferModel offer) {
+    if (SessionService.currentUserId == null) {
+      return 'Debes iniciar sesión otra vez para tomar una decisión.';
+    }
+    if (offer.estado == 'accepted') {
+      return 'Esta propuesta ya fue aceptada.';
+    }
+    if (offer.estado == 'rejected' || offer.estado == 'withdrawn') {
+      return 'Esta oferta ya no está activa.';
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -374,9 +405,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                               title: isTraveler
                                   ? 'Todavía no has enviado una oferta'
                                   : 'Todavía no hay ofertas',
-                              subtitle: isTraveler
-                                  ? 'Propón un precio competitivo para entrar en la conversación.'
-                                  : 'Cuando lleguen propuestas de viajeros, aparecerán aquí para compararlas.',
+                              subtitle: emptyStateHint() ?? '',
                             )
                           : ListView.separated(
                               padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
@@ -499,6 +528,13 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                             ),
                                           ],
                                         ),
+                                        if (disabledActionHint(offer) != null) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            disabledActionHint(offer)!,
+                                            style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                                          ),
+                                        ],
                                       ],
                                     ],
                                   ),

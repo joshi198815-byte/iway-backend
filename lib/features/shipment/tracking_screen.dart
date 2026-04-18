@@ -343,6 +343,23 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     }
   }
 
+  String? actionBlockReason(String estado) {
+    final nextAction = nextOperationalAction(estado);
+    if (updatingStatus) {
+      return 'Estamos guardando el cambio operativo.';
+    }
+    if (nextAction == null) {
+      return 'No hay una siguiente acción disponible para este estado.';
+    }
+    if (!_isPrivilegedOperator && !_isAssignedTraveler) {
+      return 'Solo el viajero asignado o un operador puede avanzar este envío.';
+    }
+    if (nextAction.status == 'delivered' && deliveryProofImages.isEmpty) {
+      return 'Agrega al menos una evidencia antes de marcarlo como entregado.';
+    }
+    return null;
+  }
+
   Widget buildStep(String title, bool active) {
     return Row(
       children: [
@@ -776,11 +793,24 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                         Builder(
                           builder: (context) {
                             final nextAction = nextOperationalAction(estado);
-                            return ElevatedButton(
-                              onPressed: updatingStatus || nextAction == null || (!_isPrivilegedOperator && !_isAssignedTraveler)
-                                  ? null
-                                  : () => updateStatus(nextAction.status),
-                              child: Text(nextAction?.label ?? 'Sin acción disponible'),
+                            final blockReason = actionBlockReason(estado);
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: blockReason != null
+                                      ? null
+                                      : () => updateStatus(nextAction!.status),
+                                  child: Text(nextAction?.label ?? 'Sin acción disponible'),
+                                ),
+                                if (blockReason != null) ...[
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    blockReason,
+                                    style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                                  ),
+                                ],
+                              ],
                             );
                           },
                         ),
