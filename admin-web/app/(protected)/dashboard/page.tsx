@@ -21,6 +21,16 @@ const shortcuts = [
     description: 'Seguimiento general, filtros y cambios rápidos de estado.',
   },
   {
+    href: '/disputes',
+    title: 'Disputes',
+    description: 'Cola operativa, resolución y contexto del conflicto.',
+  },
+  {
+    href: '/antifraud',
+    title: 'Anti-Fraud',
+    description: 'Cola de riesgo, resumen por usuario y flags manuales.',
+  },
+  {
     href: '/finance-dashboard',
     title: 'Finance Dashboard',
     description: 'KPIs, deuda, settlements y lectura ejecutiva.',

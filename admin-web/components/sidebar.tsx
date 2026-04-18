@@ -5,6 +5,8 @@ const links = [
   { href: '/travelers-review', label: 'Travelers Review' },
   { href: '/transfers-review', label: 'Transfers Review' },
   { href: '/shipments', label: 'Shipments' },
+  { href: '/disputes', label: 'Disputes' },
+  { href: '/antifraud', label: 'Anti-Fraud' },
   { href: '/finance-dashboard', label: 'Finance Dashboard' },
   { href: '/admin-collaborators', label: 'Admin Collaborators' },
 ];

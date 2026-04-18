@@ -2,8 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 import {
+  createAntiFraudFlag,
   createCollaborator,
+  recomputeAntiFraudSummary,
   resetCollaboratorPassword,
+  resolveDispute,
   reviewTransfer,
   reviewTraveler,
   runTravelerKyc,
@@ -133,6 +136,51 @@ export async function resetCollaboratorPasswordAction(formData: FormData) {
   if (userId) {
     await resetCollaboratorPassword(token, userId, password || undefined);
     revalidatePath('/admin-collaborators');
+    revalidatePath(path);
+  }
+}
+
+export async function resolveDisputeAction(formData: FormData) {
+  const token = await getToken();
+  const disputeId = queryValue(formData, 'disputeId');
+  const status = queryValue(formData, 'status');
+  const resolution = queryValue(formData, 'resolution');
+  const path = queryValue(formData, 'path') || '/disputes';
+
+  if (disputeId && status) {
+    await resolveDispute(token, disputeId, status, resolution || undefined);
+    revalidatePath('/disputes');
+    revalidatePath(path);
+  }
+}
+
+export async function recomputeAntiFraudSummaryAction(formData: FormData) {
+  const token = await getToken();
+  const userId = queryValue(formData, 'userId');
+  const path = queryValue(formData, 'path') || '/antifraud';
+
+  if (userId) {
+    await recomputeAntiFraudSummary(token, userId);
+    revalidatePath('/antifraud');
+    revalidatePath(path);
+  }
+}
+
+export async function createAntiFraudFlagAction(formData: FormData) {
+  const token = await getToken();
+  const userId = queryValue(formData, 'userId');
+  const flagType = queryValue(formData, 'flagType');
+  const severity = queryValue(formData, 'severity');
+  const details = queryValue(formData, 'details');
+  const path = queryValue(formData, 'path') || '/antifraud';
+
+  if (userId && flagType && severity) {
+    await createAntiFraudFlag(token, userId, {
+      flagType,
+      severity,
+      details: details ? { note: details } : undefined,
+    });
+    revalidatePath('/antifraud');
     revalidatePath(path);
   }
 }

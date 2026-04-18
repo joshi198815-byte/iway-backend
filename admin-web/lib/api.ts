@@ -188,6 +188,42 @@ export async function getTrackingTimeline(token: string, shipmentId: string) {
   return apiRequest<unknown>(`/tracking/shipment/${shipmentId}/timeline`, { token });
 }
 
+export async function getDisputesQueue(token: string) {
+  return apiRequest<unknown>('/disputes/queue', { token });
+}
+
+export async function resolveDispute(token: string, disputeId: string, status: string, resolution?: string) {
+  return apiRequest(`/disputes/${disputeId}/resolve`, {
+    token,
+    method: 'PUT',
+    body: JSON.stringify({ status, resolution }),
+  });
+}
+
+export async function getAntiFraudReviewQueue(token: string) {
+  return apiRequest<unknown>('/anti-fraud/review-queue', { token });
+}
+
+export async function recomputeAntiFraudSummary(token: string, userId: string) {
+  return apiRequest<unknown>(`/anti-fraud/user/${userId}/recompute`, {
+    token,
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export async function createAntiFraudFlag(
+  token: string,
+  userId: string,
+  payload: { flagType: string; severity: string; details?: Record<string, unknown> },
+) {
+  return apiRequest(`/anti-fraud/user/${userId}/flags`, {
+    token,
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function updateShipmentStatus(token: string, shipmentId: string, status: string) {
   return apiRequest(`/shipments/${shipmentId}/status`, {
     token,
