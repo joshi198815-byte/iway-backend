@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
+import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/address_search_service.dart';
 import 'package:iway_app/features/shipment/services/insurance_service.dart';
@@ -76,6 +77,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final imageService = ImageService();
   final insuranceService = InsuranceService();
   final addressSearchService = AddressSearchService();
+  final locationService = LocationService();
 
   final List<File> images = [];
   final List<AddressSuggestion> addressSuggestions = [];
@@ -400,6 +402,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         address: fullAddress,
         countryCode: _countryNameToCode[receiverCountry] ?? destino,
       );
+      final pickupPosition = await locationService.getLocation();
 
       final resolvedAddress = geocoded?.formattedAddress ?? fullAddress;
 
@@ -419,6 +422,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         receptorNombre: receptorNombre,
         receptorTelefono: receptorTelefono,
         receptorDireccion: resolvedAddress,
+        pickupLat: pickupPosition?.latitude,
+        pickupLng: pickupPosition?.longitude,
         deliveryLat: geocoded?.latitude,
         deliveryLng: geocoded?.longitude,
         imagenes: images.map((e) => e.path).toList(),

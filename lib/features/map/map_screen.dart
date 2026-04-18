@@ -6,6 +6,8 @@ import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/tracking/models/tracking_point_model.dart';
 import 'package:iway_app/features/tracking/services/tracking_service.dart';
+import 'package:iway_app/features/shipment/models/shipment_model.dart';
+import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
@@ -25,6 +27,9 @@ class _MapScreenState extends State<MapScreen> {
 
   final locationService = LocationService();
   final trackingService = TrackingService();
+  final shipmentService = ShipmentService();
+
+  ShipmentModel? shipment;
 
   LatLng currentPosition = const LatLng(14.6349, -90.5069);
   StreamSubscription? locationSubscription;
@@ -45,9 +50,21 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     startTracking();
+    loadShipment();
     loadLatestTracking();
     loadRoute();
     bindRealtime();
+  }
+
+  Future<void> loadShipment() async {
+    final shipmentId = widget.shipmentId;
+    if (shipmentId == null || shipmentId.isEmpty) return;
+
+    try {
+      final data = await shipmentService.getShipmentById(shipmentId);
+      if (!mounted) return;
+      setState(() => shipment = data);
+    } catch (_) {}
   }
 
   Future<void> bindRealtime() async {
@@ -57,12 +74,14 @@ class _MapScreenState extends State<MapScreen> {
     await realtime.joinTracking(shipmentId);
     trackingSubscription = realtime.trackingUpdated.listen((data) {
       if (data is Map && data['shipmentId']?.toString() == shipmentId) {
+        loadShipment();
         loadLatestTracking();
         loadRoute();
       }
     });
     shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((data) {
       if (data is Map && data['shipmentId']?.toString() == shipmentId) {
+        loadShipment();
         loadRoute();
       }
     });
@@ -417,6 +436,23 @@ class _MapScreenState extends State<MapScreen> {
                           statusText ?? 'Esperando ubicación...',
                           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                         ),
+                        if (shipment != null) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Destino: ${shipment!.receptorDireccion.isEmpty ? 'No definido' : shipment!.receptorDireccion}',
+                            style: const TextStyle(color: AppTheme.muted),
+                          ),
+                          if (shipment!.receptorNombre.isNotEmpty)
+                            Text(
+                              'Recibe: ${shipment!.receptorNombre}',
+                              style: const TextStyle(color: AppTheme.muted),
+                            ),
+                          if (shipment!.receptorTelefono.isNotEmpty)
+                            Text(
+                              'Teléfono: ${shipment!.receptorTelefono}',
+                              style: const TextStyle(color: AppTheme.muted),
+                            ),
+                        ],
                         if (routeSummary != null) ...[
                           const SizedBox(height: 8),
                           Text(
