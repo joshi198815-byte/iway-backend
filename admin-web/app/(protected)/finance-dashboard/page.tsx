@@ -57,10 +57,15 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
 
   const overview = getObject<Record<string, any>>(overviewPayload) || {};
   const debtors = getCollection<Record<string, any>>(debtorsPayload);
-  const settlements = getCollection<Record<string, any>>(settlementsPayload);
-  const countries = getCollection<Record<string, any>>(countriesPayload);
-  const revenuePoints = getCollection<Record<string, any>>((getObject(revenuePayload) as any)?.points || revenuePayload);
-  const debtBuckets = getCollection<Record<string, any>>((getObject(debtAgingPayload) as any)?.buckets || debtAgingPayload);
+  const settlementsRoot = getObject<Record<string, any>>(settlementsPayload) || {};
+  const settlements = getCollection<Record<string, any>>(settlementsRoot.items || settlementsPayload);
+  const countriesRoot = getObject<Record<string, any>>(countriesPayload) || {};
+  const countries = getCollection<Record<string, any>>(countriesRoot.items || countriesPayload);
+  const revenueRoot = getObject<Record<string, any>>(revenuePayload) || {};
+  const revenuePoints = getCollection<Record<string, any>>(revenueRoot.points || revenuePayload);
+  const debtAgingRoot = getObject<Record<string, any>>(debtAgingPayload) || {};
+  const debtBuckets = getCollection<Record<string, any>>(debtAgingRoot.buckets || debtAgingPayload);
+  const settlementsSummary = getObject<Record<string, any>>(settlementsRoot.summary) || {};
 
   return (
     <div className="stack">
@@ -99,16 +104,41 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
         <StatCard label="Bloqueados con deuda" value={String(overview.blockedTravelersWithDebt || 0)} />
         <StatCard label="Payout hold" value={String(overview.payoutHoldTravelers || 0)} />
         <StatCard label="Pending settlements" value={formatMoney(overview.pendingTransfersAmount)} />
+        <StatCard label="Settlements aprobados" value={formatMoney(overview.approvedTransfersAmount)} />
+        <StatCard label="Settlements rechazados" value={formatMoney(overview.rejectedTransfersAmount)} />
       </section>
+
+      <div className="grid cols-3">
+        <StatCard label="Transfers submitted" value={String(settlementsSummary.submittedCount || 0)} />
+        <StatCard label="Transfers approved" value={String(settlementsSummary.approvedCount || 0)} />
+        <StatCard label="Transfers rejected" value={String(settlementsSummary.rejectedCount || 0)} />
+      </div>
 
       <div className="grid cols-2">
         <section className="card panel">
           <h3>Revenue trend</h3>
-          <pre className="code">{JSON.stringify(revenuePoints.slice(0, 20), null, 2)}</pre>
+          <DataTable
+            rows={revenuePoints}
+            empty="Sin puntos de revenue"
+            columns={[
+              { key: 'bucket', header: 'Bucket', render: (row) => row.bucket || '-' },
+              { key: 'grossCommission', header: 'Gross', render: (row) => formatMoney(row.grossCommission) },
+              { key: 'commissionCollected', header: 'Cobrado', render: (row) => formatMoney(row.commissionCollected) },
+              { key: 'newDebt', header: 'Nueva deuda', render: (row) => formatMoney(row.newDebt) },
+            ]}
+          />
         </section>
         <section className="card panel">
           <h3>Debt aging</h3>
-          <pre className="code">{JSON.stringify(debtBuckets, null, 2)}</pre>
+          <DataTable
+            rows={debtBuckets}
+            empty="Sin buckets de deuda"
+            columns={[
+              { key: 'label', header: 'Bucket', render: (row) => row.label || '-' },
+              { key: 'amount', header: 'Monto', render: (row) => formatMoney(row.amount) },
+              { key: 'travelers', header: 'Travelers', render: (row) => String(row.travelers || 0) },
+            ]}
+          />
         </section>
       </div>
 
@@ -153,6 +183,8 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
             { key: 'gross', header: 'Gross', render: (row) => formatMoney(row.grossCommission) },
             { key: 'collected', header: 'Cobrado', render: (row) => formatMoney(row.commissionCollected) },
             { key: 'debt', header: 'Pendiente', render: (row) => formatMoney(row.outstandingDebt) },
+            { key: 'travelersWithDebt', header: 'Travelers con deuda', render: (row) => String(row.travelersWithDebt || 0) },
+            { key: 'approvedTransfersAmount', header: 'Transfers aprobados', render: (row) => formatMoney(row.approvedTransfersAmount) },
             { key: 'shipments', header: 'Shipments', render: (row) => String(row.shipmentsCount || 0) },
           ]}
         />

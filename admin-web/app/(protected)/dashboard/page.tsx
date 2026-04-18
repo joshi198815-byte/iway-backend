@@ -86,7 +86,7 @@ export default async function DashboardPage() {
         <h2>Dirección del proyecto</h2>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
           <li>Esta admin web en Next.js es ahora el frente principal.</li>
-          <li>Appsmith queda descartado para la ruta de producto.</li>
+          <li>Admin web en Next.js es la única superficie administrativa vigente.</li>
           <li>Lo siguiente es validar login y payloads reales, luego pulir UX y roles.</li>
         </ul>
       </section>
