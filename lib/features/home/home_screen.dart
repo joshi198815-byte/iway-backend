@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
@@ -101,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Si algo falla con tus pedidos, pagos o perfil, entra a Notificaciones o contacta al equipo de iWay desde tu canal habitual de soporte.',
+              'Para abrir una incidencia real, entra a Mis pedidos, abre el pedido afectado y toca Soporte técnico. Eso sí llega al equipo operativo.',
               style: TextStyle(color: AppTheme.muted, height: 1.4),
             ),
             const SizedBox(height: 16),
@@ -110,9 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/notifications');
+                  Navigator.pushNamed(context, '/my_orders');
                 },
-                child: const Text('Ir a notificaciones'),
+                child: const Text('Ir a mis pedidos'),
               ),
             ),
           ],
@@ -154,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (didPop) return;
         final shouldExit = await _confirmExit();
         if (!mounted || !shouldExit) return;
-        Navigator.of(context).pop();
+        await SystemNavigator.pop();
       },
       child: Scaffold(
       body: Container(

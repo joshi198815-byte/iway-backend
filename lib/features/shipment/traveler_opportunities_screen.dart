@@ -3,6 +3,7 @@ import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
@@ -18,6 +19,7 @@ class TravelerOpportunitiesScreen extends StatefulWidget {
 
 class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScreen> {
   final shipmentService = ShipmentService();
+  final realtime = RealtimeService.instance;
 
   List<ShipmentModel> shipments = [];
   bool loading = true;
@@ -26,6 +28,14 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   void initState() {
     super.initState();
     loadShipments();
+    _bindRealtime();
+  }
+
+  Future<void> _bindRealtime() async {
+    await realtime.ensureConnected();
+    realtime.notificationUpdated.listen((_) => loadShipments());
+    realtime.offerUpdated.listen((_) => loadShipments());
+    realtime.shipmentStatusChanged.listen((_) => loadShipments());
   }
 
   Future<void> loadShipments() async {
@@ -163,6 +173,21 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                             style: const TextStyle(color: AppTheme.muted),
                                           ),
                                         ],
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Entrega para: ${shipment.receptorNombre.isEmpty ? 'No indicado' : shipment.receptorNombre}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                        if (shipment.receptorTelefono.isNotEmpty)
+                                          Text(
+                                            'Teléfono: ${shipment.receptorTelefono}',
+                                            style: const TextStyle(color: AppTheme.muted),
+                                          ),
+                                        if (shipment.receptorDireccion.isNotEmpty)
+                                          Text(
+                                            'Dirección: ${shipment.receptorDireccion}',
+                                            style: const TextStyle(color: AppTheme.muted),
+                                          ),
                                         if (shipment.marketplaceInsights.isNotEmpty) ...[
                                           const SizedBox(height: 10),
                                           ...shipment.marketplaceInsights.take(2).map(
@@ -179,12 +204,13 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                         ElevatedButton(
                                           onPressed: isBlocked
                                               ? null
-                                              : () {
-                                                  Navigator.pushNamed(
+                                              : () async {
+                                                  await Navigator.pushNamed(
                                                     context,
                                                     '/offers',
                                                     arguments: shipment.id,
                                                   );
+                                                  await loadShipments();
                                                 },
                                           child: const Text('Ver y ofertar'),
                                         ),

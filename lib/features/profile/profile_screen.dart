@@ -49,6 +49,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  String _resolveImageUrl(String value) {
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    return '${ApiClient.baseUrl}$value';
+  }
+
   Future<void> _pickProfilePhoto(ImageSource source) async {
     setState(() => _uploadingPhoto = true);
     try {
@@ -173,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     color: AppTheme.surfaceSoft,
                                     child: photoUrl != null && photoUrl.isNotEmpty
                                         ? Image.network(
-                                            '${ApiClient.baseUrl}$photoUrl',
+                                            _resolveImageUrl(photoUrl),
                                             fit: BoxFit.cover,
                                             headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
                                                 ? null

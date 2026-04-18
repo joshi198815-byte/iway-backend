@@ -113,7 +113,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (type) {
       case 'offer':
       case 'offer_updated':
+      case 'offer_accepted':
+      case 'offer_rejected':
       case 'shipment_available':
+      case 'shipment_published':
         return Icons.local_offer_outlined;
       case 'shipment_assigned':
       case 'shipment_status_changed':
@@ -148,7 +151,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (type) {
       case 'offer':
       case 'offer_updated':
+      case 'offer_accepted':
+      case 'offer_rejected':
       case 'shipment_available':
+      case 'shipment_published':
         return 'Oferta';
       case 'shipment_assigned':
       case 'shipment_status_changed':
@@ -168,7 +174,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (notification.tipo) {
       case 'offer':
       case 'shipment_available':
+      case 'shipment_published':
       case 'offer_updated':
+      case 'offer_rejected':
         return 'Toca para abrir ofertas';
       case 'offer_accepted':
       case 'shipment_assigned':
@@ -195,7 +203,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     switch (notification.tipo) {
       case 'offer':
       case 'shipment_available':
+      case 'shipment_published':
       case 'offer_updated':
+      case 'offer_rejected':
         final shipmentId = notification.shipmentId;
         if (shipmentId == null || shipmentId.isEmpty) return;
         await Navigator.pushNamed(context, '/offers', arguments: shipmentId);

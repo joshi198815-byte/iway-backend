@@ -142,6 +142,32 @@ export class NotificationsService implements OnModuleInit {
     return data.access_token ?? null;
   }
 
+  private routeForType(type?: string, shipmentId?: string) {
+    switch (type) {
+      case 'offer':
+      case 'offer_updated':
+      case 'offer_rejected':
+      case 'shipment_available':
+      case 'shipment_published':
+        return shipmentId ? '/offers' : '/notifications';
+      case 'chat_message':
+        return shipmentId ? '/chat' : '/notifications';
+      case 'offer_accepted':
+      case 'shipment_assigned':
+      case 'shipment_status_changed':
+      case 'shipment_delivered':
+      case 'delivery_closed':
+      case 'tracking_updated':
+        return shipmentId ? '/tracking' : '/notifications';
+      case 'traveler_verification':
+        return '/profile';
+      case 'transfer_review':
+        return '/debts';
+      default:
+        return '/notifications';
+    }
+  }
+
   private async sendFirebasePushToToken(params: {
     token: string;
     title: string;
@@ -174,7 +200,7 @@ export class NotificationsService implements OnModuleInit {
             data: {
               type: params.type ?? 'push',
               shipmentId: params.shipmentId ?? '',
-              route: params.shipmentId ? '/tracking' : '/notifications',
+              route: this.routeForType(params.type, params.shipmentId),
             },
             android: {
               priority: 'high',
