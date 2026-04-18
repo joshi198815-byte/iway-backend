@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole, VerificationChannel } from '@prisma/client';
+import { TravelerStatus, UserRole, VerificationChannel } from '@prisma/client';
 import { GeoService } from '../geo/geo.service';
 import { StorageService } from '../storage/storage.service';
 import { TravelersService } from '../travelers/travelers.service';
@@ -19,6 +19,10 @@ import { JobsService } from '../jobs/jobs.service';
 export class AuthService implements OnModuleInit {
   private get autoVerifyPhoneForTesting() {
     return process.env.AUTO_VERIFY_PHONE_FOR_TESTING === 'true';
+  }
+
+  private get autoApproveTravelersForTesting() {
+    return process.env.AUTO_APPROVE_TRAVELERS_FOR_TESTING === 'true';
   }
 
   constructor(
@@ -50,6 +54,20 @@ export class AuthService implements OnModuleInit {
         updatedAt: true,
         phoneVerified: true,
         emailVerified: true,
+      },
+    });
+  }
+
+  private async autoApproveTravelerProfileForTesting(userId: string) {
+    if (!this.autoApproveTravelersForTesting) return;
+
+    await this.prisma.travelerProfile.updateMany({
+      where: { userId },
+      data: {
+        status: TravelerStatus.verified,
+        payoutHoldEnabled: false,
+        blockedReason: null,
+        lastKycReviewAt: new Date(),
       },
     });
   }
@@ -180,6 +198,8 @@ export class AuthService implements OnModuleInit {
     if (this.autoVerifyPhoneForTesting) {
       user = await this.markPhoneVerified(user.id);
     }
+
+    await this.autoApproveTravelerProfileForTesting(user.id);
 
     return {
       user,
@@ -349,6 +369,15 @@ export class AuthService implements OnModuleInit {
 
     if (this.autoVerifyPhoneForTesting && !user.phoneVerified && [UserRole.customer, UserRole.traveler].includes(user.role)) {
       await this.markPhoneVerified(user.id);
+      const refreshedUser = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
+      if (!refreshedUser) {
+        throw new UnauthorizedException('Credenciales inválidas.');
+      }
+      user = refreshedUser;
+    }
+
+    if (this.autoApproveTravelersForTesting && user.role === UserRole.traveler) {
+      await this.autoApproveTravelerProfileForTesting(user.id);
       const refreshedUser = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
       if (!refreshedUser) {
         throw new UnauthorizedException('Credenciales inválidas.');
