@@ -312,6 +312,18 @@ export class ShipmentsService {
       throw new NotFoundException('Envío no encontrado.');
     }
 
+    const openDispute = await this.prisma.dispute.findFirst({
+      where: {
+        shipmentId: id,
+        status: { in: ['open', 'escalated'] },
+      },
+      select: { id: true },
+    });
+
+    if (openDispute && payload.status !== ShipmentStatus.disputed) {
+      throw new ForbiddenException('Este envío tiene una disputa abierta y no puede avanzar hasta resolverse.');
+    }
+
     const isPrivileged = ['admin', 'support'].includes(requester.role);
     const isAssignedTraveler = shipment.assignedTravelerId === requester.sub;
 

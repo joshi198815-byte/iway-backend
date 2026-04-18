@@ -213,7 +213,7 @@ class _OffersScreenState extends State<OffersScreen> {
                                     controller: priceController,
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     decoration: const InputDecoration(
-                                      labelText: 'Tu oferta (Q)',
+                                      labelText: 'Tu oferta (USD)',
                                     ),
                                   ),
                                   const SizedBox(height: 14),
@@ -277,7 +277,7 @@ class _OffersScreenState extends State<OffersScreen> {
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              'Q${offer.precio.toStringAsFixed(2)}',
+                                              'US\$${offer.precio.toStringAsFixed(2)}',
                                               style: const TextStyle(
                                                 fontSize: 28,
                                                 fontWeight: FontWeight.w800,

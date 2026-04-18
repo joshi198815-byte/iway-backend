@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../database/prisma/prisma.service';
 import { AntiFraudService } from '../anti-fraud/anti-fraud.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type SendMessagePayload = SendMessageDto & { senderId: string };
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -12,6 +13,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly antiFraudService: AntiFraudService,
     private readonly realtimeGateway: RealtimeGateway,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async findMessages(chatId: string, userId: string) {
@@ -105,6 +107,22 @@ export class ChatService {
       shipmentId: chat.shipmentId,
       message,
     });
+
+    const recipientId = chat.shipment.customerId === payload.senderId
+      ? chat.shipment.assignedTravelerId
+      : chat.shipment.customerId;
+
+    if (recipientId) {
+      await this.notificationsService.sendPush(
+        recipientId,
+        'Nuevo mensaje',
+        analysis.sanitizedBody.length > 120
+          ? '${analysis.sanitizedBody.substring(0, 120)}...'
+          : analysis.sanitizedBody,
+        'chat_message',
+        chat.shipmentId,
+      );
+    }
 
     return {
       message,

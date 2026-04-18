@@ -156,7 +156,11 @@ export class RealtimeGateway implements OnGatewayConnection {
       return;
     }
 
-    if (shipment.customerId === user.sub || shipment.assignedTravelerId === user.sub) {
+    if (
+      shipment.customerId === user.sub ||
+      shipment.assignedTravelerId === user.sub ||
+      user.role === 'traveler'
+    ) {
       return;
     }
 

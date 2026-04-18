@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ShipmentStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
@@ -37,6 +38,10 @@ export class RatingsService {
 
     if (!shipment) {
       throw new NotFoundException('Envío no encontrado.');
+    }
+
+    if (shipment.status !== ShipmentStatus.delivered) {
+      throw new BadRequestException('Solo puedes calificar después de que el envío haya sido entregado.');
     }
 
     const fromUser = await this.prisma.user.findUnique({

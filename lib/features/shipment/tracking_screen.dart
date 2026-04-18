@@ -463,124 +463,124 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Evidencia de entrega',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        deliveryProofImages.isEmpty
-                            ? 'Agrega al menos una foto antes de cerrar el envío como entregado.'
-                            : '${deliveryProofImages.length} evidencia(s) listas para subir.',
-                        style: const TextStyle(color: AppTheme.muted, fontSize: 13),
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: updatingStatus ? null : addDeliveryProofImage,
-                        icon: const Icon(Icons.camera_alt_outlined),
-                        label: const Text('Agregar evidencia'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: AppTheme.border),
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                      ),
-                      if (deliveryProofImages.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: deliveryProofImages.map((img) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.file(
-                                img,
-                                height: 82,
-                                width: 82,
-                                fit: BoxFit.cover,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (_isPrivilegedOperator) ...[
-                        ElevatedButton(
-                          onPressed: updatingStatus || currentStep >= 2
-                              ? null
-                              : () => updateStatus('assigned'),
-                          child: const Text('Marcar asignado'),
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      ElevatedButton(
-                        onPressed: updatingStatus || currentStep >= 3 || (!_isPrivilegedOperator && !_isAssignedTraveler)
-                            ? null
-                            : () => updateStatus('delivered'),
-                        child: const Text('Marcar entregado'),
-                      ),
-                      const SizedBox(height: 10),
-                      if (updatingStatus) ...[
+                      if (currentStep < 3) ...[
                         const Text(
-                          'Actualizando estado del envío...',
-                          style: TextStyle(color: AppTheme.muted, fontSize: 13),
+                          'Evidencia de entrega',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          deliveryProofImages.isEmpty
+                              ? 'Agrega al menos una foto antes de cerrar el envío como entregado.'
+                              : '${deliveryProofImages.length} evidencia(s) listas para subir.',
+                          style: const TextStyle(color: AppTheme.muted, fontSize: 13),
                         ),
                         const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: updatingStatus ? null : addDeliveryProofImage,
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: const Text('Agregar evidencia'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppTheme.border),
+                            minimumSize: const Size(double.infinity, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                        ),
+                        if (deliveryProofImages.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: deliveryProofImages.map((img) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Image.file(
+                                  img,
+                                  height: 82,
+                                  width: 82,
+                                  fit: BoxFit.cover,
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                        if (_isPrivilegedOperator) ...[
+                          ElevatedButton(
+                            onPressed: updatingStatus || currentStep >= 2
+                                ? null
+                                : () => updateStatus('assigned'),
+                            child: const Text('Marcar asignado'),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        ElevatedButton(
+                          onPressed: updatingStatus || currentStep >= 3 || (!_isPrivilegedOperator && !_isAssignedTraveler)
+                              ? null
+                              : () => updateStatus('delivered'),
+                          child: const Text('Marcar entregado'),
+                        ),
+                        const SizedBox(height: 10),
+                        if (updatingStatus) ...[
+                          const Text(
+                            'Actualizando estado del envío...',
+                            style: TextStyle(color: AppTheme.muted, fontSize: 13),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/chat',
+                              arguments: widget.shipmentId,
+                            );
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppTheme.border),
+                            minimumSize: const Size(double.infinity, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          child: const Text('Abrir chat'),
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: openDispute,
+                          icon: const Icon(Icons.report_problem_outlined),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: AppTheme.border),
+                            minimumSize: const Size(double.infinity, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                          ),
+                          label: const Text('Reportar incidente'),
+                        ),
+                      ] else ...[
+                        const Text(
+                          'Este envío ya fue cerrado. Solo queda consultar la evidencia guardada y dejar una calificación.',
+                          style: TextStyle(color: AppTheme.muted, height: 1.35),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/rating',
+                              arguments: widget.shipmentId,
+                            );
+                          },
+                          icon: const Icon(Icons.star_outline_rounded),
+                          label: const Text('Calificar experiencia'),
+                        ),
                       ],
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/map',
-                            arguments: widget.shipmentId,
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: AppTheme.border),
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: const Text('Abrir mapa en vivo'),
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(
-                            context,
-                            '/chat',
-                            arguments: widget.shipmentId,
-                          );
-                        },
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: AppTheme.border),
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        child: const Text('Abrir chat'),
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: openDispute,
-                        icon: const Icon(Icons.report_problem_outlined),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: AppTheme.border),
-                          minimumSize: const Size(double.infinity, 54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                        ),
-                        label: const Text('Reportar incidente'),
-                      ),
                     ],
                   ),
                 ),

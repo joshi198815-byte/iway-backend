@@ -124,17 +124,26 @@ export class OffersService {
   async findByShipment(shipmentId: string, requester: { sub: string; role: string }) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: shipmentId },
-      select: { customerId: true, assignedTravelerId: true },
+      select: { customerId: true, assignedTravelerId: true, status: true },
     });
 
     if (!shipment) {
       throw new NotFoundException('Envío no encontrado.');
     }
 
+    const requesterOffer = requester.role === 'traveler'
+      ? await this.prisma.offer.findFirst({
+          where: { shipmentId, travelerId: requester.sub },
+          select: { id: true, status: true },
+        })
+      : null;
+
     const canAccess =
       ['admin', 'support'].includes(requester.role) ||
       shipment.customerId === requester.sub ||
-      shipment.assignedTravelerId === requester.sub;
+      shipment.assignedTravelerId === requester.sub ||
+      requester.role === 'traveler' ||
+      requesterOffer != null;
 
     if (!canAccess) {
       throw new ForbiddenException('No tienes acceso a las ofertas de este envío.');
@@ -156,7 +165,11 @@ export class OffersService {
       return offers;
     }
 
-    const travelerIds = [...new Set(offers.map((offer) => offer.travelerId))];
+    const visibleOffers = shipment.assignedTravelerId != null && !['admin', 'support'].includes(requester.role)
+      ? offers.filter((offer) => offer.status === OfferStatus.accepted)
+      : offers;
+
+    const travelerIds = [...new Set(visibleOffers.map((offer) => offer.travelerId))];
     const [acceptedOffers, deliveredShipments] = await Promise.all([
       this.prisma.offer.findMany({
         where: { travelerId: { in: travelerIds }, status: OfferStatus.accepted },
@@ -179,9 +192,9 @@ export class OffersService {
       return acc;
     }, {});
 
-    const minPrice = Math.min(...offers.map((offer) => this.normalizeDecimal(offer.price)));
+    const minPrice = Math.min(...visibleOffers.map((offer) => this.normalizeDecimal(offer.price)));
 
-    return offers
+    return visibleOffers
       .map((offer) => {
         const profile = offer.traveler.travelerProfile;
         const acceptedCount = acceptedByTraveler[offer.travelerId] ?? 0;
