@@ -18,6 +18,8 @@ async function assertSourceContracts() {
   const shipmentsController = await readFile(path.resolve(__dirname, '../../backend/src/shipments/shipments.controller.ts'), 'utf8');
   const transfersController = await readFile(path.resolve(__dirname, '../../backend/src/transfers/transfers.controller.ts'), 'utf8');
   const travelersDto = await readFile(path.resolve(__dirname, '../../backend/src/travelers/dto/review-traveler.dto.ts'), 'utf8');
+  const disputesController = await readFile(path.resolve(__dirname, '../../backend/src/disputes/disputes.controller.ts'), 'utf8');
+  const antiFraudController = await readFile(path.resolve(__dirname, '../../backend/src/anti-fraud/anti-fraud.controller.ts'), 'utf8');
 
   const checks = [
     [apiFile.includes("method: 'PATCH'") && apiFile.includes('/shipments/${shipmentId}/status'), 'admin-web shipment status must use PATCH'],
@@ -25,6 +27,9 @@ async function assertSourceContracts() {
     [apiFile.includes("method: 'PUT'") && apiFile.includes('/transfers/${transferId}/review') && apiFile.includes('{ status: action, reason }'), 'admin-web transfer review must use PUT with status payload'],
     [transfersController.includes("@Put(':transferId/review')"), 'backend transfer review route must expose PUT'],
     [apiFile.includes("'timeline'") && apiFile.includes("'collaborators'"), 'admin-web collection parser must support timeline and collaborators'],
+    [apiFile.includes('/disputes/queue') && apiFile.includes('/anti-fraud/review-queue'), 'admin-web API must include disputes and anti-fraud queues'],
+    [disputesController.includes("@Get('queue')") && disputesController.includes("@Put(':disputeId/resolve')"), 'disputes controller must expose queue and resolve endpoints'],
+    [antiFraudController.includes("@Get('review-queue')") && antiFraudController.includes("@Post('user/:userId/flags')"), 'anti-fraud controller must expose review queue and manual flag endpoints'],
     [travelersDto.includes("@IsIn(['approve', 'reject', 'block'])"), 'traveler review DTO must stay aligned with admin actions'],
   ];
 
@@ -92,6 +97,8 @@ async function main() {
     ['/travelers/review-queue', 'Travelers review queue'],
     ['/transfers/review-queue', 'Transfers review queue'],
     ['/shipments', 'Shipments'],
+    ['/disputes/queue', 'Disputes queue'],
+    ['/anti-fraud/review-queue', 'Anti-fraud queue'],
     ['/finance/overview?range=month', 'Finance overview'],
   ];
 

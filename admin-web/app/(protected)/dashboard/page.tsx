@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ErrorPanel } from '@/components/error-panel';
 import { StatCard } from '@/components/stat-card';
-import { getCollection, getShipments, getTransfersReviewQueue, getTravelersReviewQueue } from '@/lib/api';
+import { getAntiFraudReviewQueue, getCollection, getDisputesQueue, getShipments, getTransfersReviewQueue, getTravelersReviewQueue } from '@/lib/api';
 import { requireSession } from '@/lib/auth';
 
 const shortcuts = [
@@ -45,26 +45,32 @@ export default async function DashboardPage() {
   const session = await requireSession();
   const token = session.token as string;
 
-  const [travelers, transfers, shipments] = await Promise.allSettled([
+  const [travelers, transfers, shipments, disputes, antiFraud] = await Promise.allSettled([
     getTravelersReviewQueue(token),
     getTransfersReviewQueue(token),
     getShipments(token),
+    getDisputesQueue(token),
+    getAntiFraudReviewQueue(token),
   ]);
 
   const travelersCount = travelers.status === 'fulfilled' ? countOf(travelers.value) : 0;
   const transfersCount = transfers.status === 'fulfilled' ? countOf(transfers.value) : 0;
   const shipmentsCount = shipments.status === 'fulfilled' ? countOf(shipments.value) : 0;
+  const disputesCount = disputes.status === 'fulfilled' ? countOf(disputes.value) : 0;
+  const antiFraudCount = antiFraud.status === 'fulfilled' ? countOf(antiFraud.value) : 0;
 
-  const errors = [travelers, transfers, shipments]
+  const errors = [travelers, transfers, shipments, disputes, antiFraud]
     .filter((result) => result.status === 'rejected')
     .map((result) => (result as PromiseRejectedResult).reason?.message || 'Error cargando dashboard');
 
   return (
     <div className="grid" style={{ gap: 24 }}>
-      <section className="grid cols-3">
+      <section className="grid cols-4">
         <StatCard label="Travelers por revisar" value={String(travelersCount)} />
         <StatCard label="Transfers en cola" value={String(transfersCount)} />
         <StatCard label="Shipments" value={String(shipmentsCount)} />
+        <StatCard label="Disputes activas" value={String(disputesCount)} />
+        <StatCard label="Anti-fraud queue" value={String(antiFraudCount)} />
       </section>
 
       {errors.length ? <ErrorPanel message={errors.join(' | ')} /> : null}
@@ -85,8 +91,8 @@ export default async function DashboardPage() {
       <section className="card panel">
         <h2>Dirección del proyecto</h2>
         <ul style={{ margin: 0, paddingLeft: 20 }}>
-          <li>Esta admin web en Next.js es ahora el frente principal.</li>
           <li>Admin web en Next.js es la única superficie administrativa vigente.</li>
+          <li>El dashboard ya contempla KYC, transfers, shipments, disputes y antifraud.</li>
           <li>Lo siguiente es validar login y payloads reales, luego pulir UX y roles.</li>
         </ul>
       </section>
