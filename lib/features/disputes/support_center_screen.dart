@@ -87,6 +87,19 @@ class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsB
     }
   }
 
+  String _statusHelper(String status) {
+    switch (status) {
+      case 'resolved':
+        return 'El equipo ya dejó una resolución operativa para este caso.';
+      case 'escalated':
+        return 'El caso subió de prioridad y está siendo revisado con más atención.';
+      case 'rejected':
+        return 'El caso fue cerrado sin acción adicional desde soporte.';
+      default:
+        return 'Tu incidencia está abierta y pendiente de revisión.';
+    }
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -173,6 +186,11 @@ class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsB
                                     Text(
                                       reason,
                                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _statusHelper(status),
+                                      style: const TextStyle(color: AppTheme.muted, height: 1.35),
                                     ),
                                     if (resolution != null && resolution.trim().isNotEmpty) ...[
                                       const SizedBox(height: 10),

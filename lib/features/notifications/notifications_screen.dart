@@ -193,8 +193,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'shipment_available':
       case 'shipment_published':
       case 'offer_updated':
-      case 'offer_rejected':
         return 'Toca para abrir ofertas';
+      case 'offer_rejected':
+        return 'Toca para revisar y enviar una nueva propuesta';
       case 'offer_accepted':
       case 'shipment_assigned':
       case 'shipment_delivered':
@@ -209,7 +210,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'transfer_review':
         return 'Toca para revisar tus pagos';
       default:
-        return '';
+        return 'Toca para ver el detalle';
+    }
+  }
+
+  String _subtitleFor(NotificationModel notification) {
+    switch (notification.tipo) {
+      case 'offer_accepted':
+        return 'Tu propuesta ya fue elegida para operar este envío.';
+      case 'offer_rejected':
+        return 'El cliente pidió una nueva propuesta o descartó la anterior.';
+      case 'shipment_assigned':
+        return 'Ya hay un viajero asignado y la operación puede avanzar.';
+      case 'shipment_status_changed':
+        return 'El envío cambió de etapa operativa.';
+      case 'tracking_updated':
+        return 'Se recibió una nueva ubicación o movimiento logístico.';
+      case 'rating':
+        return 'Se registró una nueva calificación en tu cuenta.';
+      case 'transfer_review':
+        return 'Hubo movimiento o revisión en tu flujo de pagos.';
+      default:
+        return notification.mensaje;
     }
   }
 
@@ -385,20 +407,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              n.mensaje,
+                                              _subtitleFor(n),
                                               style: const TextStyle(color: AppTheme.muted, height: 1.35),
                                             ),
-                                            if (n.shipmentId != null && n.shipmentId!.isNotEmpty) ...[
-                                              const SizedBox(height: 8),
-                                              Text(
-                                                _ctaFor(n),
-                                                style: const TextStyle(
-                                                  color: AppTheme.accent,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              _ctaFor(n),
+                                              style: const TextStyle(
+                                                color: AppTheme.accent,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w700,
                                               ),
-                                            ],
+                                            ),
                                           ],
                                         ),
                                       ),

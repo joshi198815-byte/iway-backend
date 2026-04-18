@@ -276,12 +276,32 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
 
   String formatTimelineItem(TrackingTimelineItem item) {
     if (item.kind == 'tracking') {
+      final checkpoint = item.payload['checkpoint']?.toString();
+      if (checkpoint != null && checkpoint.trim().isNotEmpty) {
+        return 'Ubicación reportada en $checkpoint';
+      }
       final lat = item.payload['lat'];
       final lng = item.payload['lng'];
       return 'Ubicación reportada: $lat, $lng';
     }
 
-    return item.type.replaceAll('_', ' ');
+    switch (item.type) {
+      case 'shipment_created':
+        return 'Envío creado';
+      case 'offer_created':
+        return 'Se recibió una oferta';
+      case 'offer_accepted':
+        return 'Oferta aceptada';
+      case 'dispute_opened':
+        return 'Incidencia reportada a soporte';
+      case 'status_changed':
+        final nextStatus = item.payload['toStatus']?.toString();
+        return nextStatus == null || nextStatus.isEmpty
+            ? 'Estado operativo actualizado'
+            : 'Estado actualizado a ${formatStatus(nextStatus)}';
+      default:
+        return item.type.replaceAll('_', ' ');
+    }
   }
 
   String formatStatus(String estado) {
@@ -583,6 +603,15 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                                 ? 'El envío ya va en operación. Avánzalo por fases para que el cliente vea progreso real.'
                                 : 'Todavía puedes avanzar el estado cuando el envío cambie de fase.',
                         style: const TextStyle(color: AppTheme.muted, height: 1.35),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        currentStep >= 6
+                            ? 'Cierre operativo completo, ya puedes revisar evidencia y calificación.'
+                            : nextOperationalAction(estado) != null
+                                ? 'Siguiente paso recomendado: ${nextOperationalAction(estado)!.label}.'
+                                : 'En espera de la siguiente acción operativa o comercial.',
+                        style: const TextStyle(fontSize: 13, color: AppTheme.accent, fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),

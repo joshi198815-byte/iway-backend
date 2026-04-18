@@ -202,8 +202,40 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
         return 'Pendiente';
       case 'rejected':
         return 'Rechazada';
+      case 'withdrawn':
+        return 'Retirada';
       default:
         return estado.isEmpty ? 'Pendiente' : estado;
+    }
+  }
+
+  Color statusTone(String estado) {
+    switch (estado) {
+      case 'accepted':
+        return AppTheme.accent;
+      case 'rejected':
+        return const Color(0xFFFF9A8B);
+      case 'withdrawn':
+        return AppTheme.muted;
+      default:
+        return const Color(0xFFFFD27A);
+    }
+  }
+
+  String statusHelper(String estado, {required bool isTravelerView}) {
+    switch (estado) {
+      case 'accepted':
+        return 'Esta oferta ya quedó seleccionada para el envío.';
+      case 'rejected':
+        return isTravelerView
+            ? 'El cliente pidió una nueva propuesta o descartó esta oferta.'
+            : 'Esta propuesta ya no seguirá en competencia.';
+      case 'withdrawn':
+        return 'La propuesta fue retirada y ya no está activa.';
+      default:
+        return isTravelerView
+            ? 'Tu propuesta está activa y esperando decisión del cliente.'
+            : 'Oferta activa lista para evaluación.';
     }
   }
 
@@ -378,16 +410,14 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                                             decoration: BoxDecoration(
-                                              color: AppTheme.surfaceSoft,
+                                              color: statusTone(offer.estado).withValues(alpha: 0.12),
                                               borderRadius: BorderRadius.circular(999),
-                                              border: Border.all(color: AppTheme.border),
+                                              border: Border.all(color: statusTone(offer.estado).withValues(alpha: 0.26)),
                                             ),
                                             child: Text(
                                               formatStatus(offer.estado),
                                               style: TextStyle(
-                                                color: offer.estado == 'accepted'
-                                                    ? AppTheme.accent
-                                                    : Colors.white,
+                                                color: statusTone(offer.estado),
                                                 fontWeight: FontWeight.w600,
                                               ),
                                             ),
@@ -424,9 +454,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        offer.estado == 'accepted'
-                                            ? 'Esta oferta ya quedó seleccionada para el envío.'
-                                            : 'Oferta activa lista para evaluación.',
+                                        statusHelper(offer.estado, isTravelerView: isTraveler),
                                         style: const TextStyle(color: AppTheme.muted, fontSize: 13),
                                       ),
                                       const SizedBox(height: 4),
