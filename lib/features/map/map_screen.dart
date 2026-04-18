@@ -7,6 +7,8 @@ import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/tracking/models/tracking_point_model.dart';
 import 'package:iway_app/features/tracking/services/tracking_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/realtime_service.dart';
+import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_info_chip.dart';
 
 class MapScreen extends StatefulWidget {
@@ -26,6 +28,9 @@ class _MapScreenState extends State<MapScreen> {
 
   LatLng currentPosition = const LatLng(14.6349, -90.5069);
   StreamSubscription? locationSubscription;
+  StreamSubscription<dynamic>? trackingSubscription;
+  StreamSubscription<dynamic>? shipmentStatusSubscription;
+  final realtime = RealtimeService.instance;
   bool sending = false;
   bool loadingRemote = false;
   String? statusText;
@@ -42,6 +47,25 @@ class _MapScreenState extends State<MapScreen> {
     startTracking();
     loadLatestTracking();
     loadRoute();
+    bindRealtime();
+  }
+
+  Future<void> bindRealtime() async {
+    final shipmentId = widget.shipmentId;
+    if (shipmentId == null || shipmentId.isEmpty) return;
+
+    await realtime.joinTracking(shipmentId);
+    trackingSubscription = realtime.trackingUpdated.listen((data) {
+      if (data is Map && data['shipmentId']?.toString() == shipmentId) {
+        loadLatestTracking();
+        loadRoute();
+      }
+    });
+    shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((data) {
+      if (data is Map && data['shipmentId']?.toString() == shipmentId) {
+        loadRoute();
+      }
+    });
   }
 
   Future<void> loadLatestTracking() async {
@@ -94,7 +118,8 @@ class _MapScreenState extends State<MapScreen> {
     try {
       final route = await trackingService.getRoute(shipmentId);
       final polylinePoints = (route['polyline'] as List?)
-              ?.whereType<Map<String, dynamic>>()
+              ?.whereType<Map>()
+              .map((point) => point.map((k, v) => MapEntry(k.toString(), v)))
               .map(
                 (point) => LatLng(
                   (point['lat'] as num).toDouble(),
@@ -105,7 +130,8 @@ class _MapScreenState extends State<MapScreen> {
           const <LatLng>[];
 
       final points = (route['points'] as List?)
-              ?.whereType<Map<String, dynamic>>()
+              ?.whereType<Map>()
+              .map((point) => point.map((k, v) => MapEntry(k.toString(), v)))
               .toList() ??
           const <Map<String, dynamic>>[];
 
@@ -219,6 +245,7 @@ class _MapScreenState extends State<MapScreen> {
 
         final shipmentId = widget.shipmentId;
         if (shipmentId == null || shipmentId.isEmpty || sending) return;
+        if (SessionService.currentUser?.tipo != 'traveler') return;
 
         try {
           sending = true;
@@ -261,6 +288,8 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void dispose() {
     locationSubscription?.cancel();
+    trackingSubscription?.cancel();
+    shipmentStatusSubscription?.cancel();
     mapController?.dispose();
     super.dispose();
   }

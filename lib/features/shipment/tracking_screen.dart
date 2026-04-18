@@ -242,6 +242,12 @@ class _TrackingScreenState extends State<TrackingScreen> {
         return 'Con ofertas';
       case 'assigned':
         return 'Asignado';
+      case 'picked_up':
+        return 'Recogido';
+      case 'in_transit':
+        return 'En ruta';
+      case 'in_delivery':
+        return 'Por entregar';
       case 'delivered':
         return 'Entregado';
       default:
@@ -257,10 +263,31 @@ class _TrackingScreenState extends State<TrackingScreen> {
         return 1;
       case 'assigned':
         return 2;
-      case 'delivered':
+      case 'picked_up':
         return 3;
+      case 'in_transit':
+        return 4;
+      case 'in_delivery':
+        return 5;
+      case 'delivered':
+        return 6;
       default:
         return 0;
+    }
+  }
+
+  ({String status, String label})? nextOperationalAction(String estado) {
+    switch (estado) {
+      case 'assigned':
+        return (status: 'picked_up', label: 'Marcar recogido');
+      case 'picked_up':
+        return (status: 'in_transit', label: 'Marcar en ruta');
+      case 'in_transit':
+        return (status: 'in_delivery', label: 'Marcar por entregar');
+      case 'in_delivery':
+        return (status: 'delivered', label: 'Marcar entregado');
+      default:
+        return null;
     }
   }
 
@@ -431,10 +458,10 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        currentStep >= 3
+                        currentStep >= 6
                             ? 'Este envío ya fue marcado como entregado.'
                             : currentStep >= 2
-                                ? 'El envío ya va asignado. Usa las acciones rápidas para completar el cierre.'
+                                ? 'El envío ya va en operación. Avánzalo por fases para que el cliente vea progreso real.'
                                 : 'Todavía puedes avanzar el estado cuando el envío cambie de fase.',
                         style: const TextStyle(color: AppTheme.muted, height: 1.35),
                       ),
@@ -453,7 +480,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
                       const SizedBox(height: 12),
                       buildStep('Asignado', currentStep >= 2),
                       const SizedBox(height: 12),
-                      buildStep('Entregado', currentStep >= 3),
+                      buildStep('Recogido', currentStep >= 3),
+                      const SizedBox(height: 12),
+                      buildStep('En ruta', currentStep >= 4),
+                      const SizedBox(height: 12),
+                      buildStep('Por entregar', currentStep >= 5),
+                      const SizedBox(height: 12),
+                      buildStep('Entregado', currentStep >= 6),
                     ],
                   ),
                 ),
@@ -463,7 +496,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (currentStep < 3) ...[
+                      if (currentStep < 6) ...[
                         const Text(
                           'Evidencia de entrega',
                           style: TextStyle(fontWeight: FontWeight.w700),
@@ -517,11 +550,16 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           ),
                           const SizedBox(height: 10),
                         ],
-                        ElevatedButton(
-                          onPressed: updatingStatus || currentStep >= 3 || (!_isPrivilegedOperator && !_isAssignedTraveler)
-                              ? null
-                              : () => updateStatus('delivered'),
-                          child: const Text('Marcar entregado'),
+                        Builder(
+                          builder: (context) {
+                            final nextAction = nextOperationalAction(estado);
+                            return ElevatedButton(
+                              onPressed: updatingStatus || nextAction == null || (!_isPrivilegedOperator && !_isAssignedTraveler)
+                                  ? null
+                                  : () => updateStatus(nextAction.status),
+                              child: Text(nextAction?.label ?? 'Sin acción disponible'),
+                            );
+                          },
                         ),
                         const SizedBox(height: 10),
                         if (updatingStatus) ...[
@@ -584,8 +622,19 @@ class _TrackingScreenState extends State<TrackingScreen> {
                         ),
                       ] else ...[
                         const Text(
-                          'Este envío ya fue cerrado. Solo queda consultar la evidencia guardada y dejar una calificación.',
+                          'Este envío ya fue cerrado. Solo queda consultar la evidencia guardada, la ruta final y dejar una calificación.',
                           style: TextStyle(color: AppTheme.muted, height: 1.35),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/map',
+                              arguments: widget.shipmentId,
+                            );
+                          },
+                          child: const Text('Ver ruta final'),
                         ),
                         const SizedBox(height: 12),
                         ElevatedButton.icon(
