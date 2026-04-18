@@ -42,9 +42,24 @@ class _MapScreenState extends State<MapScreen> {
   Set<Marker> routeMarkers = {};
   Set<Polyline> routePolylines = {};
   String? routeSummary;
+  String? routeFallbackDetail;
   String routeProvider = 'estimated-segments';
   double? routeDistanceKm;
   int? routeDurationMinutes;
+
+  LatLng? get _pickupPoint {
+    final lat = shipment?.pickupLat;
+    final lng = shipment?.pickupLng;
+    if (lat == null || lng == null) return null;
+    return LatLng(lat, lng);
+  }
+
+  LatLng? get _deliveryPoint {
+    final lat = shipment?.deliveryLat;
+    final lng = shipment?.deliveryLng;
+    if (lat == null || lng == null) return null;
+    return LatLng(lat, lng);
+  }
 
   @override
   void initState() {
@@ -64,6 +79,7 @@ class _MapScreenState extends State<MapScreen> {
       final data = await shipmentService.getShipmentById(shipmentId);
       if (!mounted) return;
       setState(() => shipment = data);
+      await loadRoute();
     } catch (_) {}
   }
 
@@ -134,6 +150,84 @@ class _MapScreenState extends State<MapScreen> {
     final shipmentId = widget.shipmentId;
     if (shipmentId == null || shipmentId.isEmpty) return;
 
+    String markerTitleForKind(String kind) {
+      switch (kind) {
+        case 'pickup':
+          return 'Origen';
+        case 'current':
+          return 'Ubicación actual';
+        case 'delivery':
+          return 'Destino';
+        default:
+          return kind;
+      }
+    }
+
+    BitmapDescriptor markerColorForKind(String kind) {
+      switch (kind) {
+        case 'pickup':
+          return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+        case 'current':
+          return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
+        case 'delivery':
+          return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+        default:
+          return BitmapDescriptor.defaultMarker;
+      }
+    }
+
+    ({Set<Marker> markers, Set<Polyline> polylines, List<LatLng> fitPoints, String summary, String detail})
+        buildFallback({String? reason}) {
+      final fallbackMarkers = <Marker>{};
+      final fallbackPoints = <LatLng>[];
+
+      void addPoint(String id, String kind, LatLng? value) {
+        if (value == null) return;
+        fallbackPoints.add(value);
+        fallbackMarkers.add(
+          Marker(
+            markerId: MarkerId(id),
+            position: value,
+            infoWindow: InfoWindow(title: markerTitleForKind(kind)),
+            icon: markerColorForKind(kind),
+          ),
+        );
+      }
+
+      addPoint('pickup-fallback', 'pickup', _pickupPoint);
+      addPoint('current-fallback', 'current', currentPosition);
+      addPoint('delivery-fallback', 'delivery', _deliveryPoint);
+
+      final fallbackPolyline = fallbackPoints.length >= 2
+          ? {
+              Polyline(
+                polylineId: const PolylineId('shipment-route-fallback'),
+                points: fallbackPoints,
+                color: Colors.white70,
+                width: 4,
+                patterns: [PatternItem.dash(18), PatternItem.gap(10)],
+              ),
+            }
+          : <Polyline>{};
+
+      final detailParts = <String>[];
+      if (_pickupPoint == null) detailParts.add('falta origen geolocalizado');
+      if (_deliveryPoint == null) detailParts.add('falta destino geolocalizado');
+      if (reason != null && reason.trim().isNotEmpty) detailParts.add(reason.trim());
+
+      return (
+        markers: fallbackMarkers,
+        polylines: fallbackPolyline,
+        fitPoints: fallbackPoints,
+        summary: fallbackPoints.length >= 2
+            ? 'Mostrando ruta operacional mínima mientras llega la ruta vial.'
+            : 'Mapa parcial, faltan coordenadas suficientes para dibujar una ruta.',
+        detail: detailParts.isEmpty
+            ? 'Usando puntos disponibles del envío y la última ubicación conocida.'
+            : detailParts.join(' · '),
+      );
+    }
+
     try {
       final route = await trackingService.getRoute(shipmentId);
       final polylinePoints = (route['polyline'] as List?)
@@ -153,32 +247,6 @@ class _MapScreenState extends State<MapScreen> {
               .map((point) => point.map((k, v) => MapEntry(k.toString(), v)))
               .toList() ??
           const <Map<String, dynamic>>[];
-
-      String markerTitleForKind(String kind) {
-        switch (kind) {
-          case 'pickup':
-            return 'Origen';
-          case 'current':
-            return 'Ubicación actual';
-          case 'delivery':
-            return 'Destino';
-          default:
-            return kind;
-        }
-      }
-
-      BitmapDescriptor markerColorForKind(String kind) {
-        switch (kind) {
-          case 'pickup':
-            return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
-          case 'current':
-            return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet);
-          case 'delivery':
-            return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
-          default:
-            return BitmapDescriptor.defaultMarker;
-        }
-      }
 
       final markers = <Marker>{
         for (final point in points)
@@ -204,27 +272,40 @@ class _MapScreenState extends State<MapScreen> {
             }
           : <Polyline>{};
 
+      final distanceKm = route['distanceKm'];
+      final durationMinutes = route['durationMinutes'];
+      final provider = route['provider']?.toString() ?? 'estimated-segments';
+      final hasUsableRoute = markers.isNotEmpty || polylines.isNotEmpty;
+      final fallback = buildFallback(reason: route['reason']?.toString());
+
       if (!mounted) return;
       setState(() {
-        routeMarkers = markers;
-        routePolylines = polylines;
-        final distanceKm = route['distanceKm'];
-        final durationMinutes = route['durationMinutes'];
-        final provider = route['provider']?.toString() ?? 'estimated-segments';
         routeProvider = provider;
         routeDistanceKm = distanceKm is num ? distanceKm.toDouble() : null;
         routeDurationMinutes = durationMinutes is num ? durationMinutes.round() : null;
+        routeMarkers = hasUsableRoute ? markers : fallback.markers;
+        routePolylines = polylines.isNotEmpty ? polylines : fallback.polylines;
         routeSummary = distanceKm is num
             ? '${provider == 'google-directions' ? 'Ruta vial' : 'Ruta estimada'} ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
-            : route['reason']?.toString();
+            : fallback.summary;
+        routeFallbackDetail = distanceKm is num && hasUsableRoute ? null : fallback.detail;
       });
 
-      await _fitRouteBounds(polylinePoints);
+      await _fitRouteBounds(
+        polylinePoints.length >= 2
+            ? polylinePoints
+            : (hasUsableRoute ? markers.map((e) => e.position).toList() : fallback.fitPoints),
+      );
     } catch (_) {
+      final fallback = buildFallback();
       if (!mounted) return;
       setState(() {
-        routeSummary = 'La ruta todavía no está disponible.';
+        routeMarkers = fallback.markers;
+        routePolylines = fallback.polylines;
+        routeSummary = fallback.summary;
+        routeFallbackDetail = fallback.detail;
       });
+      await _fitRouteBounds(fallback.fitPoints);
     }
   }
 
@@ -460,6 +541,13 @@ class _MapScreenState extends State<MapScreen> {
                             style: const TextStyle(color: AppTheme.muted, height: 1.35),
                           ),
                         ],
+                        if (routeFallbackDetail != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            routeFallbackDetail!,
+                            style: const TextStyle(color: AppTheme.muted, fontSize: 12, height: 1.35),
+                          ),
+                        ],
                         const SizedBox(height: 14),
                         Wrap(
                           spacing: 10,
@@ -480,6 +568,10 @@ class _MapScreenState extends State<MapScreen> {
                             AppInfoChip(
                               icon: Icons.alt_route,
                               label: routePolylines.isNotEmpty ? 'Ruta visible' : 'Sin ruta',
+                            ),
+                            AppInfoChip(
+                              icon: routeFallbackDetail == null ? Icons.verified_outlined : Icons.build_circle_outlined,
+                              label: routeFallbackDetail == null ? 'Mapa completo' : 'Modo fallback',
                             ),
                             AppInfoChip(
                               icon: routeProvider == 'google-directions'
