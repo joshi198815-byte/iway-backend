@@ -9,7 +9,6 @@ import {
 } from '@nestjs/common';
 import { OffersService } from './offers.service';
 import { CreateOfferDto } from './dto/create-offer.dto';
-import { AcceptOfferDto } from './dto/accept-offer.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @UseGuards(JwtAuthGuard)
@@ -32,9 +31,8 @@ export class OffersController {
   }
 
   @Post(':id/accept')
-  accept(@Param('id') id: string, @Body() body: AcceptOfferDto, @Req() req: any) {
+  accept(@Param('id') id: string, @Req() req: any) {
     return this.offersService.acceptOffer(id, {
-      ...body,
       acceptedByCustomerId: req.user.sub,
     });
   }

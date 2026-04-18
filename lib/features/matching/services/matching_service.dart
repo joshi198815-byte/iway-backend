@@ -32,7 +32,6 @@ class MatchingService {
 
     final data = await _apiClient.post('/offers', {
       'shipmentId': shipmentId,
-      'travelerId': travelerId,
       'price': price,
     });
 
@@ -46,8 +45,6 @@ class MatchingService {
       throw ApiException('Debes iniciar sesión como cliente para aceptar una oferta.');
     }
 
-    await _apiClient.post('/offers/${offer.id}/accept', {
-      'acceptedByCustomerId': customerId,
-    });
+    await _apiClient.post('/offers/${offer.id}/accept', {});
   }
 }

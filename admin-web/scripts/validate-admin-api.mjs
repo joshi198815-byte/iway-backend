@@ -1,3 +1,7 @@
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 const API_BASE_URL = process.env.API_BASE_URL || 'https://api.iway.one/api';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || '';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
@@ -5,6 +9,30 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
   console.error('Missing ADMIN_EMAIL or ADMIN_PASSWORD');
   process.exit(1);
+}
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+async function assertSourceContracts() {
+  const apiFile = await readFile(path.resolve(__dirname, '../lib/api.ts'), 'utf8');
+  const shipmentsController = await readFile(path.resolve(__dirname, '../../backend/src/shipments/shipments.controller.ts'), 'utf8');
+  const transfersController = await readFile(path.resolve(__dirname, '../../backend/src/transfers/transfers.controller.ts'), 'utf8');
+  const travelersDto = await readFile(path.resolve(__dirname, '../../backend/src/travelers/dto/review-traveler.dto.ts'), 'utf8');
+
+  const checks = [
+    [apiFile.includes("method: 'PATCH'") && apiFile.includes('/shipments/${shipmentId}/status'), 'admin-web shipment status must use PATCH'],
+    [shipmentsController.includes("@Patch(':id/status')"), 'backend shipment status route must expose PATCH'],
+    [apiFile.includes("method: 'PUT'") && apiFile.includes('/transfers/${transferId}/review') && apiFile.includes('{ status: action, reason }'), 'admin-web transfer review must use PUT with status payload'],
+    [transfersController.includes("@Put(':transferId/review')"), 'backend transfer review route must expose PUT'],
+    [apiFile.includes("'timeline'") && apiFile.includes("'collaborators'"), 'admin-web collection parser must support timeline and collaborators'],
+    [travelersDto.includes("@IsIn(['approve', 'reject', 'block'])"), 'traveler review DTO must stay aligned with admin actions'],
+  ];
+
+  for (const [ok, message] of checks) {
+    if (!ok) throw new Error(`Source contract check failed: ${message}`);
+  }
+
+  console.log('Source contracts OK');
 }
 
 async function request(path, init = {}) {
@@ -45,6 +73,7 @@ async function request(path, init = {}) {
 
 async function main() {
   console.log(`Validating admin API against ${API_BASE_URL}`);
+  await assertSourceContracts();
 
   const login = await request('/auth/login', {
     method: 'POST',

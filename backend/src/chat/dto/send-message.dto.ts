@@ -5,8 +5,5 @@ export class SendMessageDto {
   chatId!: string;
 
   @IsString()
-  senderId!: string;
-
-  @IsString()
   body!: string;
 }

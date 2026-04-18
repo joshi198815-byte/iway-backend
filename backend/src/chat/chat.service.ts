@@ -2,6 +2,8 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { PrismaService } from '../database/prisma/prisma.service';
 import { AntiFraudService } from '../anti-fraud/anti-fraud.service';
 import { SendMessageDto } from './dto/send-message.dto';
+
+type SendMessagePayload = SendMessageDto & { senderId: string };
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
@@ -59,7 +61,7 @@ export class ChatService {
     });
   }
 
-  async sendMessage(payload: SendMessageDto) {
+  async sendMessage(payload: SendMessagePayload) {
     const chat = await this.prisma.chat.findUnique({
       where: { id: payload.chatId },
       include: { shipment: true },

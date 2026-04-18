@@ -3,6 +3,8 @@ import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
 
+type CreateRatingPayload = CreateRatingDto & { fromUserId: string };
+
 @Injectable()
 export class RatingsService {
   constructor(
@@ -27,7 +29,7 @@ export class RatingsService {
     });
   }
 
-  async create(payload: CreateRatingDto) {
+  async create(payload: CreateRatingPayload) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: payload.shipmentId },
       include: { assignedTraveler: true, customer: true },

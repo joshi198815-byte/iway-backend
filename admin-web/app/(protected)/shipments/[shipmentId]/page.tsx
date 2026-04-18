@@ -101,11 +101,27 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
           rows={timeline}
           empty="Sin eventos de tracking"
           columns={[
-            { key: 'status', header: 'Estado', render: (row) => row.status || '-' },
-            { key: 'lat', header: 'Lat', render: (row) => row.latitude || '-' },
-            { key: 'lng', header: 'Lng', render: (row) => row.longitude || '-' },
-            { key: 'note', header: 'Nota', render: (row) => row.note || '-' },
-            { key: 'createdAt', header: 'Creado', render: (row) => formatDate(row.createdAt) },
+            { key: 'kind', header: 'Clase', render: (row) => row.kind || '-' },
+            { key: 'type', header: 'Tipo', render: (row) => row.type || '-' },
+            {
+              key: 'coordinates',
+              header: 'Coordenadas',
+              render: (row) => {
+                const lat = row.payload?.lat;
+                const lng = row.payload?.lng;
+                return lat != null && lng != null ? `${lat}, ${lng}` : '-';
+              },
+            },
+            {
+              key: 'detail',
+              header: 'Detalle',
+              render: (row) =>
+                row.payload?.checkpoint ||
+                row.payload?.nextStatus ||
+                row.payload?.previousStatus ||
+                '-',
+            },
+            { key: 'at', header: 'Fecha', render: (row) => formatDate(row.at) },
           ]}
         />
       </section>

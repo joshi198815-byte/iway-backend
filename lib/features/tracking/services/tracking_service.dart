@@ -23,7 +23,6 @@ class TrackingService {
 
     await _apiClient.post('/tracking', {
       'shipmentId': shipmentId,
-      'travelerId': travelerId,
       'lat': lat,
       'lng': lng,
       'accuracyM': accuracyM,

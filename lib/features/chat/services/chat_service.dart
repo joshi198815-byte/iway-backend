@@ -39,7 +39,6 @@ class ChatService {
 
     await _apiClient.post('/chat/messages', {
       'chatId': chatId,
-      'senderId': senderId,
       'body': text,
     });
   }

@@ -4,6 +4,9 @@ import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AcceptOfferDto } from './dto/accept-offer.dto';
 import { CreateOfferDto } from './dto/create-offer.dto';
+
+type CreateOfferPayload = CreateOfferDto & { travelerId: string };
+type AcceptOfferPayload = AcceptOfferDto & { acceptedByCustomerId: string };
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { runtimeObservability } from '../common/observability/runtime-observability';
 
@@ -49,7 +52,7 @@ export class OffersService {
     return Math.max(1, Math.min(100, Math.round(score)));
   }
 
-  async create(payload: CreateOfferDto) {
+  async create(payload: CreateOfferPayload) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: payload.shipmentId },
     });
@@ -219,7 +222,7 @@ export class OffersService {
       .sort((a, b) => Number(b.marketplaceScore) - Number(a.marketplaceScore));
   }
 
-  async acceptOffer(offerId: string, payload: AcceptOfferDto) {
+  async acceptOffer(offerId: string, payload: AcceptOfferPayload) {
     const offer = await this.prisma.offer.findUnique({
       where: { id: offerId },
       include: { shipment: true },

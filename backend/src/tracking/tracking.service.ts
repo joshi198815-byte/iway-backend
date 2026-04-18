@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { UpdateTrackingDto } from './dto/update-tracking.dto';
+
+type UpdateTrackingPayload = UpdateTrackingDto & { travelerId: string };
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
@@ -43,7 +45,7 @@ export class TrackingService {
     }
   }
 
-  async update(payload: UpdateTrackingDto, requester: { sub: string; role: string }) {
+  async update(payload: UpdateTrackingPayload, requester: { sub: string; role: string }) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: payload.shipmentId },
     });

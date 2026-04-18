@@ -19,7 +19,6 @@ class RatingService {
 
     await _apiClient.post('/ratings', {
       'shipmentId': shipmentId,
-      'fromUserId': fromUserId,
       'stars': estrellas,
       'comment': comentario,
     });

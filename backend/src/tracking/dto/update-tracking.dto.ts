@@ -4,9 +4,6 @@ export class UpdateTrackingDto {
   @IsString()
   shipmentId!: string;
 
-  @IsString()
-  travelerId!: string;
-
   @IsNumber()
   lat!: number;
 
