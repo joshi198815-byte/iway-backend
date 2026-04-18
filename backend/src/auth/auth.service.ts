@@ -367,7 +367,11 @@ export class AuthService implements OnModuleInit {
       throw new BadRequestException('Tu cuenta está bloqueada por comisiones pendientes.');
     }
 
-    if (this.autoVerifyPhoneForTesting && !user.phoneVerified && [UserRole.customer, UserRole.traveler].includes(user.role)) {
+    if (
+      this.autoVerifyPhoneForTesting &&
+      !user.phoneVerified &&
+      (user.role === UserRole.customer || user.role === UserRole.traveler)
+    ) {
       await this.markPhoneVerified(user.id);
       const refreshedUser = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
       if (!refreshedUser) {
