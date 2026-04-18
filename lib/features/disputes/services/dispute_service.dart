@@ -17,6 +17,14 @@ class DisputeService {
     });
   }
 
+  Future<List<Map<String, dynamic>>> listMine() async {
+    final data = await _apiClient.get('/disputes/me');
+    if (data is! List) {
+      throw ApiException('No se pudieron cargar tus incidencias.');
+    }
+    return data.whereType<Map>().map((e) => e.map((k, v) => MapEntry(k.toString(), v))).toList();
+  }
+
   Future<List<Map<String, dynamic>>> getQueue() async {
     final data = await _apiClient.get('/disputes/queue');
     if (data is! List) {

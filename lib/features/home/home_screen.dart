@@ -102,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 10),
             const Text(
-              'Para abrir una incidencia real, entra a Mis pedidos, abre el pedido afectado y toca Soporte técnico. Eso sí llega al equipo operativo.',
+              'Puedes ver tus incidencias abiertas, resueltas o escaladas. Si necesitas abrir una nueva, también puedes hacerlo desde el pedido afectado.',
               style: TextStyle(color: AppTheme.muted, height: 1.4),
             ),
             const SizedBox(height: 16),
@@ -111,9 +111,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pushNamed(context, '/my_orders');
+                  Navigator.pushNamed(context, '/support');
                 },
-                child: const Text('Ir a mis pedidos'),
+                child: const Text('Abrir soporte'),
               ),
             ),
           ],

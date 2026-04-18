@@ -5,6 +5,7 @@ import '../features/auth/login/login_screen.dart';
 import '../features/auth/register/register_screen.dart';
 import '../features/auth/register/traveler_register_screen.dart';
 import '../features/auth/verification/contact_verification_screen.dart';
+import '../features/disputes/support_center_screen.dart';
 import '../features/shipment/create_shipment_screen.dart';
 import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/shipment/my_orders_screen.dart';
@@ -40,6 +41,7 @@ class AppRoutes {
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/my_orders': (context) => const MyOrdersScreen(),
+    '/support': (context) => const SupportCenterScreen(),
     '/debts': (context) => const DebtsScreen(),
     '/map': (context) {
       final id = ModalRoute.of(context)?.settings.arguments;

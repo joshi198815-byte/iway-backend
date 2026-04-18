@@ -152,6 +152,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
         const SnackBar(content: Text('Disputa abierta. El equipo operativo la revisará.')),
       );
       await loadTrackingData();
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/support');
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

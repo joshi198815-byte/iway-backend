@@ -160,6 +160,8 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> {
         const SnackBar(content: Text('Incidencia enviada a soporte.')),
       );
       await _load();
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/support');
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
