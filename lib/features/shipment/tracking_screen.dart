@@ -314,6 +314,56 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  void openImagePreview({String? networkUrl, File? localFile, String? title}) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Container(
+                color: Colors.black,
+                constraints: const BoxConstraints(maxHeight: 620),
+                width: double.infinity,
+                child: InteractiveViewer(
+                  child: networkUrl != null
+                      ? Image.network(
+                          '${ApiClient.baseUrl}$networkUrl',
+                          fit: BoxFit.contain,
+                          headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
+                              ? null
+                              : {'Authorization': 'Bearer ${SessionService.currentAccessToken!}'},
+                        )
+                      : Image.file(localFile!, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 14,
+              left: 14,
+              right: 64,
+              child: Text(
+                title ?? 'Vista previa',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton.filled(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget buildRemoteGallery(String title, List<String> images) {
     if (images.isEmpty) {
       return AppGlassSection(
@@ -332,22 +382,26 @@ class _TrackingScreenState extends State<TrackingScreen> {
         spacing: 10,
         runSpacing: 10,
         children: images.map((imageUrl) {
-          return ClipRRect(
+          return InkWell(
+            onTap: () => openImagePreview(networkUrl: imageUrl, title: title),
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              '${ApiClient.baseUrl}$imageUrl',
-              width: 92,
-              height: 92,
-              fit: BoxFit.cover,
-              headers: token == null || token.isEmpty
-                  ? null
-                  : {'Authorization': 'Bearer $token'},
-              errorBuilder: (_, __, ___) => Container(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.network(
+                '${ApiClient.baseUrl}$imageUrl',
                 width: 92,
                 height: 92,
-                color: AppTheme.surfaceSoft,
-                alignment: Alignment.center,
-                child: const Icon(Icons.broken_image_outlined, color: AppTheme.muted),
+                fit: BoxFit.cover,
+                headers: token == null || token.isEmpty
+                    ? null
+                    : {'Authorization': 'Bearer $token'},
+                errorBuilder: (_, __, ___) => Container(
+                  width: 92,
+                  height: 92,
+                  color: AppTheme.surfaceSoft,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.broken_image_outlined, color: AppTheme.muted),
+                ),
               ),
             ),
           );
@@ -527,15 +581,46 @@ class _TrackingScreenState extends State<TrackingScreen> {
                           Wrap(
                             spacing: 10,
                             runSpacing: 10,
-                            children: deliveryProofImages.map((img) {
-                              return ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Image.file(
-                                  img,
-                                  height: 82,
-                                  width: 82,
-                                  fit: BoxFit.cover,
-                                ),
+                            children: deliveryProofImages.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final img = entry.value;
+                              return Stack(
+                                children: [
+                                  InkWell(
+                                    onTap: () => openImagePreview(localFile: img, title: 'Evidencia de entrega'),
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Image.file(
+                                        img,
+                                        height: 82,
+                                        width: 82,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 4,
+                                    right: 4,
+                                    child: GestureDetector(
+                                      onTap: updatingStatus
+                                          ? null
+                                          : () {
+                                              setState(() {
+                                                deliveryProofImages.removeAt(index);
+                                              });
+                                            },
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black87,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        padding: const EdgeInsets.all(4),
+                                        child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               );
                             }).toList(),
                           ),
