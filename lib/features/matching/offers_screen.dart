@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/matching/models/offer_model.dart';
 import 'package:iway_app/features/matching/services/matching_service.dart';
+import 'package:iway_app/features/shipment/models/shipment_model.dart';
+import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
@@ -24,9 +26,11 @@ class OffersScreen extends StatefulWidget {
 
 class _OffersScreenState extends State<OffersScreen> {
   final matchingService = MatchingService();
+  final shipmentService = ShipmentService();
   final priceController = TextEditingController();
   final realtime = RealtimeService.instance;
 
+  ShipmentModel? shipment;
   List<OfferModel> offers = [];
   bool loading = true;
   bool creatingOffer = false;
@@ -66,12 +70,16 @@ class _OffersScreenState extends State<OffersScreen> {
 
   Future<void> loadOffers() async {
     try {
-      final data = await matchingService.getOffers(widget.shipmentId);
+      final results = await Future.wait([
+        matchingService.getOffers(widget.shipmentId),
+        shipmentService.getShipmentById(widget.shipmentId),
+      ]);
 
       if (!mounted) return;
 
       setState(() {
-        offers = data;
+        offers = results[0] as List<OfferModel>;
+        shipment = results[1] as ShipmentModel;
         loading = false;
       });
     } on ApiException catch (e) {
@@ -224,6 +232,51 @@ class _OffersScreenState extends State<OffersScreen> {
                                 : 'Compara viajeros y acepta la opción que más te convenga.',
                           ),
                           const SizedBox(height: 18),
+                          if (shipment != null)
+                            AppGlassSection(
+                              title: 'Detalle del envío',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${shipment!.origen} → ${shipment!.destino}',
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if ((shipment!.descripcion ?? '').isNotEmpty)
+                                    Text(
+                                      shipment!.descripcion!,
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Entrega para: ${shipment!.receptorNombre.isEmpty ? 'No indicado' : shipment!.receptorNombre}',
+                                    style: const TextStyle(color: AppTheme.muted),
+                                  ),
+                                  if (shipment!.receptorTelefono.isNotEmpty)
+                                    Text(
+                                      'Teléfono: ${shipment!.receptorTelefono}',
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
+                                  if (shipment!.receptorDireccion.isNotEmpty)
+                                    Text(
+                                      'Dirección: ${shipment!.receptorDireccion}',
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Valor declarado: US\$${shipment!.valor.toStringAsFixed(2)}',
+                                    style: const TextStyle(color: AppTheme.muted),
+                                  ),
+                                  if (shipment!.peso != null)
+                                    Text(
+                                      'Peso: ${shipment!.peso!.toStringAsFixed(1)} lb',
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          if (shipment != null) const SizedBox(height: 14),
                           if (isTraveler)
                             AppGlassSection(
                               title: 'Tu propuesta',

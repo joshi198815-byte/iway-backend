@@ -314,6 +314,13 @@ class _TrackingScreenState extends State<TrackingScreen> {
     );
   }
 
+  String _resolveImageUrl(String value) {
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    return '${ApiClient.baseUrl}$value';
+  }
+
   void openImagePreview({String? networkUrl, File? localFile, String? title}) {
     showDialog<void>(
       context: context,
@@ -331,7 +338,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                 child: InteractiveViewer(
                   child: networkUrl != null
                       ? Image.network(
-                          '${ApiClient.baseUrl}$networkUrl',
+                          _resolveImageUrl(networkUrl),
                           fit: BoxFit.contain,
                           headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
                               ? null
@@ -388,7 +395,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.network(
-                '${ApiClient.baseUrl}$imageUrl',
+                _resolveImageUrl(imageUrl),
                 width: 92,
                 height: 92,
                 fit: BoxFit.cover,
