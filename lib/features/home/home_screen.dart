@@ -202,17 +202,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             Navigator.pushNamed(context, '/profile');
                           },
                         ),
-                        if (!isTraveler) ...[
-                          const SizedBox(height: 12),
-                          AppQuickActionWide(
-                            icon: Icons.admin_panel_settings_outlined,
-                            title: 'Panel operativo',
-                            subtitle: 'Revisión administrativa y soporte interno',
-                            onTap: () {
-                              Navigator.pushNamed(context, '/admin');
-                            },
-                          ),
-                        ],
                       ],
                     ),
                   ),

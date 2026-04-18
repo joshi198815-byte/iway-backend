@@ -71,7 +71,7 @@ export function getCollection<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[];
   if (payload && typeof payload === 'object') {
     const objectPayload = payload as Record<string, unknown>;
-    for (const key of ['items', 'data', 'results', 'rows', 'queue', 'points', 'buckets']) {
+    for (const key of ['items', 'data', 'results', 'rows', 'queue', 'points', 'buckets', 'timeline', 'collaborators']) {
       const value = objectPayload[key];
       if (Array.isArray(value)) return value as T[];
     }
@@ -134,8 +134,8 @@ export async function getTravelersReviewQueue(token: string) {
 export async function reviewTraveler(token: string, userId: string, action: string, reason?: string) {
   return apiRequest(`/travelers/${userId}/review`, {
     token,
-    method: 'POST',
-    body: JSON.stringify({ action, reason }),
+    method: 'PUT',
+    body: JSON.stringify({ status: action, reason }),
   });
 }
 
@@ -167,8 +167,8 @@ export async function getTransfersReviewQueue(token: string) {
 export async function reviewTransfer(token: string, transferId: string, action: string, reason?: string) {
   return apiRequest(`/transfers/${transferId}/review`, {
     token,
-    method: 'POST',
-    body: JSON.stringify({ action, reason }),
+    method: 'PUT',
+    body: JSON.stringify({ status: action, reason }),
   });
 }
 
@@ -191,7 +191,7 @@ export async function getTrackingTimeline(token: string, shipmentId: string) {
 export async function updateShipmentStatus(token: string, shipmentId: string, status: string) {
   return apiRequest(`/shipments/${shipmentId}/status`, {
     token,
-    method: 'POST',
+    method: 'PATCH',
     body: JSON.stringify({ status }),
   });
 }

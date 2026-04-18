@@ -166,6 +166,25 @@ export class ShipmentsService {
       include: {
         offers: true,
         commission: true,
+        customer: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        assignedTraveler: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        images: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -190,6 +209,25 @@ export class ShipmentsService {
         offers: true,
         events: true,
         commission: true,
+        customer: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        assignedTraveler: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+        images: true,
       },
     });
 

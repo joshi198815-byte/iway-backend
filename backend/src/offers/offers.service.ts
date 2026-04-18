@@ -130,7 +130,6 @@ export class OffersService {
 
     const canAccess =
       ['admin', 'support'].includes(requester.role) ||
-      requester.role === 'traveler' ||
       shipment.customerId === requester.sub ||
       shipment.assignedTravelerId === requester.sub;
 

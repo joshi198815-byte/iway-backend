@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation';
 import { AUTH_COOKIE, USER_COOKIE } from '@/lib/auth';
 import { login } from '@/lib/api';
 
+const isSecureCookie = process.env.NODE_ENV === 'production';
+
 export type LoginFormState = {
   error?: string;
 };
@@ -31,14 +33,14 @@ export async function loginAction(
     store.set(AUTH_COOKIE, result.accessToken, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: true,
+      secure: isSecureCookie,
       path: '/',
       maxAge: 60 * 60 * 12,
     });
     store.set(USER_COOKIE, JSON.stringify(result.user), {
       httpOnly: true,
       sameSite: 'lax',
-      secure: true,
+      secure: isSecureCookie,
       path: '/',
       maxAge: 60 * 60 * 12,
     });

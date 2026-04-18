@@ -154,10 +154,10 @@ export default async function TravelersReviewPage({ searchParams }: { searchPara
                 <form action={reviewTravelerAction} className="filters">
                   <input type="hidden" name="userId" value={selectedUserId} />
                   <input type="hidden" name="path" value={`/travelers-review?userId=${selectedUserId}${query ? `&q=${encodeURIComponent(query)}` : ''}`} />
-                  <select name="action" defaultValue="approved">
-                    <option value="approved">Aprobar</option>
-                    <option value="rejected">Rechazar</option>
-                    <option value="manual_review">Manual review</option>
+                  <select name="action" defaultValue="approve">
+                    <option value="approve">Aprobar</option>
+                    <option value="reject">Rechazar</option>
+                    <option value="block">Bloquear</option>
                   </select>
                   <textarea name="reason" placeholder="Motivo o nota operativa" />
                   <button className="button primary" type="submit">Guardar revisión</button>

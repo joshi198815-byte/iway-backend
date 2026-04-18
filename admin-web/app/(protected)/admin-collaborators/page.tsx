@@ -81,7 +81,7 @@ export default async function AdminCollaboratorsPage({ searchParams }: { searchP
                 <option value="support">Support</option>
                 <option value="admin">Admin</option>
               </select>
-              <input name="password" placeholder="Temporal opcional" />
+              <input name="password" type="text" required placeholder="Contraseña temporal obligatoria" />
               <button className="button primary" type="submit">Crear colaborador</button>
             </form>
           </div>
@@ -135,7 +135,7 @@ export default async function AdminCollaboratorsPage({ searchParams }: { searchP
               <form action={resetCollaboratorPasswordAction} className="filters">
                 <input type="hidden" name="userId" value={selectedUserId} />
                 <input type="hidden" name="path" value={`/admin-collaborators?userId=${selectedUserId}${query ? `&q=${encodeURIComponent(query)}` : ''}`} />
-                <input name="password" placeholder="Nueva temporal opcional" />
+                <input name="password" type="text" required placeholder="Nueva contraseña temporal" />
                 <button className="button secondary" type="submit">Resetear contraseña</button>
               </form>
             ) : (

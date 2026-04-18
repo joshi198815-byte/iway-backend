@@ -13,13 +13,6 @@ import '../features/notifications/notifications_screen.dart';
 import '../features/chat/chat_screen.dart';
 import '../features/payments/debts_screen.dart';
 import '../features/rating/rating_screen.dart';
-import '../features/admin/admin_screen.dart';
-import '../features/admin/admin_shipment_detail_screen.dart';
-import '../features/admin/admin_transfers_screen.dart';
-import '../features/admin/admin_travelers_review_screen.dart';
-import '../features/admin/admin_ledger_screen.dart';
-import '../features/admin/admin_antifraud_screen.dart';
-import '../features/admin/admin_disputes_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/profile/profile_screen.dart';
 
@@ -45,19 +38,6 @@ class AppRoutes {
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/debts': (context) => const DebtsScreen(),
-    '/admin': (context) => const AdminScreen(),
-    '/admin_transfers': (context) => const AdminTransfersScreen(),
-    '/admin_travelers_review': (context) => const AdminTravelersReviewScreen(),
-    '/admin_ledger': (context) => const AdminLedgerScreen(),
-    '/admin_antifraud': (context) => const AdminAntiFraudScreen(),
-    '/admin_disputes': (context) => const AdminDisputesScreen(),
-    '/admin_shipment': (context) {
-      final id = ModalRoute.of(context)?.settings.arguments;
-      if (id is! String || id.isEmpty) {
-        return _invalidArgumentsScreen('Detalle shipment admin');
-      }
-      return AdminShipmentDetailScreen(shipmentId: id);
-    },
     '/profile': (context) => const ProfileScreen(),
     '/map': (context) {
       final shipmentId = ModalRoute.of(context)?.settings.arguments;

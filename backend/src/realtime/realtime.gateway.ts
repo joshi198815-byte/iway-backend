@@ -160,10 +160,6 @@ export class RealtimeGateway implements OnGatewayConnection {
       return;
     }
 
-    if (user.role === 'traveler') {
-      return;
-    }
-
     throw new ForbiddenException('Sin acceso a este room');
   }
 }
