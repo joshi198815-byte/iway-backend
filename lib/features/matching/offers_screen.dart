@@ -270,6 +270,23 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     return null;
   }
 
+  bool _matchesTravelerRoute(ShipmentModel shipment) {
+    final routes = SessionService.currentUser?.rutas ?? const <String>[];
+    final pickupRegion = shipment.remitenteRegion.trim().toLowerCase();
+    if (pickupRegion.isEmpty) return false;
+    return routes.any((route) => route.trim().toLowerCase() == pickupRegion);
+  }
+
+  String _recommendedPickupPoint(ShipmentModel shipment) {
+    if (shipment.remitenteDireccion.trim().isNotEmpty) {
+      return shipment.remitenteDireccion.trim();
+    }
+    if (shipment.pickupLat != null && shipment.pickupLng != null) {
+      return 'Hay ubicación cargada para ver en tracking/mapa.';
+    }
+    return 'Todavía no hay punto exacto confirmado.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -335,11 +352,24 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                           : 'Recogida pendiente de región exacta',
                                       style: const TextStyle(color: AppTheme.muted),
                                     ),
-                                    if (shipment!.remitenteDireccion.isNotEmpty)
-                                      Text(
-                                        'Punto de encuentro / recogida: ${shipment!.remitenteDireccion}',
-                                        style: const TextStyle(color: AppTheme.muted),
+                                    if (isTraveler)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                          _matchesTravelerRoute(shipment!)
+                                              ? 'Sí coincide con una de tus rutas activas.'
+                                              : 'No coincide exacto con tus rutas guardadas. Revisa cercanía antes de ofertar.',
+                                          style: TextStyle(
+                                            color: _matchesTravelerRoute(shipment!) ? const Color(0xFF59D38C) : const Color(0xFFFFD27A),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ),
+                                    Text(
+                                      'Punto sugerido de encuentro: ${_recommendedPickupPoint(shipment!)}',
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
                                     if (shipment!.remitenteNombre.isNotEmpty)
                                       Text(
                                         'Remitente: ${shipment!.remitenteNombre}',

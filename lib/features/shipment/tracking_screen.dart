@@ -360,6 +360,16 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     return null;
   }
 
+  String _recommendedPickupPoint() {
+    if ((shipment?.remitenteDireccion ?? '').trim().isNotEmpty) {
+      return shipment!.remitenteDireccion.trim();
+    }
+    if (shipment?.pickupLat != null && shipment?.pickupLng != null) {
+      return 'Ubicación cargada en mapa para coordinar la recogida.';
+    }
+    return 'Todavía no hay un punto exacto confirmado.';
+  }
+
   Widget buildStep(String title, bool active) {
     return Row(
       children: [
@@ -665,11 +675,10 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                                   'Departamento/estado: ${shipment!.remitenteRegion}',
                                   style: const TextStyle(color: AppTheme.muted),
                                 ),
-                              if ((shipment?.remitenteDireccion ?? '').isNotEmpty)
-                                Text(
-                                  'Dirección o punto de encuentro: ${shipment!.remitenteDireccion}',
-                                  style: const TextStyle(color: AppTheme.muted),
-                                ),
+                              Text(
+                                'Punto sugerido de encuentro: ${_recommendedPickupPoint()}',
+                                style: const TextStyle(color: AppTheme.muted),
+                              ),
                               if ((shipment?.remitenteNombre ?? '').isNotEmpty)
                                 Text(
                                   'Entrega inicial con: ${shipment!.remitenteNombre}',

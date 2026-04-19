@@ -83,6 +83,32 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
     }
   }
 
+  bool _matchesTravelerRoute(ShipmentModel shipment) {
+    final routes = SessionService.currentUser?.rutas ?? const <String>[];
+    final pickupRegion = shipment.remitenteRegion.trim().toLowerCase();
+    if (pickupRegion.isEmpty) return false;
+    return routes.any((route) => route.trim().toLowerCase() == pickupRegion);
+  }
+
+  String _pickupFitLabel(ShipmentModel shipment) {
+    if (shipment.remitenteRegion.trim().isEmpty) {
+      return 'Aún no hay departamento confirmado para medir cercanía.';
+    }
+    return _matchesTravelerRoute(shipment)
+        ? 'Esta recogida sí coincide con una de tus rutas activas.'
+        : 'Esta recogida no coincide exacto con tus rutas guardadas. Revísala antes de pujar.';
+  }
+
+  String _recommendedPickupPoint(ShipmentModel shipment) {
+    if (shipment.remitenteDireccion.trim().isNotEmpty) {
+      return shipment.remitenteDireccion.trim();
+    }
+    if (shipment.pickupLat != null && shipment.pickupLng != null) {
+      return 'Punto geolocalizado listo para verse en mapa al tomar el envío.';
+    }
+    return 'Todavía no hay punto exacto confirmado.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser;
@@ -218,13 +244,20 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                                     : 'Todavía no hay departamento confirmado para la recogida.',
                                                 style: const TextStyle(color: AppTheme.muted),
                                               ),
-                                              if (shipment.remitenteDireccion.isNotEmpty) ...[
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  'Punto aproximado: ${shipment.remitenteDireccion}',
-                                                  style: const TextStyle(color: AppTheme.muted),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                _pickupFitLabel(shipment),
+                                                style: TextStyle(
+                                                  color: _matchesTravelerRoute(shipment) ? const Color(0xFF59D38C) : const Color(0xFFFFD27A),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
-                                              ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Punto sugerido: ${_recommendedPickupPoint(shipment)}',
+                                                style: const TextStyle(color: AppTheme.muted),
+                                              ),
                                             ],
                                           ),
                                         ),
