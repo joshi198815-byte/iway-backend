@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/auth/services/auth_service.dart';
 import 'package:iway_app/features/notifications/services/push_notification_service.dart';
 import 'package:iway_app/services/api_client.dart';
@@ -22,8 +23,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
-  final _routeController = TextEditingController();
-
   bool _saving = false;
   bool _uploadingPhoto = false;
   List<String> _routes = [];
@@ -45,7 +44,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
-    _routeController.dispose();
     super.dispose();
   }
 
@@ -71,29 +69,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _addRoute() {
-    final raw = _routeController.text.trim();
-    if (raw.isEmpty) return;
+  Future<void> _pickRoutes() async {
+    final picked = await showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        final temp = [..._routes];
+        final options = supportedRegionsByCountry['Estados Unidos'] ?? const <String>[];
 
-    final parts = raw
-        .split(RegExp(r'[\n,;/|]'))
-        .map((item) => item.trim())
-        .where((item) => item.isNotEmpty)
-        .toList();
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: SizedBox(
+                height: 560,
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Selecciona tus rutas en USA',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => setModalState(() => temp.clear()),
+                            child: const Text('Limpiar'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: options.length,
+                        itemBuilder: (context, index) {
+                          final option = options[index];
+                          final selected = temp.contains(option);
+                          return CheckboxListTile(
+                            value: selected,
+                            onChanged: (value) {
+                              setModalState(() {
+                                if (value == true) {
+                                  temp.add(option);
+                                } else {
+                                  temp.remove(option);
+                                }
+                              });
+                            },
+                            title: Text(option),
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.trailing,
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context, temp),
+                          child: const Text('Guardar selección'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
 
-    if (parts.isEmpty) return;
-
-    final next = [..._routes];
-    for (final part in parts) {
-      if (!next.any((route) => route.toLowerCase() == part.toLowerCase())) {
-        next.add(part);
-      }
-    }
-
-    setState(() {
-      _routes = next;
-      _routeController.clear();
-    });
+    if (picked == null) return;
+    setState(() => _routes = picked);
   }
 
   Future<void> _saveProfile() async {
@@ -286,27 +344,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 8),
                               const Text(
-                                'Agrega uno o varios estados o ciudades separados por coma para mantener tus rutas al día.',
+                                'Selecciona los estados donde operas y mantenlos actualizados desde aquí.',
                                 style: TextStyle(color: AppTheme.muted, height: 1.4),
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _routeController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Ejemplo: California, Nashville, Houston',
-                                      ),
-                                      onSubmitted: (_) => _addRoute(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  ElevatedButton(
-                                    onPressed: _addRoute,
-                                    child: const Text('Agregar'),
-                                  ),
-                                ],
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: _pickRoutes,
+                                  icon: const Icon(Icons.map_outlined),
+                                  label: Text(_routes.isEmpty ? 'Seleccionar rutas en USA' : 'Editar rutas seleccionadas'),
+                                ),
                               ),
                               const SizedBox(height: 12),
                               if (_routes.isEmpty)

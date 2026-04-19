@@ -4,12 +4,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/data/location_catalogs.dart';
+import 'package:iway_app/features/auth/services/auth_service.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
 import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/address_search_service.dart';
 import 'package:iway_app/features/shipment/services/insurance_service.dart';
 import 'package:iway_app/features/shipment/services/saved_recipient_service.dart';
+import 'package:iway_app/features/shipment/services/saved_sender_service.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
@@ -75,13 +77,17 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final vinController = TextEditingController();
 
   final shipmentService = ShipmentService();
+  final authService = AuthService();
   final imageService = ImageService();
   final insuranceService = InsuranceService();
   final addressSearchService = AddressSearchService();
   final locationService = LocationService();
   final savedRecipientService = SavedRecipientService();
+  final savedSenderService = SavedSenderService();
 
   List<SavedRecipient> savedRecipients = [];
+  List<SavedSender> savedSenders = [];
+  SavedSender? selectedSender;
 
   final List<File> images = [];
   final List<AddressSuggestion> addressSuggestions = [];
@@ -121,7 +127,181 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   @override
   void initState() {
     super.initState();
+    _seedCurrentSender();
+    _loadSavedSenders();
     _loadSavedRecipients();
+  }
+
+  void _seedCurrentSender() {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+    selectedSender = SavedSender(
+      name: user.nombre,
+      phone: user.telefono,
+      address: user.direccion,
+      countryCode: user.pais,
+      stateRegion: user.estado,
+    );
+  }
+
+  Future<void> _loadSavedSenders() async {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    final data = await savedSenderService.getAll(userId);
+    if (!mounted) return;
+    setState(() => savedSenders = data);
+  }
+
+  Future<void> _saveCurrentSender({bool notify = true}) async {
+    final userId = SessionService.currentUserId;
+    final user = SessionService.currentUser;
+    if (userId == null || userId.isEmpty || user == null) return;
+
+    final sender = SavedSender(
+      name: user.nombre.trim(),
+      phone: user.telefono.trim(),
+      address: user.direccion.trim(),
+      countryCode: user.pais.trim(),
+      stateRegion: user.estado.trim(),
+    );
+
+    if (sender.name.isEmpty || sender.phone.length < 8 || sender.address.isEmpty) {
+      if (notify) {
+        showMessage('Completa tu perfil antes de guardar un remitente.');
+      }
+      return;
+    }
+
+    await savedSenderService.save(userId, sender);
+    await _loadSavedSenders();
+    if (!mounted) return;
+    setState(() => selectedSender = sender);
+    if (notify) {
+      showMessage('Remitente guardado para próximos envíos.');
+    }
+  }
+
+  Future<void> _applySenderProfile(SavedSender sender) async {
+    final user = SessionService.currentUser;
+    if (user == null) return;
+
+    await authService.updateProfile(
+      fullName: sender.name,
+      phone: sender.phone,
+      countryCode: sender.countryCode,
+      stateRegion: sender.stateRegion,
+      address: sender.address,
+      selfieUrl: user.selfiePath,
+    );
+    await authService.refreshCurrentUser();
+    if (!mounted) return;
+    setState(() => selectedSender = sender);
+  }
+
+  Future<void> _removeSavedSender(SavedSender sender) async {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    await savedSenderService.remove(userId, sender);
+    await _loadSavedSenders();
+  }
+
+  Future<void> _createSenderProfile() async {
+    final user = SessionService.currentUser;
+    final userId = SessionService.currentUserId;
+    if (user == null || userId == null || userId.isEmpty) return;
+
+    final nameController = TextEditingController(text: user.nombre);
+    final phoneController = TextEditingController(text: user.telefono);
+    final addressController = TextEditingController(text: user.direccion);
+    String countryCode = user.pais.isNotEmpty ? user.pais : 'GT';
+    String stateRegion = user.estado;
+
+    final created = await showModalBottomSheet<SavedSender>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Nuevo remitente', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 14),
+                    TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Nombre completo')),
+                    const SizedBox(height: 12),
+                    TextField(controller: phoneController, decoration: const InputDecoration(labelText: 'Teléfono'), keyboardType: TextInputType.phone),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      initialValue: countryCode,
+                      decoration: const InputDecoration(labelText: 'País'),
+                      items: const [
+                        DropdownMenuItem(value: 'GT', child: Text('Guatemala')),
+                        DropdownMenuItem(value: 'US', child: Text('Estados Unidos')),
+                      ],
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setModalState(() {
+                          countryCode = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(controller: addressController, decoration: const InputDecoration(labelText: 'Dirección base'), maxLines: 2),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      initialValue: stateRegion,
+                      decoration: const InputDecoration(labelText: 'Estado o región'),
+                      onChanged: (value) => stateRegion = value,
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          final sender = SavedSender(
+                            name: nameController.text.trim(),
+                            phone: phoneController.text.trim(),
+                            address: addressController.text.trim(),
+                            countryCode: countryCode,
+                            stateRegion: stateRegion.trim(),
+                          );
+                          Navigator.pop(context, sender);
+                        },
+                        child: const Text('Guardar remitente'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    phoneController.dispose();
+    addressController.dispose();
+
+    if (created == null) return;
+    if (created.name.isEmpty || created.phone.length < 8 || created.address.isEmpty) {
+      showMessage('Completa nombre, teléfono y dirección para guardar el remitente.');
+      return;
+    }
+
+    await savedSenderService.save(userId, created);
+    await _loadSavedSenders();
+    if (!mounted) return;
+    setState(() => selectedSender = created);
+    showMessage('Remitente creado y listo para usar.');
   }
 
   Future<void> _loadSavedRecipients() async {
@@ -174,6 +354,22 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     if (userId == null || userId.isEmpty) return;
     await savedRecipientService.remove(userId, recipient);
     await _loadSavedRecipients();
+  }
+
+  Future<void> _ensureSelectedSenderApplied() async {
+    final user = SessionService.currentUser;
+    final sender = selectedSender;
+    if (user == null || sender == null) return;
+
+    final sameSender = user.nombre.trim() == sender.name.trim() &&
+        user.telefono.trim() == sender.phone.trim() &&
+        user.direccion.trim() == sender.address.trim() &&
+        user.pais.trim() == sender.countryCode.trim() &&
+        user.estado.trim() == sender.stateRegion.trim();
+
+    if (sameSender) return;
+
+    await _applySenderProfile(sender);
   }
 
   @override
@@ -459,6 +655,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     setState(() => loading = true);
 
     try {
+      await _ensureSelectedSenderApplied();
       final fullAddress = _composeAddress();
       final geocoded = await addressSearchService.geocodeAddress(
         address: fullAddress,
@@ -551,6 +748,133 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   subtitle: 'Configura origen, destino y datos del receptor en un flujo claro y rápido.',
                 ),
                 const SizedBox(height: 24),
+                AppGlassSection(
+                  title: 'Remitente',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'El envío usará el remitente activo de tu perfil. Aquí puedes reutilizar remitentes guardados antes de publicar.',
+                        style: TextStyle(color: AppTheme.muted, height: 1.4),
+                      ),
+                      const SizedBox(height: 12),
+                      if (selectedSender != null)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceSoft,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.person_pin_circle_outlined, color: AppTheme.accent),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      selectedSender!.name,
+                                      style: const TextStyle(fontWeight: FontWeight.w700),
+                                    ),
+                                  ),
+                                  const Text(
+                                    'Activo',
+                                    style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(selectedSender!.phone, style: const TextStyle(color: AppTheme.muted)),
+                              const SizedBox(height: 4),
+                              Text(selectedSender!.address, style: const TextStyle(color: AppTheme.muted)),
+                            ],
+                          ),
+                        ),
+                      if (savedSenders.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 118,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: savedSenders.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            itemBuilder: (context, index) {
+                              final sender = savedSenders[index];
+                              final isSelected = selectedSender?.name == sender.name && selectedSender?.phone == sender.phone;
+                              return SizedBox(
+                                width: 230,
+                                child: InkWell(
+                                  onTap: () => _applySenderProfile(sender),
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppTheme.accent.withValues(alpha: 0.12) : AppTheme.surfaceSoft,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: isSelected ? AppTheme.accent : AppTheme.border),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                sender.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                            GestureDetector(
+                                              onTap: () => _removeSavedSender(sender),
+                                              child: const Icon(Icons.close_rounded, size: 16, color: AppTheme.muted),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(sender.phone, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.muted, fontSize: 12)),
+                                        const SizedBox(height: 4),
+                                        Text(sender.address, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.muted, fontSize: 12)),
+                                        const Spacer(),
+                                        Text(
+                                          isSelected ? 'En uso' : 'Usar remitente',
+                                          style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w700),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 14),
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _createSenderProfile,
+                            icon: const Icon(Icons.person_add_alt_1_outlined),
+                            label: const Text('Crear remitente'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: _saveCurrentSender,
+                            icon: const Icon(Icons.bookmark_add_outlined),
+                            label: const Text('Guardar remitente actual'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 AppGlassSection(
                   title: 'Detalles del paquete',
                   child: Column(
