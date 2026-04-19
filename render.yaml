@@ -5,7 +5,7 @@ services:
     rootDir: backend
     plan: starter
     autoDeploy: true
-    buildCommand: npm install --no-fund --no-audit && npm run build
+    buildCommand: npm install --include=dev --no-fund --no-audit && npm run build
     startCommand: chmod +x scripts/docker-entrypoint.sh && ./scripts/docker-entrypoint.sh
     envVars:
       - key: NODE_ENV
@@ -35,7 +35,7 @@ services:
     rootDir: admin-web
     plan: starter
     autoDeploy: true
-    buildCommand: npm install --no-fund --no-audit && npm run build
+    buildCommand: npm install --include=dev --no-fund --no-audit && npm run build
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
