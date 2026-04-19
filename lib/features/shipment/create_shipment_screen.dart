@@ -313,6 +313,17 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     }
   }
 
+  Future<void> _handlePrimaryAction(int totalSteps) async {
+    if (_step == totalSteps - 1) {
+      await _submit();
+      return;
+    }
+
+    if (!_validateCurrentStep()) return;
+    if (!mounted) return;
+    setState(() => _step += 1);
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -708,16 +719,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             if (_step > 0) const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: _submitting
-                    ? null
-                    : () {
-                        if (!_validateCurrentStep()) return;
-                        if (_step == steps.length - 1) {
-                          _submit();
-                        } else {
-                          setState(() => _step += 1);
-                        }
-                      },
+                onPressed: _submitting ? null : () => _handlePrimaryAction(steps.length),
                 child: _submitting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : Text(_step == steps.length - 1 ? 'Publicar envío' : 'Continuar'),
