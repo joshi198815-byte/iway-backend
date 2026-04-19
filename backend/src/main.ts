@@ -9,16 +9,20 @@ import { createRateLimitMiddleware } from './common/security/rate-limit.middlewa
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  process.env.NODE_ENV = process.env.NODE_ENV?.trim() || 'production';
+
   const app = await NestFactory.create(AppModule);
 
   const corsOriginEnv =
-    process.env.CORS_ORIGINS?.trim() ?? process.env.CORS_ORIGIN?.trim();
+    process.env.FRONTEND_URL?.trim() ??
+    process.env.CORS_ORIGINS?.trim() ??
+    process.env.CORS_ORIGIN?.trim();
   const corsOrigins = corsOriginEnv
     ? corsOriginEnv
         .split(',')
         .map((value) => value.trim())
         .filter((value) => value.length > 0)
-    : true;
+    : false;
 
   app.enableCors({
     origin: corsOrigins,
@@ -81,7 +85,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new RequestLoggingInterceptor());
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 10000);
   await app.listen(port, '0.0.0.0');
   console.log(`iway backend listening on ${port}`);
 }

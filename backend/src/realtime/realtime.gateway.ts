@@ -13,9 +13,16 @@ import { PrismaService } from '../database/prisma/prisma.service';
 
 type AuthUser = { sub: string; role: string };
 
+const jwtSecret = process.env.JWT_SECRET?.trim();
+const realtimeCorsOrigin = process.env.FRONTEND_URL?.trim() || false;
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+
 @WebSocketGateway({
   namespace: '/realtime',
-  cors: { origin: '*' },
+  cors: { origin: realtimeCorsOrigin, credentials: true },
 })
 export class RealtimeGateway implements OnGatewayConnection {
   private readonly logger = new Logger(RealtimeGateway.name);
@@ -129,7 +136,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     }
 
     return this.jwtService.verify<AuthUser>(token, {
-      secret: process.env.JWT_SECRET ?? 'change-me',
+      secret: jwtSecret,
     });
   }
 

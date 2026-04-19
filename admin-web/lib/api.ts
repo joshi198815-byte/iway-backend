@@ -1,5 +1,10 @@
-export const DEFAULT_API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.iway.one/api';
+const rawApiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
+
+export const DEFAULT_API_BASE_URL = rawApiBaseUrl
+  ? rawApiBaseUrl.replace(/\/$/, '')
+  : process.env.NODE_ENV === 'production'
+    ? ''
+    : 'http://localhost:10000/api';
 
 export type AdminUser = {
   id: string;
@@ -37,6 +42,10 @@ function buildHeaders(init?: RequestInit, token?: string) {
 }
 
 export async function apiRequest<T>(path: string, init?: ApiOptions): Promise<T> {
+  if (!DEFAULT_API_BASE_URL) {
+    throw new Error('NEXT_PUBLIC_API_BASE_URL is required');
+  }
+
   const bases = [DEFAULT_API_BASE_URL, DEFAULT_API_BASE_URL.replace(/\/api$/, '')];
   let lastError: unknown;
 

@@ -13,7 +13,7 @@ function main() {
       shellDatabaseUrl ||
       process.env.LOCAL_DATABASE_URL ||
       'postgresql://iway:iway_staging_change_me@127.0.0.1:5432/iway_staging?schema=public',
-    PORT: process.env.PORT || '3000',
+    PORT: process.env.PORT || '10000',
   };
 
   execSync('npx prisma generate', {

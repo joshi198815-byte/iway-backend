@@ -22,8 +22,13 @@ if [ "${JWT_SECRET}" = "replace-with-long-random-secret" ] || [ ${#JWT_SECRET} -
   exit 1
 fi
 
-if [ "${CORS_ORIGIN:-}" = "*" ]; then
-  echo "[entrypoint] warning: CORS_ORIGIN is wildcard in production"
+if [ -z "${FRONTEND_URL:-}" ]; then
+  echo "[entrypoint] FRONTEND_URL is required" >&2
+  exit 1
+fi
+
+if [ "${FRONTEND_URL:-}" = "*" ]; then
+  echo "[entrypoint] warning: FRONTEND_URL is wildcard in production"
 fi
 
 echo "[entrypoint] applying Prisma migrations with schema: ${SCHEMA}"

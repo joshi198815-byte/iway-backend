@@ -24,6 +24,7 @@ err() { echo "ERROR: $1" >&2; fail=1; }
 
 [ -n "${DATABASE_URL:-}" ] || err "DATABASE_URL is required"
 [ -n "${JWT_SECRET:-}" ] || err "JWT_SECRET is required"
+[ -n "${FRONTEND_URL:-}" ] || err "FRONTEND_URL is required"
 [ -n "${APP_BASE_URL:-}" ] || warn "APP_BASE_URL is empty"
 
 JWT_SECRET_LEN=$(printf '%s' "${JWT_SECRET:-}" | wc -c | tr -d ' ')
@@ -35,8 +36,8 @@ case "${DATABASE_URL:-}" in
   *iway_change_me*|*replace-me*) err "DATABASE_URL still contains placeholder credentials" ;;
 esac
 
-if [ "${CORS_ORIGIN:-}" = "*" ]; then
-  warn "CORS_ORIGIN is wildcard"
+if [ "${FRONTEND_URL:-}" = "*" ]; then
+  warn "FRONTEND_URL is wildcard"
 fi
 
 if [ -z "${POSTGRES_PASSWORD:-}" ]; then

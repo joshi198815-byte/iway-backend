@@ -10,10 +10,16 @@ import { AntiFraudModule } from '../anti-fraud/anti-fraud.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { JobsModule } from '../jobs/jobs.module';
 
+const jwtSecret = process.env.JWT_SECRET?.trim();
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET ?? 'change-me',
+      secret: jwtSecret,
       signOptions: { expiresIn: '7d' },
     }),
     UsersModule,

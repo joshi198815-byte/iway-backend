@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
-import { TravelerStatus, UserRole, VerificationChannel } from '@prisma/client';
+import { UserRole, VerificationChannel } from '@prisma/client';
 import { GeoService } from '../geo/geo.service';
 import { StorageService } from '../storage/storage.service';
 import { TravelersService } from '../travelers/travelers.service';
@@ -18,14 +18,6 @@ import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
-  private get autoVerifyPhoneForTesting() {
-    return process.env.AUTO_VERIFY_PHONE_FOR_TESTING === 'true';
-  }
-
-  private get autoApproveTravelersForTesting() {
-    return process.env.AUTO_APPROVE_TRAVELERS_FOR_TESTING === 'true';
-  }
-
   constructor(
     private readonly usersService: UsersService,
     private readonly travelersService: TravelersService,
@@ -37,43 +29,6 @@ export class AuthService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly jobsService: JobsService,
   ) {}
-
-  private async markPhoneVerified(userId: string) {
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { phoneVerified: true },
-      select: {
-        id: true,
-        role: true,
-        status: true,
-        fullName: true,
-        email: true,
-        phone: true,
-        countryCode: true,
-        stateRegion: true,
-        address: true,
-        detectedCountryCode: true,
-        createdAt: true,
-        updatedAt: true,
-        phoneVerified: true,
-        emailVerified: true,
-      },
-    });
-  }
-
-  private async autoApproveTravelerProfileForTesting(userId: string) {
-    if (!this.autoApproveTravelersForTesting) return;
-
-    await this.prisma.travelerProfile.updateMany({
-      where: { userId },
-      data: {
-        status: TravelerStatus.verified,
-        payoutHoldEnabled: false,
-        blockedReason: null,
-        lastKycReviewAt: new Date(),
-      },
-    });
-  }
 
   onModuleInit() {
     this.jobsService.registerHandler('anti-fraud-scan', async (payload) => {
@@ -90,7 +45,7 @@ export class AuthService implements OnModuleInit {
     const passwordHash = await hashPassword(payload.password);
     const detectedCountryCode = this.geoService.normalizeCountryCode(payload.countryCode);
 
-    let user = await this.usersService.createUser({
+    const user = await this.usersService.createUser({
       role: UserRole.customer,
       fullName: payload.fullName,
       email: payload.email.trim().toLowerCase(),
@@ -110,10 +65,6 @@ export class AuthService implements OnModuleInit {
       initialDelayMs: 250,
     });
 
-    if (this.autoVerifyPhoneForTesting) {
-      user = await this.markPhoneVerified(user.id);
-    }
-
     return {
       user,
       accessToken: this.jwtService.sign({ sub: user.id, role: user.role }),
@@ -126,7 +77,7 @@ export class AuthService implements OnModuleInit {
       payload.detectedCountryCode ?? payload.countryCode,
     );
 
-    let user = await this.usersService.createUser({
+    const user = await this.usersService.createUser({
       role: UserRole.traveler,
       fullName: payload.fullName,
       email: payload.email.trim().toLowerCase(),
@@ -198,12 +149,6 @@ export class AuthService implements OnModuleInit {
       initialDelayMs: 250,
     });
 
-    if (this.autoVerifyPhoneForTesting) {
-      user = await this.markPhoneVerified(user.id);
-    }
-
-    await this.autoApproveTravelerProfileForTesting(user.id);
-
     return {
       user,
       travelerProfile,
@@ -220,11 +165,6 @@ export class AuthService implements OnModuleInit {
 
     if (!user) {
       throw new UnauthorizedException('Sesión inválida.');
-    }
-
-    if (channel === 'phone' && this.autoVerifyPhoneForTesting) {
-      await this.markPhoneVerified(userId);
-      return { channel, autoVerified: true, testingMode: true };
     }
 
     const alreadyVerified = channel === 'phone' ? user.phoneVerified : user.emailVerified;
@@ -360,7 +300,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async login(payload: LoginDto) {
-    let user = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
+    const user = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
 
     if (!user) {
       throw new UnauthorizedException('Credenciales inválidas.');
@@ -377,28 +317,6 @@ export class AuthService implements OnModuleInit {
       user.travelerProfile?.status === 'blocked_for_debt'
     ) {
       throw new BadRequestException('Tu cuenta está bloqueada por comisiones pendientes.');
-    }
-
-    if (
-      this.autoVerifyPhoneForTesting &&
-      !user.phoneVerified &&
-      (user.role === UserRole.customer || user.role === UserRole.traveler)
-    ) {
-      await this.markPhoneVerified(user.id);
-      const refreshedUser = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
-      if (!refreshedUser) {
-        throw new UnauthorizedException('Credenciales inválidas.');
-      }
-      user = refreshedUser;
-    }
-
-    if (this.autoApproveTravelersForTesting && user.role === UserRole.traveler) {
-      await this.autoApproveTravelerProfileForTesting(user.id);
-      const refreshedUser = await this.usersService.findByEmail(payload.email.trim().toLowerCase());
-      if (!refreshedUser) {
-        throw new UnauthorizedException('Credenciales inválidas.');
-      }
-      user = refreshedUser;
     }
 
     return {

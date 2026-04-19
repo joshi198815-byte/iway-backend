@@ -6,10 +6,16 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
+const jwtSecret = process.env.JWT_SECRET?.trim();
+
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required');
+}
+
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   private readonly jwtService = new JwtService({
-    secret: process.env.JWT_SECRET ?? 'change-me',
+    secret: jwtSecret,
   });
 
   canActivate(context: ExecutionContext): boolean {
