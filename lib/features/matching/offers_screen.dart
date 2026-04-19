@@ -318,6 +318,12 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     return '${(meters / 1000).toStringAsFixed(1)} km de tu ubicación actual';
   }
 
+  String _pickupChatDraft(ShipmentModel shipment) {
+    final pickupPoint = _recommendedPickupPoint(shipment);
+    final region = shipment.remitenteRegion.isNotEmpty ? shipment.remitenteRegion : 'la zona de recogida';
+    return 'Hola, ya vi el envío. Propongo coordinar la recogida en $region. Punto sugerido: $pickupPoint.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -457,6 +463,20 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         },
                                         icon: const Icon(Icons.map_outlined),
                                         label: const Text('Abrir mapa'),
+                                      ),
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/chat',
+                                            arguments: {
+                                              'shipmentId': widget.shipmentId,
+                                              'initialDraft': _pickupChatDraft(shipment!),
+                                            },
+                                          );
+                                        },
+                                        icon: const Icon(Icons.chat_bubble_outline_rounded),
+                                        label: const Text('Coordinar pickup'),
                                       ),
                                     ],
                                   ),

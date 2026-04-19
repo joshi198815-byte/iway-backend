@@ -13,8 +13,9 @@ import 'package:iway_app/shared/ui/app_skeleton.dart';
 
 class ChatScreen extends StatefulWidget {
   final String shipmentId;
+  final String? initialDraft;
 
-  const ChatScreen({super.key, required this.shipmentId});
+  const ChatScreen({super.key, required this.shipmentId, this.initialDraft});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -33,6 +34,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    controller.text = widget.initialDraft ?? '';
     loadMessages();
     bindRealtime();
   }

@@ -370,6 +370,14 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     return 'Todavía no hay un punto exacto confirmado.';
   }
 
+  String _pickupChatDraft() {
+    final region = (shipment?.remitenteRegion ?? '').trim();
+    final point = _recommendedPickupPoint();
+    return region.isNotEmpty
+        ? 'Hola, coordinemos la recogida en $region. Punto sugerido: $point.'
+        : 'Hola, coordinemos la recogida. Punto sugerido: $point.';
+  }
+
   Widget buildStep(String title, bool active) {
     return Row(
       children: [
@@ -897,7 +905,10 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                             Navigator.pushNamed(
                               context,
                               '/chat',
-                              arguments: widget.shipmentId,
+                              arguments: {
+                                'shipmentId': widget.shipmentId,
+                                'initialDraft': _pickupChatDraft(),
+                              },
                             );
                           },
                           style: OutlinedButton.styleFrom(

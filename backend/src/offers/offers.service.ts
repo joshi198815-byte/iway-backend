@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { OfferStatus, ShipmentStatus, TravelerStatus } from '@prisma/client';
+import { MessageRiskStatus, OfferStatus, ShipmentStatus, TravelerStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AcceptOfferDto } from './dto/accept-offer.dto';
@@ -283,10 +283,36 @@ export class OffersService {
       }),
     ]);
 
-    await this.prisma.chat.upsert({
+    const chat = await this.prisma.chat.upsert({
       where: { shipmentId: offer.shipmentId },
       update: {},
       create: { shipmentId: offer.shipmentId },
+    });
+
+    const pickupRegion = offer.shipment.senderStateRegion?.trim();
+    const pickupPoint = offer.shipment.senderAddress?.trim();
+    const autoMessageBody = [
+      'Oferta aceptada. Ya pueden coordinar la recogida por aquí.',
+      pickupRegion ? `Zona de recogida: ${pickupRegion}.` : null,
+      pickupPoint ? `Punto sugerido: ${pickupPoint}.` : null,
+    ].filter(Boolean).join(' ');
+
+    const autoMessage = await this.prisma.message.create({
+      data: {
+        chatId: chat.id,
+        senderId: payload.acceptedByCustomerId,
+        body: autoMessageBody,
+        riskStatus: MessageRiskStatus.clean,
+        riskFlags: [],
+        containsPhone: false,
+        containsEmail: false,
+        containsExternalLink: false,
+      },
+    });
+
+    this.realtimeGateway.emitChatMessage(offer.shipmentId, {
+      shipmentId: offer.shipmentId,
+      message: autoMessage,
     });
 
     await this.notificationsService.sendPush(

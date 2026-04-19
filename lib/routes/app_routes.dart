@@ -72,11 +72,18 @@ class AppRoutes {
     },
     '/notifications': (context) => const NotificationsScreen(),
     '/chat': (context) {
-      final id = ModalRoute.of(context)?.settings.arguments;
-      if (id is! String || id.isEmpty) {
-        return _invalidArgumentsScreen('Chat');
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String && args.isNotEmpty) {
+        return ChatScreen(shipmentId: args);
       }
-      return ChatScreen(shipmentId: id);
+      if (args is Map) {
+        final shipmentId = args['shipmentId']?.toString() ?? '';
+        final initialDraft = args['initialDraft']?.toString();
+        if (shipmentId.isNotEmpty) {
+          return ChatScreen(shipmentId: shipmentId, initialDraft: initialDraft);
+        }
+      }
+      return _invalidArgumentsScreen('Chat');
     },
   };
 }
