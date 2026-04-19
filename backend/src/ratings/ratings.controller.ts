@@ -9,11 +9,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class RatingsController {
   constructor(private readonly ratingsService: RatingsService) {}
 
-  @Get('blueprint')
-  getBlueprint() {
-    return this.ratingsService.getBlueprint();
-  }
-
   @Get('user/:userId')
   findByUser(@Param('userId') userId: string, @Req() req: any) {
     return this.ratingsService.findByUser(userId, req.user);

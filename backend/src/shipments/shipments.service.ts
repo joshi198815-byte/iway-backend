@@ -23,6 +23,88 @@ export class ShipmentsService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  private buildStatusLabel(status: ShipmentStatus) {
+    switch (status) {
+      case ShipmentStatus.assigned:
+        return 'asignado';
+      case ShipmentStatus.picked_up:
+        return 'recogido';
+      case ShipmentStatus.in_transit:
+        return 'en ruta';
+      case ShipmentStatus.in_delivery:
+        return 'por entregar';
+      case ShipmentStatus.delivered:
+        return 'entregado';
+      case ShipmentStatus.disputed:
+        return 'en disputa';
+      case ShipmentStatus.offered:
+        return 'con ofertas';
+      case ShipmentStatus.published:
+        return 'publicado';
+      default:
+        return status;
+    }
+  }
+
+  private async executeShipmentStatusTransition(params: {
+    shipmentId: string;
+    previousStatus: ShipmentStatus;
+    nextStatus: ShipmentStatus;
+    audience: Array<string | null | undefined>;
+    actorId?: string;
+    title?: string;
+    body?: string;
+    notificationType?: string;
+  }) {
+    const updatedShipment = await this.prisma.shipment.update({
+      where: { id: params.shipmentId },
+      data: { status: params.nextStatus },
+    });
+
+    await this.prisma.shipmentEvent.create({
+      data: {
+        shipmentId: params.shipmentId,
+        eventType: `status_${params.nextStatus}`,
+        createdBy: params.actorId,
+        eventPayload: {
+          previousStatus: params.previousStatus,
+          nextStatus: params.nextStatus,
+        },
+      },
+    });
+
+    const audience = [...new Set(params.audience.filter(
+      (userId): userId is string => Boolean(userId && userId.trim().length > 0),
+    ))];
+
+    this.realtimeGateway.emitShipmentStatusChanged(
+      params.shipmentId,
+      {
+        shipmentId: params.shipmentId,
+        previousStatus: params.previousStatus,
+        nextStatus: params.nextStatus,
+      },
+      audience,
+    );
+
+    if (audience.length > 0) {
+      await Promise.all(
+        audience.map((userId) =>
+          this.notificationsService.sendPush(
+            userId,
+            params.title ?? 'Estado del envío actualizado',
+            params.body ?? `El envío ${params.shipmentId} ahora está ${this.buildStatusLabel(params.nextStatus)}.`,
+            params.notificationType
+              ?? (params.nextStatus === ShipmentStatus.delivered ? 'shipment_delivered' : 'shipment_status_changed'),
+            params.shipmentId,
+          ),
+        ),
+      );
+    }
+
+    return updatedShipment;
+  }
+
   async create(payload: CreateShipmentDto) {
     const direction = this.geoService.resolveDirection(
       payload.originCountryCode,
@@ -358,11 +440,12 @@ export class ShipmentsService {
       }
     }
 
-    const updated = await this.prisma.shipment.update({
-      where: { id },
-      data: {
-        status: payload.status,
-      },
+    const updated = await this.executeShipmentStatusTransition({
+      shipmentId: id,
+      previousStatus: shipment.status,
+      nextStatus: payload.status,
+      audience: [shipment.customerId, shipment.assignedTravelerId],
+      actorId: requester.sub,
     });
 
     if (payload.status === ShipmentStatus.delivered && payload.imageUrls?.length) {
@@ -375,70 +458,9 @@ export class ShipmentsService {
       });
     }
 
-    await this.prisma.shipmentEvent.create({
-      data: {
-        shipmentId: id,
-        eventType: `status_${payload.status}`,
-        eventPayload: {
-          previousStatus: shipment.status,
-          nextStatus: payload.status,
-        },
-      },
-    });
-
     if (payload.status === ShipmentStatus.delivered) {
       await this.commissionsService.createCommissionForDeliveredShipment(updated);
     }
-
-    const audience = [shipment.customerId, shipment.assignedTravelerId].filter(
-      (userId): userId is string => Boolean(userId && userId.trim().length > 0),
-    );
-
-    let statusLabel: string = payload.status;
-    switch (payload.status) {
-      case ShipmentStatus.assigned:
-        statusLabel = 'asignado';
-        break;
-      case ShipmentStatus.picked_up:
-        statusLabel = 'recogido';
-        break;
-      case ShipmentStatus.in_transit:
-        statusLabel = 'en ruta';
-        break;
-      case ShipmentStatus.in_delivery:
-        statusLabel = 'por entregar';
-        break;
-      case ShipmentStatus.delivered:
-        statusLabel = 'entregado';
-        break;
-      case ShipmentStatus.disputed:
-        statusLabel = 'en disputa';
-        break;
-      default:
-        break;
-    }
-
-    this.realtimeGateway.emitShipmentStatusChanged(
-      id,
-      {
-        shipmentId: id,
-        previousStatus: shipment.status,
-        nextStatus: payload.status,
-      },
-      audience,
-    );
-
-    await Promise.all(
-      audience.map((userId) =>
-        this.notificationsService.sendPush(
-          userId,
-          'Estado del envío actualizado',
-          `El envío ${id} ahora está ${statusLabel}.`,
-          payload.status === ShipmentStatus.delivered ? 'shipment_delivered' : 'shipment_status_changed',
-          id,
-        ),
-      ),
-    );
 
     return this.prisma.shipment.findUnique({
       where: { id },

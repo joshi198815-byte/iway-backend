@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { ShipmentStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { runtimeObservability } from '../common/observability/runtime-observability';
 
 @Injectable()
@@ -9,6 +10,7 @@ export class DisputesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly realtimeGateway: RealtimeGateway,
   ) {}
 
   async create(payload: { shipmentId: string; reason: string; context?: string }, requester: { sub: string; role: string }) {
@@ -49,17 +51,28 @@ export class DisputesService {
       data: { status: ShipmentStatus.disputed },
     });
 
-    await this.prisma.shipmentEvent.create({
-      data: {
-        shipmentId: payload.shipmentId,
-        eventType: 'dispute_opened',
-        createdBy: requester.sub,
-        eventPayload: {
-          disputeId: dispute.id,
-          reason: payload.reason,
-          context: payload.context ?? null,
+    await this.prisma.shipmentEvent.createMany({
+      data: [
+        {
+          shipmentId: payload.shipmentId,
+          eventType: `status_${ShipmentStatus.disputed}`,
+          createdBy: requester.sub,
+          eventPayload: {
+            previousStatus: shipment.status,
+            nextStatus: ShipmentStatus.disputed,
+          },
         },
-      },
+        {
+          shipmentId: payload.shipmentId,
+          eventType: 'dispute_opened',
+          createdBy: requester.sub,
+          eventPayload: {
+            disputeId: dispute.id,
+            reason: payload.reason,
+            context: payload.context ?? null,
+          },
+        },
+      ],
     });
 
     await this.prisma.auditLog.create({
@@ -79,6 +92,16 @@ export class DisputesService {
     const notifyTargets = [shipment.customerId, shipment.assignedTravelerId].filter(
       (id): id is string => Boolean(id && id !== requester.sub),
     );
+    this.realtimeGateway.emitShipmentStatusChanged(
+      payload.shipmentId,
+      {
+        shipmentId: payload.shipmentId,
+        previousStatus: shipment.status,
+        nextStatus: ShipmentStatus.disputed,
+      },
+      [shipment.customerId, shipment.assignedTravelerId],
+    );
+
     if (notifyTargets.length > 0) {
       await this.notificationsService.sendPushMany(
         notifyTargets,
@@ -176,6 +199,10 @@ export class DisputesService {
       },
     });
 
+    const nextShipmentStatus = payload.status === 'resolved' || payload.status === 'rejected'
+      ? (dispute.shipment.assignedTravelerId ? ShipmentStatus.assigned : ShipmentStatus.offered)
+      : ShipmentStatus.disputed;
+
     await this.prisma.shipmentEvent.create({
       data: {
         shipmentId: dispute.shipmentId,
@@ -192,10 +219,32 @@ export class DisputesService {
       await this.prisma.shipment.update({
         where: { id: dispute.shipmentId },
         data: {
-          status: dispute.shipment.assignedTravelerId ? ShipmentStatus.assigned : ShipmentStatus.offered,
+          status: nextShipmentStatus,
+        },
+      });
+
+      await this.prisma.shipmentEvent.create({
+        data: {
+          shipmentId: dispute.shipmentId,
+          eventType: `status_${nextShipmentStatus}`,
+          createdBy: requester.sub,
+          eventPayload: {
+            previousStatus: dispute.shipment.status,
+            nextStatus: nextShipmentStatus,
+          },
         },
       });
     }
+
+    this.realtimeGateway.emitShipmentStatusChanged(
+      dispute.shipmentId,
+      {
+        shipmentId: dispute.shipmentId,
+        previousStatus: dispute.shipment.status,
+        nextStatus: nextShipmentStatus,
+      },
+      [dispute.shipment.customerId, dispute.shipment.assignedTravelerId],
+    );
 
     await this.notificationsService.sendPushMany(
       [dispute.shipment.customerId, dispute.shipment.assignedTravelerId].filter(

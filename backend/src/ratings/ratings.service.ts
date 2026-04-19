@@ -13,12 +13,6 @@ export class RatingsService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  getBlueprint() {
-    return {
-      flow: 'customer_to_traveler and traveler_to_customer',
-    };
-  }
-
   async findByUser(userId: string, requester: { sub: string; role: string }) {
     if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
       throw new ForbiddenException('No tienes permiso para ver estas calificaciones.');

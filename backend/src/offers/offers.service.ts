@@ -53,6 +53,62 @@ export class OffersService {
     return Math.max(1, Math.min(100, Math.round(score)));
   }
 
+  private async executeShipmentStatusTransition(params: {
+    shipmentId: string;
+    previousStatus: ShipmentStatus;
+    nextStatus: ShipmentStatus;
+    actorId?: string;
+    audience: Array<string | null | undefined>;
+    title: string;
+    body: string;
+    notificationType: string;
+  }) {
+    await this.prisma.shipment.update({
+      where: { id: params.shipmentId },
+      data: { status: params.nextStatus },
+    });
+
+    await this.prisma.shipmentEvent.create({
+      data: {
+        shipmentId: params.shipmentId,
+        eventType: `status_${params.nextStatus}`,
+        createdBy: params.actorId,
+        eventPayload: {
+          previousStatus: params.previousStatus,
+          nextStatus: params.nextStatus,
+        },
+      },
+    });
+
+    const audience = [...new Set(params.audience.filter(
+      (userId): userId is string => Boolean(userId && userId.trim().length > 0),
+    ))];
+
+    this.realtimeGateway.emitShipmentStatusChanged(
+      params.shipmentId,
+      {
+        shipmentId: params.shipmentId,
+        previousStatus: params.previousStatus,
+        nextStatus: params.nextStatus,
+      },
+      audience,
+    );
+
+    if (audience.length > 0) {
+      await Promise.all(
+        audience.map((userId) =>
+          this.notificationsService.sendPush(
+            userId,
+            params.title,
+            params.body,
+            params.notificationType,
+            params.shipmentId,
+          ),
+        ),
+      );
+    }
+  }
+
   async create(payload: CreateOfferPayload) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: payload.shipmentId },
@@ -90,20 +146,26 @@ export class OffersService {
       },
     });
 
-    await this.prisma.shipment.update({
-      where: { id: payload.shipmentId },
-      data: {
-        status: ShipmentStatus.offered,
-      },
-    });
-
-    await this.notificationsService.sendPush(
-      shipment.customerId,
-      'Nueva oferta recibida',
-      `Un viajero envió una oferta para tu envío ${payload.shipmentId}.`,
-      'offer',
-      payload.shipmentId,
-    );
+    if (shipment.status !== ShipmentStatus.offered) {
+      await this.executeShipmentStatusTransition({
+        shipmentId: payload.shipmentId,
+        previousStatus: shipment.status,
+        nextStatus: ShipmentStatus.offered,
+        actorId: payload.travelerId,
+        audience: [shipment.customerId],
+        title: 'Nueva oferta recibida',
+        body: `Un viajero envió una oferta para tu envío ${payload.shipmentId}.`,
+        notificationType: 'offer',
+      });
+    } else {
+      await this.notificationsService.sendPush(
+        shipment.customerId,
+        'Nueva oferta recibida',
+        `Un viajero envió una oferta para tu envío ${payload.shipmentId}.`,
+        'offer',
+        payload.shipmentId,
+      );
+    }
 
     this.realtimeGateway.emitOfferUpdated(payload.shipmentId, {
       shipmentId: payload.shipmentId,
@@ -281,6 +343,17 @@ export class OffersService {
           assignedTravelerId: offer.travelerId,
         },
       }),
+      this.prisma.shipmentEvent.create({
+        data: {
+          shipmentId: offer.shipmentId,
+          eventType: `status_${ShipmentStatus.assigned}`,
+          createdBy: payload.acceptedByCustomerId,
+          eventPayload: {
+            previousStatus: offer.shipment.status,
+            nextStatus: ShipmentStatus.assigned,
+          },
+        },
+      }),
     ]);
 
     const chat = await this.prisma.chat.upsert({
@@ -315,21 +388,22 @@ export class OffersService {
       message: autoMessage,
     });
 
-    await this.notificationsService.sendPush(
-      offer.travelerId,
-      'Oferta aceptada',
-      `Tu oferta para el envío ${offer.shipmentId} fue aceptada.`,
-      'offer_accepted',
-      offer.shipmentId,
-    );
-
-    await this.notificationsService.sendPush(
-      offer.shipment.customerId,
-      'Envío asignado',
-      `Tu envío ${offer.shipmentId} ya fue asignado a un viajero.`,
-      'shipment_assigned',
-      offer.shipmentId,
-    );
+    await Promise.all([
+      this.notificationsService.sendPush(
+        offer.travelerId,
+        'Oferta aceptada',
+        `Tu oferta para el envío ${offer.shipmentId} fue aceptada.`,
+        'offer_accepted',
+        offer.shipmentId,
+      ),
+      this.notificationsService.sendPush(
+        offer.shipment.customerId,
+        'Envío asignado',
+        `Tu envío ${offer.shipmentId} ya fue asignado a un viajero.`,
+        'shipment_assigned',
+        offer.shipmentId,
+      ),
+    ]);
 
     const acceptedOffer = await this.prisma.offer.findUnique({
       where: { id: offerId },
@@ -347,7 +421,7 @@ export class OffersService {
       {
         shipmentId: offer.shipmentId,
         previousStatus: offer.shipment.status,
-        nextStatus: 'assigned',
+        nextStatus: ShipmentStatus.assigned,
       },
       [offer.shipment.customerId, offer.travelerId],
     );
@@ -390,20 +464,28 @@ export class OffersService {
       where: { shipmentId: offer.shipmentId, status: OfferStatus.pending },
     });
 
-    await this.prisma.shipment.update({
-      where: { id: offer.shipmentId },
-      data: {
-        status: remainingPending > 0 ? ShipmentStatus.offered : ShipmentStatus.published,
-      },
-    });
+    const nextShipmentStatus = remainingPending > 0 ? ShipmentStatus.offered : ShipmentStatus.published;
 
-    await this.notificationsService.sendPush(
-      offer.travelerId,
-      'Oferta rechazada',
-      `El cliente rechazó tu oferta para el envío ${offer.shipmentId}. Puedes enviar una nueva propuesta.`,
-      'offer_rejected',
-      offer.shipmentId,
-    );
+    if (offer.shipment.status !== nextShipmentStatus) {
+      await this.executeShipmentStatusTransition({
+        shipmentId: offer.shipmentId,
+        previousStatus: offer.shipment.status,
+        nextStatus: nextShipmentStatus,
+        actorId: payload.rejectedByCustomerId,
+        audience: [offer.travelerId],
+        title: 'Oferta rechazada',
+        body: `El cliente rechazó tu oferta para el envío ${offer.shipmentId}. Puedes enviar una nueva propuesta.`,
+        notificationType: 'offer_rejected',
+      });
+    } else {
+      await this.notificationsService.sendPush(
+        offer.travelerId,
+        'Oferta rechazada',
+        `El cliente rechazó tu oferta para el envío ${offer.shipmentId}. Puedes enviar una nueva propuesta.`,
+        'offer_rejected',
+        offer.shipmentId,
+      );
+    }
 
     this.realtimeGateway.emitOfferUpdated(offer.shipmentId, {
       shipmentId: offer.shipmentId,
@@ -411,16 +493,6 @@ export class OffersService {
       offerId,
       travelerId: offer.travelerId,
     });
-
-    this.realtimeGateway.emitShipmentStatusChanged(
-      offer.shipmentId,
-      {
-        shipmentId: offer.shipmentId,
-        previousStatus: offer.shipment.status,
-        nextStatus: remainingPending > 0 ? 'offered' : 'published',
-      },
-      [offer.shipment.customerId, offer.travelerId],
-    );
 
     runtimeObservability.recordBusinessEvent({
       type: 'offer_rejected',
