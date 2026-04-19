@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ShipmentStatus, TravelerStatus, type ShipmentDirection } from '@prisma/client';
+import { ShipmentStatus, TravelerStatus } from '@prisma/client';
 import { CommissionsService } from '../commissions/commissions.service';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { GeoService } from '../geo/geo.service';
@@ -182,12 +182,6 @@ export class ShipmentsService {
     const eligibleTravelers = await this.prisma.travelerProfile.findMany({
       where: {
         status: TravelerStatus.verified,
-        routes: {
-          some: {
-            active: true,
-            direction,
-          },
-        },
       },
       select: {
         userId: true,
@@ -227,19 +221,13 @@ export class ShipmentsService {
       return [];
     }
 
-    const workspace = await this.getTravelerWorkspace(travelerId);
-    if (!workspace.isOnline) {
-      return [];
-    }
-
-    const activeDirections = [...new Set(travelerProfile.routes.map((route) => route.direction))] as ShipmentDirection[];
+    await this.getTravelerWorkspace(travelerId);
 
     const shipments = await this.prisma.shipment.findMany({
       where: {
         status: { in: [ShipmentStatus.pending, ShipmentStatus.offered] },
         assignedTravelerId: null,
         customerId: { not: travelerId },
-        ...(activeDirections.length > 0 ? { direction: { in: activeDirections } } : {}),
         offers: {
           none: {
             travelerId,
@@ -271,21 +259,6 @@ export class ShipmentsService {
     });
 
     return shipments
-      .filter((shipment) => {
-        if (workspace.routes.length === 0) {
-          return true;
-        }
-
-        const haystack = [
-          shipment.receiverAddress,
-          shipment.senderStateRegion,
-          shipment.destinationCountryCode,
-        ]
-          .map((item) => (item ?? '').toString().trim().toLowerCase())
-          .join(' ');
-
-        return workspace.routes.some((route: string) => haystack.includes(route));
-      })
       .map((shipment) => {
         const offerCount = shipment.offers.length;
         const minOfferPrice = offerCount > 0
@@ -310,7 +283,7 @@ export class ShipmentsService {
 
         const pickupRegion = (shipment as { senderStateRegion?: string | null }).senderStateRegion?.trim() || 'sin departamento confirmado';
         const insights = [
-          activeDirections.includes(shipment.direction) ? 'Coincide con tu ruta activa' : 'Revisa si esta ruta encaja con tu operación',
+          'Oportunidad disponible para tu operación',
           `Recogida en ${pickupRegion}`,
           offerCount === 0 ? 'Sin competencia todavía' : `${offerCount} oferta${offerCount === 1 ? '' : 's'} activa${offerCount === 1 ? '' : 's'}`,
           minOfferPrice > 0 ? `Oferta más baja actual: $${minOfferPrice.toFixed(2)}` : 'Aún no hay ofertas registradas',

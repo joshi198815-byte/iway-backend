@@ -218,4 +218,9 @@ class AuthService {
       phoneVerified: true,
     );
   }
+
+  Future<void> deleteMyAccount() async {
+    await _apiClient.delete('/users/me');
+    await SessionService.clear();
+  }
 }

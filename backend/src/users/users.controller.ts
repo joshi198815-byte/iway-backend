@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CreateCollaboratorDto } from './dto/create-collaborator.dto';
@@ -12,6 +12,12 @@ export class UsersController {
   @Get('blueprint')
   getBlueprint() {
     return this.usersService.getBlueprint();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('me')
+  deleteMe(@Req() req: any) {
+    return this.usersService.deleteMyAccount(req.user.sub);
   }
 
   @UseGuards(JwtAuthGuard)

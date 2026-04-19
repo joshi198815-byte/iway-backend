@@ -354,6 +354,123 @@ export class UsersService {
     return this.findByIdForSession(userId);
   }
 
+  async deleteMyAccount(userId: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { travelerProfile: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Usuario no encontrado.');
+    }
+
+    const [
+      customerShipments,
+      assignedShipments,
+      offers,
+      transfers,
+      ledgerEntries,
+      sentRatings,
+      receivedRatings,
+      sentMessages,
+      disputes,
+    ] = await Promise.all([
+      this.prisma.shipment.count({ where: { customerId: userId } }),
+      this.prisma.shipment.count({ where: { assignedTravelerId: userId } }),
+      this.prisma.offer.count({ where: { travelerId: userId } }),
+      this.prisma.transferPayment.count({ where: { travelerId: userId } }),
+      this.prisma.travelerLedgerEntry.count({ where: { travelerId: userId } }),
+      this.prisma.rating.count({ where: { fromUserId: userId } }),
+      this.prisma.rating.count({ where: { toUserId: userId } }),
+      this.prisma.message.count({ where: { senderId: userId } }),
+      this.prisma.dispute.count({ where: { openedBy: userId } }),
+    ]);
+
+    const hasOperationalHistory = [
+      customerShipments,
+      assignedShipments,
+      offers,
+      transfers,
+      ledgerEntries,
+      sentRatings,
+      receivedRatings,
+      sentMessages,
+      disputes,
+    ].some((count) => count > 0);
+
+    if (!hasOperationalHistory) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.notification.deleteMany({ where: { userId } });
+        await tx.deviceToken.deleteMany({ where: { userId } });
+        await tx.verificationCode.deleteMany({ where: { userId } });
+        await tx.antiFraudFlag.deleteMany({ where: { userId } });
+        await tx.uploadedFile.deleteMany({ where: { ownerId: userId } });
+        await tx.auditLog.deleteMany({ where: { actorId: userId } });
+        await tx.travelerKycCheck.deleteMany({ where: { travelerProfile: { userId } } });
+        await tx.travelerRoute.deleteMany({ where: { travelerProfile: { userId } } });
+        await tx.travelerProfile.deleteMany({ where: { userId } });
+        await tx.user.delete({ where: { id: userId } });
+      });
+
+      return { deleted: true, anonymized: false };
+    }
+
+    const maskedEmail = `deleted+${existing.id}@iway.local`;
+    const maskedPhone = `deleted-${existing.id.slice(0, 12)}`;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.deviceToken.updateMany({
+        where: { userId },
+        data: { active: false },
+      });
+
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.verificationCode.deleteMany({ where: { userId } });
+      await tx.antiFraudFlag.deleteMany({ where: { userId } });
+      await tx.uploadedFile.updateMany({
+        where: { ownerId: userId },
+        data: {
+          ownerId: userId,
+          purpose: 'account_deleted_archive',
+          linkedEntityType: 'deleted_user',
+          linkedEntityId: userId,
+        },
+      });
+
+      if (existing.travelerProfile) {
+        await tx.travelerProfile.update({
+          where: { userId },
+          data: {
+            selfieUrl: null,
+            documentUrl: null,
+            dpiOrPassport: null,
+            status: 'rejected',
+            blockedReason: 'Cuenta eliminada por el usuario',
+          },
+        });
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          status: UserStatus.blocked,
+          fullName: 'Cuenta eliminada',
+          email: maskedEmail,
+          phone: maskedPhone,
+          countryCode: null,
+          stateRegion: null,
+          city: null,
+          address: null,
+          detectedCountryCode: null,
+          phoneVerified: false,
+          emailVerified: false,
+        },
+      });
+    });
+
+    return { deleted: true, anonymized: true };
+  }
+
   getBlueprint() {
     return {
       roles: ['customer', 'traveler', 'admin', 'support'],

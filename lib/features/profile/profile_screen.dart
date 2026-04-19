@@ -44,7 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.text = user?.nombre ?? '';
     _phoneController.text = user?.telefono ?? '';
     _addressController.text = user?.direccion ?? '';
-    _photoUrl = user?.selfiePath;
+    _photoUrl = user?.selfieUrl;
     _hydrateLocation(user?.pais ?? 'GT', user?.estado ?? 'Guatemala');
     _loadRatings();
   }
@@ -141,6 +141,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo guardar el perfil.')));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Eliminar cuenta'),
+        content: const Text('Esta acción cerrará tu sesión y eliminará tu acceso actual. ¿Deseas continuar?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+    try {
+      await _authService.deleteMyAccount();
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo eliminar la cuenta.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -326,6 +365,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: _saving
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Text('Guardar cambios'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _saving ? null : _deleteAccount,
+                    icon: const Icon(Icons.person_remove_outlined, color: Colors.redAccent),
+                    label: const Text('Eliminar cuenta', style: TextStyle(color: Colors.redAccent)),
                   ),
                 ),
               ],

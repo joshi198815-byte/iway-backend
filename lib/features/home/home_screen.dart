@@ -190,7 +190,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             const Spacer(),
             const Divider(height: 1),
             tile(icon: Icons.logout_rounded, title: 'Cerrar sesión', color: Colors.redAccent, onTap: _logout),
-            tile(icon: Icons.person_remove_outlined, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/support')),
+            tile(icon: Icons.person_remove_outlined, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/profile')),
           ],
         ),
       ),

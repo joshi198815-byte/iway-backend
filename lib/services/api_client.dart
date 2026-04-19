@@ -138,6 +138,19 @@ class ApiClient {
     return {'data': decoded};
   }
 
+  Future<Map<String, dynamic>> delete(String path) async {
+    final response = await _sendWith404Fallback(
+      path,
+      (uri) => _client.delete(uri, headers: _headers()),
+    );
+
+    final decoded = _decodeResponse(response);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+    return {'data': decoded};
+  }
+
   dynamic _decodeResponse(http.Response response) {
     final raw = response.body;
     final decoded = raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
