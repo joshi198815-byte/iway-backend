@@ -442,6 +442,24 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       'Peso: ${shipment!.peso!.toStringAsFixed(1)} lb',
                                       style: const TextStyle(color: AppTheme.muted),
                                     ),
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 10,
+                                    runSpacing: 10,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/map',
+                                            arguments: widget.shipmentId,
+                                          );
+                                        },
+                                        icon: const Icon(Icons.map_outlined),
+                                        label: const Text('Abrir mapa'),
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),

@@ -327,18 +327,35 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                           ),
                                         ],
                                         const SizedBox(height: 12),
-                                        ElevatedButton(
-                                          onPressed: isBlocked
-                                              ? null
-                                              : () async {
-                                                  await Navigator.pushNamed(
-                                                    context,
-                                                    '/offers',
-                                                    arguments: shipment.id,
-                                                  );
-                                                  await loadShipments();
-                                                },
-                                          child: const Text('Ver y ofertar'),
+                                        Wrap(
+                                          spacing: 10,
+                                          runSpacing: 10,
+                                          children: [
+                                            OutlinedButton.icon(
+                                              onPressed: () {
+                                                Navigator.pushNamed(
+                                                  context,
+                                                  '/map',
+                                                  arguments: shipment.id,
+                                                );
+                                              },
+                                              icon: const Icon(Icons.map_outlined),
+                                              label: const Text('Ver mapa'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: isBlocked
+                                                  ? null
+                                                  : () async {
+                                                      await Navigator.pushNamed(
+                                                        context,
+                                                        '/offers',
+                                                        arguments: shipment.id,
+                                                      );
+                                                      await loadShipments();
+                                                    },
+                                              child: const Text('Ver y ofertar'),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
