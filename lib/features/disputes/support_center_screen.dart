@@ -19,8 +19,13 @@ class SupportCenterScreen extends StatefulWidget {
 class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsBindingObserver {
   final _disputeService = DisputeService();
   final _realtime = RealtimeService.instance;
+  final _shipmentIdController = TextEditingController();
+  final _subjectController = TextEditingController();
+  final _messageController = TextEditingController();
+
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
+  bool _sending = false;
   StreamSubscription<dynamic>? _notificationSubscription;
   StreamSubscription<dynamic>? _shipmentStatusSubscription;
 
@@ -53,56 +58,67 @@ class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsB
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cargar soporte.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo cargar soporte.')));
     }
   }
 
   String _statusLabel(String status) {
     switch (status) {
       case 'open':
-        return 'Abierta';
+        return 'Abierto';
       case 'escalated':
-        return 'Escalada';
+        return 'Escalado';
       case 'resolved':
-        return 'Resuelta';
+        return 'Resuelto';
       case 'rejected':
-        return 'Cerrada';
+        return 'Cerrado';
       default:
         return status;
     }
   }
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'resolved':
-        return Colors.greenAccent;
-      case 'escalated':
-        return Colors.orangeAccent;
-      case 'rejected':
-        return AppTheme.muted;
-      default:
-        return AppTheme.primary;
-    }
+  String _ticketLabel(Map<String, dynamic> item, int index) {
+    final rawId = item['id']?.toString() ?? '${index + 1}';
+    final suffix = rawId.length <= 4 ? rawId.toUpperCase() : rawId.substring(0, 4).toUpperCase();
+    return 'TK-$suffix';
   }
 
-  String _statusHelper(String status) {
-    switch (status) {
-      case 'resolved':
-        return 'El equipo ya dejó una resolución operativa para este caso.';
-      case 'escalated':
-        return 'El caso subió de prioridad y está siendo revisado con más atención.';
-      case 'rejected':
-        return 'El caso fue cerrado sin acción adicional desde soporte.';
-      default:
-        return 'Tu incidencia está abierta y pendiente de revisión.';
+  Future<void> _sendTicket() async {
+    final shipmentId = _shipmentIdController.text.trim();
+    final subject = _subjectController.text.trim();
+    final message = _messageController.text.trim();
+    if (shipmentId.isEmpty || subject.isEmpty || message.length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Completa envío, asunto y mensaje.')));
+      return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      await _disputeService.createDispute(
+        shipmentId: shipmentId,
+        reason: subject,
+        context: message,
+      );
+      _shipmentIdController.clear();
+      _subjectController.clear();
+      _messageController.clear();
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mensaje enviado al equipo de soporte.')));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _shipmentIdController.dispose();
+    _subjectController.dispose();
+    _messageController.dispose();
     _notificationSubscription?.cancel();
     _shipmentStatusSubscription?.cancel();
     super.dispose();
@@ -138,90 +154,77 @@ class _SupportCenterScreenState extends State<SupportCenterScreen> with WidgetsB
                       const SizedBox(height: 24),
                       const AppPageIntro(
                         title: 'Soporte e incidencias',
-                        subtitle: 'Aquí ves los casos enviados, su estado y la respuesta operativa.',
+                        subtitle: 'Formulario directo al equipo admin y seguimiento de tus casos.',
+                      ),
+                      const SizedBox(height: 16),
+                      AppGlassSection(
+                        title: 'Nuevo mensaje',
+                        child: Column(
+                          children: [
+                            TextField(controller: _shipmentIdController, decoration: const InputDecoration(labelText: 'ID del envío')),
+                            const SizedBox(height: 12),
+                            TextField(controller: _subjectController, decoration: const InputDecoration(labelText: 'Asunto')),
+                            const SizedBox(height: 12),
+                            TextField(controller: _messageController, maxLines: 4, decoration: const InputDecoration(labelText: 'Mensaje para soporte')),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _sending ? null : _sendTicket,
+                                child: _sending
+                                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Text('Enviar al Admin Web'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 16),
                       if (_items.isEmpty)
                         const AppGlassSection(
-                          title: 'Sin incidencias',
-                          child: Text(
-                            'Todavía no has enviado casos a soporte.',
-                            style: TextStyle(color: AppTheme.muted),
-                          ),
+                          title: 'Sin tickets',
+                          child: Text('Todavía no has enviado casos a soporte.', style: TextStyle(color: AppTheme.muted)),
                         )
                       else
-                        ..._items.map(
-                          (item) {
-                            final shipment = item['shipment'];
-                            final shipmentId = shipment is Map ? shipment['id']?.toString() ?? '' : '';
-                            final route = shipment is Map
-                                ? '${shipment['origen'] ?? ''} → ${shipment['destino'] ?? ''}'
-                                : 'Pedido relacionado';
-                            final status = item['status']?.toString() ?? 'open';
-                            final reason = item['reason']?.toString() ?? '';
-                            final resolution = item['resolution']?.toString();
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: AppGlassSection(
-                                title: route,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: _statusColor(status).withValues(alpha: 0.14),
-                                        borderRadius: BorderRadius.circular(999),
-                                        border: Border.all(color: _statusColor(status).withValues(alpha: 0.32)),
-                                      ),
-                                      child: Text(
-                                        _statusLabel(status),
-                                        style: TextStyle(
-                                          color: _statusColor(status),
-                                          fontWeight: FontWeight.w700,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      reason,
-                                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                                    ),
+                        ..._items.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final item = entry.value;
+                          final shipment = item['shipment'];
+                          final shipmentId = shipment is Map ? shipment['id']?.toString() ?? '' : '';
+                          final route = shipment is Map ? '${shipment['origen'] ?? ''} → ${shipment['destino'] ?? ''}' : 'Pedido relacionado';
+                          final status = item['status']?.toString() ?? 'open';
+                          final reason = item['reason']?.toString() ?? '';
+                          final resolution = item['resolution']?.toString();
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: AppGlassSection(
+                              title: '${_ticketLabel(item, index)} • $route',
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(_statusLabel(status), style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 8),
+                                  Text(reason, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                                  if ((item['context']?.toString() ?? '').isNotEmpty) ...[
                                     const SizedBox(height: 8),
-                                    Text(
-                                      _statusHelper(status),
-                                      style: const TextStyle(color: AppTheme.muted, height: 1.35),
-                                    ),
-                                    if (resolution != null && resolution.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        'Respuesta: $resolution',
-                                        style: const TextStyle(color: AppTheme.muted, height: 1.4),
-                                      ),
-                                    ],
-                                    if (shipmentId.isNotEmpty) ...[
-                                      const SizedBox(height: 14),
-                                      Row(
-                                        children: [
-                                          Expanded(
-                                            child: OutlinedButton(
-                                              onPressed: () => Navigator.pushNamed(
-                                                context,
-                                                '/tracking',
-                                                arguments: shipmentId,
-                                              ),
-                                              child: const Text('Ver pedido'),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
+                                    Text(item['context'].toString(), style: const TextStyle(color: AppTheme.muted, height: 1.35)),
                                   ],
-                                ),
+                                  if (resolution != null && resolution.trim().isNotEmpty) ...[
+                                    const SizedBox(height: 10),
+                                    Text('Respuesta: $resolution', style: const TextStyle(color: AppTheme.muted, height: 1.4)),
+                                  ],
+                                  if (shipmentId.isNotEmpty) ...[
+                                    const SizedBox(height: 14),
+                                    OutlinedButton(
+                                      onPressed: () => Navigator.pushNamed(context, '/tracking', arguments: shipmentId),
+                                      child: const Text('Abrir envío'),
+                                    ),
+                                  ],
+                                ],
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        }),
                     ],
                   ),
                 ),

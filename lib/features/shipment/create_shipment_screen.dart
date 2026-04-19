@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/address_search_service.dart';
 import 'package:iway_app/features/shipment/services/saved_recipient_service.dart';
@@ -27,18 +27,18 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final _valueController = TextEditingController();
   final _recipientNameController = TextEditingController();
   final _recipientPhoneController = TextEditingController();
-  final _recipientStateController = TextEditingController();
-  final _recipientCityController = TextEditingController();
   final _addressController = TextEditingController();
 
   final List<AddressSuggestion> _addressSuggestions = [];
-
   Timer? _debounce;
+
   int _step = 0;
   bool _insuranceEnabled = false;
   bool _acceptDeclaration = false;
   bool _submitting = false;
   String _category = 'libra';
+  String _selectedState = usStatesCatalog.first.name;
+  String _selectedCity = usStatesCatalog.first.cities.first;
   List<SavedRecipient> _savedRecipients = [];
   SavedRecipient? _selectedRecipient;
   double? _deliveryLat;
@@ -88,8 +88,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       _selectedRecipient = recipient;
       _recipientNameController.text = recipient.name;
       _recipientPhoneController.text = recipient.phone;
-      _recipientStateController.text = recipient.region;
-      _recipientCityController.text = recipient.city;
+      _selectedState = recipient.region;
+      _selectedCity = recipient.city;
       _addressController.text = recipient.address;
       _addressSuggestions.clear();
     });
@@ -104,11 +104,11 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       phone: _recipientPhoneController.text.trim(),
       address: _addressController.text.trim(),
       country: 'Estados Unidos',
-      region: _recipientStateController.text.trim(),
-      city: _recipientCityController.text.trim(),
+      region: _selectedState,
+      city: _selectedCity,
     );
 
-    if (recipient.name.isEmpty || recipient.phone.isEmpty || recipient.region.isEmpty || recipient.city.isEmpty || recipient.address.isEmpty) {
+    if (recipient.name.isEmpty || recipient.phone.isEmpty || recipient.address.isEmpty) {
       _showMessage('Completa los datos del destinatario antes de guardarlo.');
       return;
     }
@@ -121,11 +121,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   }
 
   Future<void> _pickAddress(AddressSuggestion suggestion) async {
-    final geocoded = await _addressSearchService.geocodeAddress(
-      address: suggestion.description,
-      countryCode: 'US',
-    );
-
+    final geocoded = await _addressSearchService.geocodeAddress(address: suggestion.description, countryCode: 'US');
     if (!mounted) return;
     setState(() {
       _addressController.text = geocoded?.formattedAddress ?? suggestion.description;
@@ -133,6 +129,10 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       _deliveryLng = geocoded?.longitude;
       _addressSuggestions.clear();
     });
+  }
+
+  bool _validateRecipientName(String value) {
+    return RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$').hasMatch(value.trim());
   }
 
   bool _validateCurrentStep() {
@@ -153,23 +153,23 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       case 1:
         final value = double.tryParse(_valueController.text.trim());
         if (value == null || value <= 0) {
-          _showMessage('Ingresa el valor en quetzales.');
+          _showMessage('Ingresa cuánto vale lo que envías.');
           return false;
         }
         return true;
       case 2:
-        if (_recipientNameController.text.trim().isEmpty ||
-            _recipientPhoneController.text.trim().isEmpty ||
-            _recipientStateController.text.trim().isEmpty ||
-            _recipientCityController.text.trim().isEmpty ||
-            _addressController.text.trim().isEmpty) {
+        if (!_validateRecipientName(_recipientNameController.text)) {
+          _showMessage('El nombre del destinatario debe llevar letras y espacios.');
+          return false;
+        }
+        if (_recipientPhoneController.text.trim().isEmpty || _addressController.text.trim().isEmpty) {
           _showMessage('Completa el destinatario y la dirección de entrega.');
           return false;
         }
         return true;
       default:
         if (!_acceptDeclaration) {
-          _showMessage('Debes aceptar la declaración de productos prohibidos.');
+          _showMessage('Debes aceptar la declaración para publicar el envío.');
           return false;
         }
         return true;
@@ -200,10 +200,10 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         remitenteRegion: user.estado,
         receptorNombre: _recipientNameController.text.trim(),
         receptorTelefono: _recipientPhoneController.text.trim(),
-        receptorDireccion: '${_recipientCityController.text.trim()}, ${_recipientStateController.text.trim()} • ${_addressController.text.trim()}',
+        receptorDireccion: '$_selectedCity, $_selectedState • ${_addressController.text.trim()}',
         imagenes: const [],
         seguro: _insuranceEnabled,
-        costoSeguro: 0,
+        costoSeguro: _insuranceEnabled ? 15 : 0,
         deliveryLat: _deliveryLat,
         deliveryLng: _deliveryLng,
         estado: 'published',
@@ -211,19 +211,20 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
       final created = await _shipmentService.createShipment(shipment);
       if (!mounted) return;
-      Navigator.pushReplacementNamed(
+      Navigator.pushNamedAndRemoveUntil(
         context,
         '/searching_traveler',
+        (route) => route.settings.name == '/home',
         arguments: created.id,
       );
     } on ApiException catch (e) {
-      _showMessage(e.message);
+      if (!mounted) return;
+      _showMessage(e.message == 'Internal server error' ? 'No se pudo publicar el envío. Revisa los datos e intenta de nuevo.' : e.message);
     } catch (_) {
+      if (!mounted) return;
       _showMessage('No se pudo publicar el envío.');
     } finally {
-      if (mounted) {
-        setState(() => _submitting = false);
-      }
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -256,7 +257,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   Widget _buildCategoryStep() {
     return _stepCard(
       title: 'Paso 1. Qué vas a enviar',
-      subtitle: 'Categoría, detalle y peso si aplica.',
+      subtitle: 'Un formulario más limpio, claro y rápido.',
       child: Column(
         children: [
           SegmentedButton<String>(
@@ -269,11 +270,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             onSelectionChanged: (selection) => setState(() => _category = selection.first),
           ),
           const SizedBox(height: 16),
-          TextField(
-            controller: _descriptionController,
-            maxLines: 3,
-            decoration: const InputDecoration(labelText: 'Descripción'),
-          ),
+          TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Describe lo que envías')),
           if (_category != 'documentos') ...[
             const SizedBox(height: 12),
             TextField(
@@ -290,21 +287,32 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   Widget _buildValueStep() {
     return _stepCard(
       title: 'Paso 2. Valoración',
-      subtitle: 'Ingresa el valor declarado en quetzales y activa seguro si lo necesitas.',
+      subtitle: 'Declara el valor real y decide si quieres cobertura.',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           TextField(
             controller: _valueController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Valor declarado (Q)'),
+            decoration: const InputDecoration(labelText: '¿Cuánto vale lo que envías?'),
           ),
           const SizedBox(height: 12),
-          CheckboxListTile(
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceSoft,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: const Text('Costo: Q15.00 | Cobertura: Hasta Q500.00 por pérdida/robo', style: TextStyle(height: 1.4)),
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
             contentPadding: EdgeInsets.zero,
             value: _insuranceEnabled,
-            onChanged: (value) => setState(() => _insuranceEnabled = value ?? false),
+            onChanged: (value) => setState(() => _insuranceEnabled = value),
             title: const Text('Agregar seguro opcional'),
-            subtitle: const Text('Protección ante pérdida o robo.'),
+            subtitle: const Text('Se suma solo cuando deseas cobertura adicional.'),
           ),
         ],
       ),
@@ -314,7 +322,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   Widget _buildRecipientStep() {
     return _stepCard(
       title: 'Paso 3. Destino y destinatario',
-      subtitle: 'Selecciona un destinatario guardado o crea uno nuevo con dirección validada.',
+      subtitle: 'Estado y ciudad reales de USA, con dirección autocompletada.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -333,7 +341,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   return InkWell(
                     onTap: () => _applyRecipient(recipient),
                     child: Container(
-                      width: 210,
+                      width: 220,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         color: selected ? AppTheme.accent.withValues(alpha: 0.14) : AppTheme.surfaceSoft,
@@ -359,12 +367,27 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
           const SizedBox(height: 12),
           TextField(controller: _recipientPhoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Teléfono USA')),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: TextField(controller: _recipientStateController, decoration: const InputDecoration(labelText: 'Estado'))),
-              const SizedBox(width: 12),
-              Expanded(child: TextField(controller: _recipientCityController, decoration: const InputDecoration(labelText: 'Ciudad'))),
-            ],
+          DropdownButtonFormField<String>(
+            value: _selectedState,
+            decoration: const InputDecoration(labelText: 'Estado'),
+            items: usStatesCatalog.map((state) => DropdownMenuItem(value: state.name, child: Text(state.name))).toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedState = value;
+                _selectedCity = citiesForUsState(value).first;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: _selectedCity,
+            decoration: const InputDecoration(labelText: 'Ciudad'),
+            items: citiesForUsState(_selectedState).map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _selectedCity = value);
+            },
           ),
           const SizedBox(height: 12),
           TextField(controller: _addressController, decoration: const InputDecoration(labelText: 'Dirección con Google Places')),
@@ -403,13 +426,21 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   Widget _buildDeclarationStep() {
     return _stepCard(
       title: 'Paso 4. Declaración',
-      subtitle: 'Confirma que el envío cumple la política de productos permitidos.',
-      child: CheckboxListTile(
-        contentPadding: EdgeInsets.zero,
-        value: _acceptDeclaration,
-        onChanged: (value) => setState(() => _acceptDeclaration = value ?? false),
-        title: const Text('No envío productos prohibidos ni medicinas ocultas'),
-        subtitle: const Text('Este check es obligatorio para publicar el envío.'),
+      subtitle: 'Cierre legal simple y visualmente limpio.',
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceSoft,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          value: _acceptDeclaration,
+          onChanged: (value) => setState(() => _acceptDeclaration = value ?? false),
+          title: const Text('Declaro que no envío productos prohibidos ni contenido oculto.'),
+          subtitle: const Text('Acepto que i-WAY puede rechazar, retener o reportar envíos que incumplan la política.'),
+        ),
       ),
     );
   }
@@ -422,8 +453,6 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     _valueController.dispose();
     _recipientNameController.dispose();
     _recipientPhoneController.dispose();
-    _recipientStateController.dispose();
-    _recipientCityController.dispose();
     _addressController.dispose();
     super.dispose();
   }
@@ -440,47 +469,58 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Crear envío')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
         children: [
-          const Text('Publicación paso a paso', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text('Paso ${_step + 1} de ${steps.length}', style: const TextStyle(color: AppTheme.muted)),
-          const SizedBox(height: 18),
-          steps[_step],
           Row(
-            children: [
-              if (_step > 0)
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _submitting ? null : () => setState(() => _step -= 1),
-                    child: const Text('Atrás'),
+            children: List.generate(
+              steps.length,
+              (index) => Expanded(
+                child: Container(
+                  height: 6,
+                  margin: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 8),
+                  decoration: BoxDecoration(
+                    color: index <= _step ? AppTheme.accent : AppTheme.border,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              if (_step > 0) const SizedBox(width: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          steps[_step],
+        ],
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Row(
+          children: [
+            if (_step > 0)
               Expanded(
-                child: ElevatedButton(
-                  onPressed: _submitting
-                      ? null
-                      : () {
-                          if (!_validateCurrentStep()) return;
-                          if (_step == steps.length - 1) {
-                            _submit();
-                            return;
-                          }
-                          setState(() => _step += 1);
-                        },
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Text(_step == steps.length - 1 ? 'Publicar envío' : 'Continuar'),
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _step -= 1),
+                  child: const Text('Atrás'),
                 ),
               ),
-            ],
-          ),
-        ],
+            if (_step > 0) const SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: _submitting
+                    ? null
+                    : () {
+                        if (!_validateCurrentStep()) return;
+                        if (_step == steps.length - 1) {
+                          _submit();
+                        } else {
+                          setState(() => _step += 1);
+                        }
+                      },
+                child: _submitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : Text(_step == steps.length - 1 ? 'Publicar envío' : 'Continuar'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

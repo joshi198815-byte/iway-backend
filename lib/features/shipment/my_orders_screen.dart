@@ -11,6 +11,7 @@ import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
+import 'package:iway_app/shared/utils/currency_presenter.dart';
 import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class MyOrdersScreen extends StatefulWidget {
@@ -26,10 +27,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
   final _realtime = RealtimeService.instance;
   List<ShipmentModel> _shipments = [];
   bool _loading = true;
-  String _filter = 'ruta';
+  String _tab = 'publicados';
   StreamSubscription<dynamic>? _notificationSubscription;
   StreamSubscription<dynamic>? _shipmentStatusSubscription;
   StreamSubscription<dynamic>? _offerSubscription;
+
+  bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
 
   @override
   void initState() {
@@ -77,25 +80,36 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudieron cargar tus pedidos.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudieron cargar tus pedidos.')));
     }
   }
 
   List<ShipmentModel> get _filteredShipments {
-    if (_filter == 'completados') {
-      return _shipments.where((item) => item.estado == 'delivered').toList();
+    if (_isTraveler) {
+      if (_tab == 'completados') {
+        return _shipments.where((item) => item.estado == 'delivered').toList();
+      }
+      return _shipments.where((item) => item.estado != 'delivered').toList();
     }
 
-    return _shipments.where((item) => item.estado != 'delivered').toList();
+    switch (_tab) {
+      case 'publicados':
+        return _shipments.where((item) => item.assignedTravelerId == null || item.assignedTravelerId!.isEmpty).toList();
+      case 'ruta':
+        return _shipments.where((item) {
+          final hasAcceptedOffer = item.assignedTravelerId != null && item.assignedTravelerId!.isNotEmpty;
+          return hasAcceptedOffer && item.estado != 'delivered';
+        }).toList();
+      case 'completados':
+        return _shipments.where((item) => item.estado == 'delivered').toList();
+      default:
+        return _shipments;
+    }
   }
-
-  String _statusLabel(String status) => ShipmentStatusPresenter.label(status);
 
   Future<void> _showSupport(ShipmentModel shipment) async {
     final reasonController = TextEditingController();
-    final contextController = TextEditingController();
+    final detailsController = TextEditingController();
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       backgroundColor: AppTheme.surface,
@@ -109,27 +123,11 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Soporte técnico',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'Esto abrirá una incidencia operativa para el pedido ${shipment.id} y la verá el equipo de admin/soporte.',
-              style: const TextStyle(color: AppTheme.muted, height: 1.4),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: '¿Qué problema tienes?'),
-            ),
+            const Text('Reportar incidencia', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
-            TextField(
-              controller: contextController,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Detalle adicional (opcional)'),
-            ),
+            TextField(controller: reasonController, maxLines: 2, decoration: const InputDecoration(labelText: '¿Qué pasó?')),
+            const SizedBox(height: 12),
+            TextField(controller: detailsController, maxLines: 3, decoration: const InputDecoration(labelText: 'Detalle adicional')),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
@@ -143,21 +141,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
       ),
     );
 
-    if (confirmed != true || reasonController.text.trim().length < 8) return;
+    if (confirmed != true || reasonController.text.trim().length < 6) return;
 
     try {
       await _disputeService.createDispute(
         shipmentId: shipment.id,
         reason: reasonController.text.trim(),
-        context: contextController.text.trim(),
+        context: detailsController.text.trim(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Incidencia enviada a soporte.')),
-      );
-      await _load();
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/support');
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Incidencia enviada a soporte.')));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -166,7 +159,16 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    final isTraveler = SessionService.currentUser?.tipo == 'traveler';
+    final tabs = _isTraveler
+        ? const [
+            _HistoryTab(keyValue: 'ruta', label: 'En ruta'),
+            _HistoryTab(keyValue: 'completados', label: 'Completados'),
+          ]
+        : const [
+            _HistoryTab(keyValue: 'publicados', label: 'Publicados'),
+            _HistoryTab(keyValue: 'ruta', label: 'En ruta'),
+            _HistoryTab(keyValue: 'completados', label: 'Completados'),
+          ];
 
     return Scaffold(
       body: Container(
@@ -174,11 +176,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF111216),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF111216), AppTheme.background],
           ),
         ),
         child: SafeArea(
@@ -192,100 +190,67 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
                       AppPageIntro(
-                        title: 'Mis pedidos',
-                        subtitle: isTraveler
-                            ? 'Revisa lo que llevas en ruta y lo que ya completaste.'
-                            : 'Revisa lo publicado, lo asignado y lo que ya se entregó.',
+                        title: _isTraveler ? 'Mis pedidos' : 'Historial',
+                        subtitle: _isTraveler
+                            ? 'Lo que estás operando y lo ya completado.'
+                            : 'Tus envíos publicados, los que ya van en ruta y los entregados.',
                       ),
                       const SizedBox(height: 18),
                       Row(
-                        children: [
-                          Expanded(
-                            child: _FilterButton(
-                              label: 'En ruta',
-                              selected: _filter == 'ruta',
-                              onTap: () => setState(() => _filter = 'ruta'),
+                        children: tabs.map((tab) {
+                          final selected = _tab == tab.keyValue;
+                          return Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _FilterButton(
+                                label: tab.label,
+                                selected: selected,
+                                onTap: () => setState(() => _tab = tab.keyValue),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _FilterButton(
-                              label: 'Completados',
-                              selected: _filter == 'completados',
-                              onTap: () => setState(() => _filter = 'completados'),
-                            ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 14),
                       Expanded(
                         child: _filteredShipments.isEmpty
                             ? const Center(
-                                child: Text(
-                                  'No hay pedidos en esta sección.',
-                                  style: TextStyle(color: AppTheme.muted),
-                                ),
+                                child: Text('No hay pedidos en esta sección.', style: TextStyle(color: AppTheme.muted)),
                               )
                             : ListView.separated(
                                 itemCount: _filteredShipments.length,
                                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final shipment = _filteredShipments[index];
-                                  final imageUrl = shipment.imagenesReferencia.isNotEmpty
-                                      ? shipment.imagenesReferencia.first
-                                      : shipment.imagenes.isNotEmpty
-                                          ? shipment.imagenes.first
-                                          : null;
                                   return AppGlassSection(
                                     title: '${shipment.origen} → ${shipment.destino}',
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        if (imageUrl != null && imageUrl.isNotEmpty) ...[
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(18),
-                                            child: Image.network(
-                                              '${ApiClient.baseUrl}$imageUrl',
-                                              height: 160,
-                                              width: double.infinity,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                                            ),
-                                          ),
-                                          const SizedBox(height: 12),
-                                        ],
                                         Text(
-                                          shipment.descripcion?.isNotEmpty == true
-                                              ? shipment.descripcion!
-                                              : 'Pedido sin descripción adicional.',
-                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                          shipment.receptorNombre.isNotEmpty ? shipment.receptorNombre : 'Destinatario pendiente',
+                                          style: const TextStyle(fontWeight: FontWeight.w800),
                                         ),
                                         const SizedBox(height: 8),
-                                        Text(
-                                          'Estado: ${_statusLabel(shipment.estado)}',
-                                          style: const TextStyle(color: AppTheme.muted),
-                                        ),
+                                        Text('Estado: ${ShipmentStatusPresenter.label(shipment.estado)}', style: const TextStyle(color: AppTheme.muted)),
                                         const SizedBox(height: 6),
-                                        Text(
-                                          'Valor declarado: \$${shipment.valor.toStringAsFixed(2)}',
-                                          style: const TextStyle(color: AppTheme.muted),
-                                        ),
+                                        Text('Valor: ${CurrencyPresenter.usd(shipment.valor)}', style: const TextStyle(color: AppTheme.muted)),
+                                        if (shipment.receptorDireccion.isNotEmpty) ...[
+                                          const SizedBox(height: 6),
+                                          Text(shipment.receptorDireccion, style: const TextStyle(color: AppTheme.muted)),
+                                        ],
                                         const SizedBox(height: 12),
                                         Wrap(
                                           spacing: 10,
                                           runSpacing: 10,
                                           children: [
                                             ElevatedButton(
-                                              onPressed: () => Navigator.pushNamed(
-                                                context,
-                                                '/tracking',
-                                                arguments: shipment.id,
-                                              ),
+                                              onPressed: () => Navigator.pushNamed(context, '/tracking', arguments: shipment.id),
                                               child: const Text('Ver seguimiento'),
                                             ),
                                             OutlinedButton(
                                               onPressed: () => _showSupport(shipment),
-                                              child: const Text('Soporte técnico'),
+                                              child: const Text('Soporte'),
                                             ),
                                           ],
                                         ),
@@ -304,6 +269,13 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
   }
 }
 
+class _HistoryTab {
+  final String keyValue;
+  final String label;
+
+  const _HistoryTab({required this.keyValue, required this.label});
+}
+
 class _FilterButton extends StatelessWidget {
   final String label;
   final bool selected;
@@ -319,17 +291,12 @@ class _FilterButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.accent : AppTheme.surface,
+          color: selected ? AppTheme.accent.withValues(alpha: 0.14) : AppTheme.surface,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: selected ? AppTheme.accent : AppTheme.border),
         ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: selected ? AppTheme.background : Colors.white,
-          ),
+        child: Center(
+          child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: selected ? AppTheme.accent : Colors.white)),
         ),
       ),
     );

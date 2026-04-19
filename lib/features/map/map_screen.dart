@@ -552,13 +552,6 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             style: const TextStyle(color: AppTheme.muted, height: 1.35),
                           ),
                         ],
-                        if (routeFallbackDetail != null) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            routeFallbackDetail!,
-                            style: const TextStyle(color: AppTheme.muted, fontSize: 12, height: 1.35),
-                          ),
-                        ],
                         const SizedBox(height: 14),
                         Wrap(
                           spacing: 10,
@@ -578,7 +571,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             ),
                             AppInfoChip(
                               icon: Icons.alt_route,
-                              label: routePolylines.isNotEmpty ? 'Trayecto visible' : 'Ubicación activa',
+                              label: 'Trayecto del paquete',
                             ),
                             AppInfoChip(
                               icon: Icons.verified_outlined,
@@ -586,7 +579,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             ),
                             AppInfoChip(
                               icon: Icons.route_rounded,
-                              label: 'Entrega final',
+                              label: 'Destino',
                             ),
                           ],
                         ),

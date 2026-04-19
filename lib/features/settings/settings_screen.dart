@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:iway_app/config/theme.dart';
-import 'package:iway_app/services/session_service.dart';
+import 'package:iway_app/core/app_locale_controller.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -12,37 +10,17 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _languageKey = 'app_language';
-  String _language = 'es';
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _language = prefs.getString(_languageKey) ?? 'es';
-    });
-  }
+  String _language = AppLocaleController.currentCode;
 
   Future<void> _saveLanguage(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_languageKey, value);
+    await AppLocaleController.setLanguage(value);
     if (!mounted) return;
     setState(() => _language = value);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value == 'es' ? 'Idioma guardado: Español' : 'Language saved: English')),
+      SnackBar(
+        content: Text(value == 'es' ? 'Idioma actualizado al instante.' : 'Language updated instantly.'),
+      ),
     );
-  }
-
-  Future<void> _logout() async {
-    await SessionService.clear();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
   }
 
   @override
@@ -63,11 +41,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Idioma', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                const Text(
+                  'El cambio se aplica inmediatamente en la app.',
+                  style: TextStyle(color: AppTheme.muted),
+                ),
                 const SizedBox(height: 12),
                 SegmentedButton<String>(
                   segments: const [
-                    ButtonSegment(value: 'es', label: Text('ES')),
-                    ButtonSegment(value: 'en', label: Text('EN')),
+                    ButtonSegment(value: 'es', label: Text('Español')),
+                    ButtonSegment(value: 'en', label: Text('English')),
                   ],
                   selected: {_language},
                   onSelectionChanged: (value) => _saveLanguage(value.first),
@@ -83,22 +66,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppTheme.border),
             ),
-            child: Column(
+            child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Sesión', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                const Text(
-                  'Desde aquí puedes cerrar sesión en este dispositivo. La eliminación definitiva de cuenta se gestiona desde soporte administrativo.',
+                Text('Cuenta', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                SizedBox(height: 10),
+                Text(
+                  'El cierre de sesión se movió al final del menú lateral. La eliminación de cuenta sigue canalizada por soporte.',
                   style: TextStyle(color: AppTheme.muted, height: 1.4),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _logout,
-                    child: const Text('Cerrar sesión'),
-                  ),
                 ),
               ],
             ),

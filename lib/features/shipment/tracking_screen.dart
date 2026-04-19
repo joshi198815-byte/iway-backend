@@ -739,29 +739,22 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                         routeSummary ?? 'Cargando contexto de ruta...',
                         style: const TextStyle(fontWeight: FontWeight.w600, height: 1.35),
                       ),
-                      if (routeFallbackDetail != null) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          routeFallbackDetail!,
-                          style: const TextStyle(color: AppTheme.muted, height: 1.35),
-                        ),
-                      ],
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
                         children: [
                           _TrackingChip(
-                            icon: routeVisible ? Icons.alt_route : Icons.route_outlined,
-                            label: routeVisible ? 'Ruta disponible' : 'Sin ruta completa',
+                            icon: Icons.location_on_outlined,
+                            label: 'Ubicación del paquete',
                           ),
                           _TrackingChip(
-                            icon: routeFallbackDetail == null ? Icons.verified_outlined : Icons.build_circle_outlined,
-                            label: routeFallbackDetail == null ? 'Mapa completo' : 'Ruta aproximada',
+                            icon: Icons.map_outlined,
+                            label: 'Mapa activo',
                           ),
                           _TrackingChip(
-                            icon: routeProvider == 'google-directions' ? Icons.route_rounded : Icons.timeline_outlined,
-                            label: routeProvider == 'google-directions' ? 'Ruta vial' : 'Ruta estimada',
+                            icon: Icons.chat_bubble_outline,
+                            label: (shipment?.assignedTravelerId ?? '').isNotEmpty ? 'Chat disponible' : 'Esperando asignación',
                           ),
                         ],
                       ),

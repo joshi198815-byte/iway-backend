@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/home/services/home_banner_service.dart';
+import 'package:iway_app/features/notifications/models/notification_model.dart';
+import 'package:iway_app/features/notifications/services/notification_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/realtime_service.dart';
@@ -22,9 +25,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const _travelerOnlineKey = 'traveler_online';
 
   final _shipmentService = ShipmentService();
+  final _notificationService = NotificationService();
+  final _bannerService = HomeBannerService();
   final _realtime = RealtimeService.instance;
 
   late Future<List<ShipmentModel>> _myShipmentsFuture;
+  late Future<List<HomeBannerItem>> _bannersFuture;
+  List<NotificationModel> _notifications = [];
   StreamSubscription<dynamic>? _globalSyncSubscription;
   bool _travelerOnline = true;
 
@@ -35,16 +42,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _myShipmentsFuture = _shipmentService.getMyShipments();
+    _bannersFuture = _bannerService.getHomeBanners();
     _loadPreferences();
+    _loadNotifications();
     _bindRealtime();
   }
 
   Future<void> _loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-    setState(() {
-      _travelerOnline = prefs.getBool(_travelerOnlineKey) ?? true;
-    });
+    setState(() => _travelerOnline = prefs.getBool(_travelerOnlineKey) ?? true);
   }
 
   Future<void> _setTravelerOnline(bool value) async {
@@ -54,15 +61,27 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() => _travelerOnline = value);
   }
 
+  Future<void> _loadNotifications() async {
+    try {
+      final data = await _notificationService.getAll();
+      if (!mounted) return;
+      setState(() => _notifications = data.take(5).toList());
+    } catch (_) {}
+  }
+
   Future<void> _bindRealtime() async {
     await _realtime.ensureConnected();
-    _globalSyncSubscription = _realtime.globalEntitySync.listen((_) => _refreshShipments());
+    _globalSyncSubscription = _realtime.globalEntitySync.listen((_) async {
+      await _refreshShipments();
+      await _loadNotifications();
+    });
   }
 
   Future<void> _refreshShipments() async {
     if (!mounted) return;
     setState(() {
       _myShipmentsFuture = _shipmentService.getMyShipments();
+      _bannersFuture = _bannerService.getHomeBanners();
     });
   }
 
@@ -83,6 +102,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return shouldExit == true;
   }
 
+  Future<void> _logout() async {
+    await SessionService.clear();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
@@ -94,30 +119,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _refreshShipments();
+      _loadNotifications();
     }
-  }
-
-  Widget _buildBanner({required IconData icon, required String title, required String subtitle}) {
-    return Container(
-      width: 260,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppTheme.accent),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          Text(subtitle, style: const TextStyle(color: AppTheme.muted, height: 1.4)),
-        ],
-      ),
-    );
   }
 
   Drawer _buildDrawer() {
@@ -142,8 +145,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               decoration: const BoxDecoration(color: AppTheme.surface),
               currentAccountPicture: CircleAvatar(
                 backgroundColor: AppTheme.surfaceSoft,
-                backgroundImage: (user?.selfiePath ?? '').isNotEmpty ? NetworkImage(user!.selfiePath!) : null,
-                child: (user?.selfiePath ?? '').isEmpty ? const Icon(Icons.person_outline, size: 32) : null,
+                child: Text((user?.nombre.isNotEmpty == true ? user!.nombre[0] : 'I').toUpperCase()),
               ),
               accountName: Text(user?.nombre ?? 'Usuario'),
               accountEmail: Text(user?.email ?? ''),
@@ -155,25 +157,163 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 title: const Text('En línea'),
                 subtitle: Text(_travelerOnline ? 'Recibiendo pedidos compatibles' : 'Desconectado'),
               ),
-            tile(icon: Icons.person_outline, title: _isTraveler ? 'Editar perfil' : 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
-            tile(icon: Icons.history_rounded, title: _isTraveler ? 'Pedidos' : 'Historial', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            tile(icon: Icons.person_outline, title: 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
+            tile(icon: Icons.history_rounded, title: 'Historial', onTap: () => Navigator.pushNamed(context, '/my_orders')),
             if (!_isTraveler)
               tile(icon: Icons.group_outlined, title: 'Gestión de destinatarios', onTap: () => Navigator.pushNamed(context, '/recipients')),
             if (_isTraveler)
               tile(icon: Icons.account_balance_wallet_outlined, title: 'Ingresos y comisiones', onTap: () => Navigator.pushNamed(context, '/debts')),
-            if (_isTraveler)
-              tile(icon: Icons.route_outlined, title: 'Mis rutas', onTap: () => Navigator.pushNamed(context, '/profile')),
+            tile(icon: Icons.notifications_outlined, title: 'Notificaciones', onTap: () => Navigator.pushNamed(context, '/notifications')),
             tile(icon: Icons.settings_outlined, title: 'Ajustes', onTap: () => Navigator.pushNamed(context, '/settings')),
-            tile(icon: Icons.support_agent_outlined, title: 'Soporte técnico', onTap: () => Navigator.pushNamed(context, '/support')),
+            tile(icon: Icons.support_agent_outlined, title: 'Soporte', onTap: () => Navigator.pushNamed(context, '/support')),
             const Spacer(),
-            tile(icon: Icons.delete_outline, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/support')),
+            tile(icon: Icons.logout_rounded, title: 'Cerrar sesión', color: Colors.redAccent, onTap: _logout),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCustomerHero() {
+  Widget _buildBannerCarousel() {
+    return FutureBuilder<List<HomeBannerItem>>(
+      future: _bannersFuture,
+      builder: (context, snapshot) {
+        final banners = snapshot.data ?? const <HomeBannerItem>[];
+        if (banners.isEmpty) return const SizedBox.shrink();
+        return SizedBox(
+          height: 158,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: banners.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, index) {
+              final item = banners[index];
+              final accent = _parseColor(item.accent);
+              return Container(
+                width: 280,
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: accent.withValues(alpha: 0.45)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.14), shape: BoxShape.circle),
+                      child: Icon(Icons.campaign_outlined, color: accent),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(item.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    Text(item.subtitle, style: const TextStyle(color: AppTheme.muted, height: 1.35)),
+                  ],
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNotificationsPreview() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Actividad reciente', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              TextButton(onPressed: () => Navigator.pushNamed(context, '/notifications'), child: const Text('Ver todo')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_notifications.isEmpty)
+            const Text('La campana mostrará aquí eventos reales como ofertas, cambios de estado y entregas.', style: TextStyle(color: AppTheme.muted, height: 1.4))
+          else
+            ..._notifications.map((item) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.notifications_active_outlined, size: 18, color: AppTheme.accent),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.titulo.isNotEmpty ? item.titulo : 'Nuevo evento', style: const TextStyle(fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text(item.mensaje, style: const TextStyle(color: AppTheme.muted, height: 1.3)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHero() {
+    if (_isTraveler) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Panel del viajero', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            Text(
+              _travelerOnline ? 'Estás disponible para recibir pedidos compatibles con tus rutas.' : 'Estás desconectado para nuevas coincidencias.',
+              style: const TextStyle(color: AppTheme.muted, height: 1.4),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/traveler_opportunities'),
+                    icon: const Icon(Icons.local_offer_outlined),
+                    label: const Text('Ver ofertas'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pushNamed(context, '/my_orders'),
+                    icon: const Icon(Icons.local_shipping_outlined),
+                    label: const Text('Mis pedidos'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
@@ -187,70 +327,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           const Text('Envía con claridad y seguimiento real', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          const Text('Publica tu envío, espera ofertas y sigue todo el proceso sin compartir tu número antes de tiempo.', style: TextStyle(color: AppTheme.muted, height: 1.4)),
+          const Text('Publica tu envío, recibe ofertas y sigue todo el proceso sin ruido técnico.', style: TextStyle(color: AppTheme.muted, height: 1.4)),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/create_shipment'),
               icon: const Icon(Icons.add_box_outlined),
-              label: const Text('Crear Envío'),
+              label: const Text('Crear envío'),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTravelerHero() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Panel del viajero', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 8),
-                    Text(
-                      _travelerOnline ? 'Estás disponible para recibir pedidos compatibles con tus rutas.' : 'Estás desconectado. No deberías operar nuevas coincidencias hasta activarte.',
-                      style: const TextStyle(color: AppTheme.muted, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(value: _travelerOnline, onChanged: _setTravelerOnline),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/traveler_opportunities'),
-                  icon: const Icon(Icons.local_offer_outlined),
-                  label: const Text('Ver ofertas'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => Navigator.pushNamed(context, '/my_orders'),
-                  icon: const Icon(Icons.local_shipping_outlined),
-                  label: const Text('Mis pedidos'),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -267,16 +352,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: AppTheme.border),
         ),
-        child: Text(
-          _isTraveler ? 'Aún no tienes pedidos en tu historial.' : 'Todavía no has publicado envíos.',
-          style: const TextStyle(color: AppTheme.muted),
-        ),
+        child: Text(_isTraveler ? 'Aún no tienes pedidos en tu historial.' : 'Todavía no has publicado envíos.', style: const TextStyle(color: AppTheme.muted)),
       );
     }
 
-    final recent = shipments.take(4).toList();
     return Column(
-      children: recent.map((shipment) {
+      children: shipments.take(4).map((shipment) {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(18),
@@ -288,14 +369,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '${shipment.receptorNombre.isEmpty ? 'Destinatario pendiente' : shipment.receptorNombre} • ${ShipmentStatusPresenter.label(shipment.estado)}',
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
+              Text(ShipmentStatusPresenter.label(shipment.estado), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Text('${shipment.origen} → ${shipment.destino}', style: const TextStyle(color: AppTheme.muted)),
               const SizedBox(height: 4),
-              Text(shipment.descripcion?.isNotEmpty == true ? shipment.descripcion! : shipment.tipo, style: const TextStyle(color: AppTheme.muted)),
+              Text(shipment.receptorNombre.isNotEmpty ? shipment.receptorNombre : shipment.tipo, style: const TextStyle(color: AppTheme.muted)),
               const SizedBox(height: 14),
               Align(
                 alignment: Alignment.centerRight,
@@ -311,9 +389,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Color _parseColor(String value) {
+    final normalized = value.replaceFirst('#', '');
+    final hex = normalized.length == 6 ? 'FF$normalized' : normalized;
+    return Color(int.tryParse(hex, radix: 16) ?? 0xFF59D38C);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser;
+    final unreadCount = _notifications.where((item) => !item.leido).length;
 
     return PopScope(
       canPop: false,
@@ -335,7 +420,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           child: SafeArea(
             child: RefreshIndicator(
-              onRefresh: _refreshShipments,
+              onRefresh: () async {
+                await _refreshShipments();
+                await _loadNotifications();
+              },
               child: FutureBuilder<List<ShipmentModel>>(
                 future: _myShipmentsFuture,
                 builder: (context, snapshot) {
@@ -356,44 +444,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('Hola, ${user?.nombre.split(' ').first ?? 'i-Way'}', style: Theme.of(context).textTheme.headlineMedium),
+                                Text('Hola, ${user?.nombre.split(' ').first ?? 'i-WAY'}', style: Theme.of(context).textTheme.headlineMedium),
                                 const SizedBox(height: 4),
-                                Text(_isTraveler ? 'Controla rutas, pedidos y soporte.' : 'Publica envíos y espera ofertas con tranquilidad.', style: const TextStyle(color: AppTheme.muted)),
+                                Text(_isTraveler ? 'Tu centro operativo' : 'Tu panel de envíos', style: const TextStyle(color: AppTheme.muted)),
                               ],
                             ),
                           ),
-                          IconButton(
-                            onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                            icon: const Icon(Icons.notifications_none_rounded),
+                          Stack(
+                            children: [
+                              IconButton(
+                                onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                                icon: const Icon(Icons.notifications_none_rounded),
+                              ),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: 10,
+                                  top: 8,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(999)),
+                                    child: Text('$unreadCount', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                  ),
+                                ),
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
-                      _isTraveler ? _buildTravelerHero() : _buildCustomerHero(),
-                      const SizedBox(height: 20),
-                      const Text('Información importante', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 18),
+                      _buildHero(),
+                      const SizedBox(height: 18),
+                      _buildBannerCarousel(),
+                      const SizedBox(height: 18),
+                      _buildNotificationsPreview(),
+                      const SizedBox(height: 18),
+                      Text(_isTraveler ? 'Actividad reciente' : 'Tus envíos recientes', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                       const SizedBox(height: 12),
-                      SizedBox(
-                        height: 170,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            _buildBanner(icon: Icons.security_rounded, title: 'Seguridad', subtitle: 'Chat interno, estados en tiempo real y control operativo durante todo el envío.'),
-                            _buildBanner(icon: Icons.shield_outlined, title: 'Seguro', subtitle: 'Activa cobertura opcional ante pérdida o robo cuando el valor declarado lo requiera.'),
-                            _buildBanner(icon: Icons.verified_user_outlined, title: 'Cobertura total en USA', subtitle: 'Entrega final con destinatarios guardados y dirección validada por autocompletado.'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(_isTraveler ? 'Pedidos recientes' : 'Historial reciente', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 12),
-                      if (snapshot.connectionState == ConnectionState.waiting)
-                        const Center(child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: CircularProgressIndicator(),
-                        ))
-                      else
-                        _buildShipmentList(shipments),
+                      _buildShipmentList(shipments),
                     ],
                   );
                 },

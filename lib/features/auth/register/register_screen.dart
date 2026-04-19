@@ -20,39 +20,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final emailController = TextEditingController();
   final telefonoController = TextEditingController();
   final passwordController = TextEditingController();
-  final cityController = TextEditingController();
   final addressController = TextEditingController();
 
   final authService = AuthService();
 
   bool loading = false;
   String selectedCountry = supportedCountries.first;
-  String? selectedRegion;
+  String? selectedRegion = guatemalaDepartments.first.name;
+  String? selectedCity = municipalitiesForDepartment(guatemalaDepartments.first.name).firstOrNull;
+  String? selectedZone;
 
-  List<String> get availableRegions =>
-      supportedRegionsByCountry[selectedCountry] ?? const [];
+  bool get _showZoneSelector => selectedCountry == 'Guatemala' && selectedRegion == 'Guatemala';
+  bool get _showMunicipalitySelector => selectedCountry == 'Guatemala';
+
+  List<String> get _regions => availableRegionsForCountry(selectedCountry);
+  List<String> get _cities {
+    if (selectedCountry == 'Guatemala') {
+      return municipalitiesForDepartment(selectedRegion ?? '');
+    }
+    return citiesForUsState(selectedRegion ?? '');
+  }
 
   void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   void initState() {
     super.initState();
-    selectedRegion = availableRegions.isNotEmpty ? availableRegions.first : null;
-
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final currentUser = SessionService.currentUser;
-        final nextRoute = currentUser != null &&
-                !currentUser.emailVerificado &&
-                !currentUser.telefonoVerificado
-            ? '/verify_contact'
-            : '/home';
-        Navigator.pushReplacementNamed(context, nextRoute);
+        Navigator.pushReplacementNamed(context, '/home');
       });
     }
   }
@@ -63,78 +62,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     emailController.dispose();
     telefonoController.dispose();
     passwordController.dispose();
-    cityController.dispose();
     addressController.dispose();
     super.dispose();
   }
 
   String get countryCode => selectedCountry == 'Guatemala' ? 'GT' : 'US';
 
-  Future<void> pickRegion() async {
-    final picked = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: SizedBox(
-            height: 360,
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          selectedCountry == 'Guatemala' ? 'Selecciona departamento' : 'Selecciona estado',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: availableRegions.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final region = availableRegions[index];
-                      final selected = selectedRegion == region;
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: selected ? AppTheme.accent : AppTheme.border,
-                          ),
-                        ),
-                        tileColor: AppTheme.surfaceSoft,
-                        title: Text(region),
-                        trailing: selected
-                            ? const Icon(Icons.check_circle_rounded, color: AppTheme.accent)
-                            : null,
-                        onTap: () => Navigator.pop(context, region),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  void _onCountryChanged(String? value) {
+    if (value == null) return;
+    final regions = availableRegionsForCountry(value);
+    final region = regions.firstOrNull;
+    setState(() {
+      selectedCountry = value;
+      selectedRegion = region;
+      selectedCity = value == 'Guatemala'
+          ? municipalitiesForDepartment(region ?? '').firstOrNull
+          : citiesForUsState(region ?? '').firstOrNull;
+      selectedZone = null;
+    });
+  }
 
-    if (picked == null) return;
-    setState(() => selectedRegion = picked);
+  void _onRegionChanged(String? value) {
+    if (value == null) return;
+    setState(() {
+      selectedRegion = value;
+      selectedCity = selectedCountry == 'Guatemala'
+          ? municipalitiesForDepartment(value).firstOrNull
+          : citiesForUsState(value).firstOrNull;
+      selectedZone = null;
+    });
   }
 
   Future<void> register() async {
@@ -142,7 +98,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final email = emailController.text.trim();
     final telefono = telefonoController.text.trim();
     final password = passwordController.text.trim();
-    final city = cityController.text.trim();
     final address = addressController.text.trim();
 
     if (nombre.isEmpty) {
@@ -165,8 +120,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    if (selectedRegion == null || selectedRegion!.isEmpty) {
+    if ((selectedRegion ?? '').isEmpty) {
       showMessage('Selecciona tu departamento o estado.');
+      return;
+    }
+
+    if ((selectedCity ?? '').isEmpty) {
+      showMessage(selectedCountry == 'Guatemala' ? 'Selecciona tu municipio.' : 'Selecciona tu ciudad base.');
       return;
     }
 
@@ -180,22 +140,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: password,
         countryCode: countryCode,
         stateRegion: selectedRegion,
-        city: city.isEmpty ? null : city,
+        city: _showZoneSelector && (selectedZone ?? '').isNotEmpty
+            ? '${selectedCity!} | $selectedZone'
+            : selectedCity,
         address: address.isEmpty ? null : address,
       );
 
       if (!mounted) return;
 
-      setState(() => loading = false);
-
       if (createdUser == null) {
+        setState(() => loading = false);
         showMessage('No se pudo registrar el usuario.');
         return;
       }
 
-      await authService.requestVerificationCode('email');
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/verify_contact');
+      setState(() => loading = false);
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -215,11 +175,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF101116),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
           ),
         ),
         child: SafeArea(
@@ -233,7 +189,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 24),
                 const AppPageIntro(
                   title: 'Crea tu cuenta',
-                  subtitle: 'Publica envíos, recibe ofertas y sigue todo en tiempo real.',
+                  subtitle: 'Registro limpio, token guardado y entrada directa al dashboard.',
                 ),
                 const SizedBox(height: 24),
                 AppGlassSection(
@@ -244,7 +200,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         controller: nombreController,
                         decoration: const InputDecoration(labelText: 'Nombre completo'),
                         textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.name],
                       ),
                       const SizedBox(height: 14),
                       TextField(
@@ -252,7 +207,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         decoration: const InputDecoration(labelText: 'Correo'),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.email],
                       ),
                       const SizedBox(height: 14),
                       TextField(
@@ -260,14 +214,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         decoration: const InputDecoration(labelText: 'Teléfono'),
                         keyboardType: TextInputType.phone,
                         textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.telephoneNumber],
                       ),
                       const SizedBox(height: 14),
                       TextField(
                         controller: passwordController,
                         decoration: const InputDecoration(labelText: 'Contraseña'),
                         obscureText: true,
-                        autofillHints: const [AutofillHints.newPassword],
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => register(),
                       ),
@@ -280,43 +232,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     children: [
                       DropdownButtonFormField<String>(
-                        initialValue: selectedCountry,
+                        value: selectedCountry,
                         decoration: const InputDecoration(labelText: 'País'),
                         items: supportedCountries
                             .map((country) => DropdownMenuItem(value: country, child: Text(country)))
                             .toList(),
-                        onChanged: (value) {
-                          if (value == null) return;
-                          setState(() {
-                            selectedCountry = value;
-                            selectedRegion = availableRegionsForCountry(selectedCountry).firstOrNull;
-                          });
-                        },
+                        onChanged: _onCountryChanged,
                       ),
                       const SizedBox(height: 14),
-                      InkWell(
-                        onTap: pickRegion,
-                        borderRadius: BorderRadius.circular(18),
-                        child: InputDecorator(
-                          decoration: InputDecoration(
-                            labelText: selectedCountry == 'Guatemala' ? 'Departamento' : 'Estado',
-                            suffixIcon: const Icon(Icons.expand_more_rounded),
-                          ),
-                          child: Text(selectedRegion ?? 'Seleccionar'),
+                      DropdownButtonFormField<String>(
+                        value: selectedRegion,
+                        decoration: InputDecoration(
+                          labelText: selectedCountry == 'Guatemala' ? 'Departamento' : 'Estado',
                         ),
+                        items: _regions
+                            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                            .toList(),
+                        onChanged: _onRegionChanged,
                       ),
                       const SizedBox(height: 14),
-                      TextField(
-                        controller: cityController,
-                        decoration: const InputDecoration(labelText: 'Ciudad'),
-                        textInputAction: TextInputAction.next,
+                      DropdownButtonFormField<String>(
+                        value: selectedCity,
+                        decoration: InputDecoration(
+                          labelText: selectedCountry == 'Guatemala' ? 'Municipio' : 'Ciudad',
+                        ),
+                        items: _cities
+                            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                            .toList(),
+                        onChanged: (value) => setState(() => selectedCity = value),
                       ),
+                      if (_showZoneSelector) ...[
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          value: selectedZone,
+                          decoration: const InputDecoration(labelText: 'Zona'),
+                          items: zonesForDepartment('Guatemala')
+                              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                              .toList(),
+                          onChanged: (value) => setState(() => selectedZone = value),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       TextField(
                         controller: addressController,
-                        decoration: const InputDecoration(labelText: 'Dirección'),
+                        decoration: const InputDecoration(labelText: 'Dirección base'),
                         maxLines: 2,
-                        textInputAction: TextInputAction.done,
                       ),
                     ],
                   ),
@@ -333,15 +293,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       : const Text('Crear cuenta'),
                 ),
                 const SizedBox(height: 12),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: Text(
-                    loading
-                        ? 'Estamos creando tu cuenta y conectando tu sesión...'
-                        : 'Podrás publicar envíos y revisar ofertas desde el primer minuto.',
-                    key: ValueKey(loading),
-                    style: const TextStyle(color: AppTheme.muted),
-                  ),
+                Text(
+                  loading
+                      ? 'Estamos guardando tu sesión y preparando tu dashboard...'
+                      : 'Si el backend responde OK, entras directo al panel sin pantallas fantasma.',
+                  style: const TextStyle(color: AppTheme.muted),
                 ),
               ],
             ),
@@ -349,10 +305,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
     );
-  }
-
-  List<String> availableRegionsForCountry(String country) {
-    return supportedRegionsByCountry[country] ?? const [];
   }
 }
 
