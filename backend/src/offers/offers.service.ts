@@ -490,7 +490,7 @@ export class OffersService {
       where: { shipmentId: offer.shipmentId, status: OfferStatus.pending },
     });
 
-    const nextShipmentStatus = remainingPending > 0 ? ShipmentStatus.offered : ShipmentStatus.published;
+    const nextShipmentStatus = remainingPending > 0 ? ShipmentStatus.offered : ShipmentStatus.pending;
 
     if (offer.shipment.status !== nextShipmentStatus) {
       await this.executeShipmentStatusTransition({

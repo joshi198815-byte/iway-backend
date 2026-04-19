@@ -5,8 +5,8 @@ import 'package:iway_app/shared/models/shipment_status.dart';
 class ShipmentStatusPresenter {
   static String label(String status) {
     switch (parseShipmentStatus(status)) {
-      case ShipmentStatusValue.published:
-        return 'Publicado';
+      case ShipmentStatusValue.pending:
+        return 'Pendiente';
       case ShipmentStatusValue.offered:
         return 'Con ofertas';
       case ShipmentStatusValue.assigned:
@@ -15,12 +15,10 @@ class ShipmentStatusPresenter {
         return 'Recogido';
       case ShipmentStatusValue.inTransit:
         return 'En ruta';
-      case ShipmentStatusValue.inDelivery:
-        return 'Por entregar';
+      case ShipmentStatusValue.arrived:
+        return 'Arribó';
       case ShipmentStatusValue.delivered:
         return 'Entregado';
-      case ShipmentStatusValue.disputed:
-        return 'En disputa';
       case null:
         return status.isEmpty ? 'Sin estado' : status;
     }
@@ -28,8 +26,8 @@ class ShipmentStatusPresenter {
 
   static String helper(String status) {
     switch (parseShipmentStatus(status)) {
-      case ShipmentStatusValue.published:
-        return 'El envío ya está publicado y puede recibir ofertas.';
+      case ShipmentStatusValue.pending:
+        return 'El envío está listo para recibir ofertas.';
       case ShipmentStatusValue.offered:
         return 'Ya hay propuestas activas esperando decisión.';
       case ShipmentStatusValue.assigned:
@@ -38,12 +36,10 @@ class ShipmentStatusPresenter {
         return 'El paquete fue recogido y sigue en operación.';
       case ShipmentStatusValue.inTransit:
         return 'El envío va en ruta hacia el destino.';
-      case ShipmentStatusValue.inDelivery:
-        return 'Está en la fase final antes de entregarse.';
+      case ShipmentStatusValue.arrived:
+        return 'El paquete ya arribó al punto final antes de entregarse.';
       case ShipmentStatusValue.delivered:
         return 'La entrega fue cerrada operativamente.';
-      case ShipmentStatusValue.disputed:
-        return 'Hay una incidencia abierta y soporte debe revisarla.';
       case null:
         return 'Estado operativo actualizado.';
     }
@@ -53,11 +49,9 @@ class ShipmentStatusPresenter {
     switch (parseShipmentStatus(status)) {
       case ShipmentStatusValue.delivered:
         return Colors.greenAccent;
-      case ShipmentStatusValue.inDelivery:
+      case ShipmentStatusValue.arrived:
         return const Color(0xFFFFD27A);
-      case ShipmentStatusValue.disputed:
-        return const Color(0xFFFF9A8B);
-      case ShipmentStatusValue.published:
+      case ShipmentStatusValue.pending:
       case ShipmentStatusValue.offered:
       case ShipmentStatusValue.assigned:
       case ShipmentStatusValue.pickedUp:

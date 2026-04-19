@@ -41,16 +41,13 @@ enum KycTier {
 }
 
 enum ShipmentStatus {
-  draft
-  published
+  pending
   offered
   assigned
   picked_up
   in_transit
-  in_delivery
+  arrived
   delivered
-  cancelled
-  disputed
 }
 
 enum OfferStatus {
@@ -218,7 +215,7 @@ model Shipment {
   id                     String              @id @default(uuid())
   customerId             String
   assignedTravelerId     String?
-  status                 ShipmentStatus      @default(draft)
+  status                 ShipmentStatus      @default(pending)
   direction              ShipmentDirection
   originCountryCode      String
   destinationCountryCode String

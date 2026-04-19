@@ -28,19 +28,28 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final _recipientNameController = TextEditingController();
   final _recipientPhoneController = TextEditingController();
   final _addressController = TextEditingController();
+  final _originAddressController = TextEditingController();
 
   final List<AddressSuggestion> _addressSuggestions = [];
+  final List<AddressSuggestion> _originAddressSuggestions = [];
   Timer? _debounce;
+  Timer? _originDebounce;
 
   int _step = 0;
   bool _insuranceEnabled = false;
   bool _acceptDeclaration = false;
   bool _submitting = false;
   String _category = 'libra';
-  String _selectedState = usStatesCatalog.first.name;
-  String _selectedCity = usStatesCatalog.first.cities.first;
+  String _direction = 'gt_to_us';
+  String _selectedUsState = usStatesCatalog.first.name;
+  String _selectedUsCity = usStatesCatalog.first.cities.first;
+  String _selectedGtDepartment = guatemalaDepartments.first.name;
+  String _selectedGtMunicipality = guatemalaDepartments.first.municipalities.first;
+  String _selectedGtZone = '';
   List<SavedRecipient> _savedRecipients = [];
   SavedRecipient? _selectedRecipient;
+  double? _pickupLat;
+  double? _pickupLng;
   double? _deliveryLat;
   double? _deliveryLng;
 
@@ -49,6 +58,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     super.initState();
     _loadRecipients();
     _addressController.addListener(_onAddressChanged);
+    _originAddressController.addListener(_onOriginAddressChanged);
   }
 
   Future<void> _loadRecipients() async {
@@ -60,6 +70,12 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   }
 
   void _onAddressChanged() {
+    if (_direction != 'gt_to_us') {
+      if (!mounted) return;
+      setState(() => _addressSuggestions.clear());
+      return;
+    }
+
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       final text = _addressController.text.trim();
@@ -83,14 +99,54 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     });
   }
 
+  void _onOriginAddressChanged() {
+    if (_direction != 'us_to_gt') {
+      if (!mounted) return;
+      setState(() => _originAddressSuggestions.clear());
+      return;
+    }
+
+    _originDebounce?.cancel();
+    _originDebounce = Timer(const Duration(milliseconds: 350), () async {
+      final text = _originAddressController.text.trim();
+      if (text.length < 3) {
+        if (!mounted) return;
+        setState(() => _originAddressSuggestions.clear());
+        return;
+      }
+
+      final suggestions = await _addressSearchService.autocompleteAddresses(
+        input: text,
+        countryCode: 'US',
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _originAddressSuggestions
+          ..clear()
+          ..addAll(suggestions);
+      });
+    });
+  }
+
   void _applyRecipient(SavedRecipient recipient) {
     setState(() {
       _selectedRecipient = recipient;
       _recipientNameController.text = recipient.name;
       _recipientPhoneController.text = recipient.phone;
-      _selectedState = recipient.region;
-      _selectedCity = recipient.city;
       _addressController.text = recipient.address;
+      if (_direction == 'gt_to_us') {
+        _selectedUsState = recipient.region;
+        _selectedUsCity = recipient.city;
+      } else {
+        _selectedGtDepartment = recipient.region;
+        final municipalities = municipalitiesForDepartment(_selectedGtDepartment);
+        _selectedGtMunicipality = municipalities.contains(recipient.city)
+            ? recipient.city
+            : municipalities.first;
+        final zones = zonesForDepartment(_selectedGtDepartment);
+        _selectedGtZone = zones.isNotEmpty ? zones.first : '';
+      }
       _addressSuggestions.clear();
     });
   }
@@ -103,9 +159,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
       name: _recipientNameController.text.trim(),
       phone: _recipientPhoneController.text.trim(),
       address: _addressController.text.trim(),
-      country: 'Estados Unidos',
-      region: _selectedState,
-      city: _selectedCity,
+      country: _direction == 'gt_to_us' ? 'Estados Unidos' : 'Guatemala',
+      region: _direction == 'gt_to_us' ? _selectedUsState : _selectedGtDepartment,
+      city: _direction == 'gt_to_us' ? _selectedUsCity : _selectedGtMunicipality,
     );
 
     if (recipient.name.isEmpty || recipient.phone.isEmpty || recipient.address.isEmpty) {
@@ -120,14 +176,21 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     _showMessage('Destinatario guardado.');
   }
 
-  Future<void> _pickAddress(AddressSuggestion suggestion) async {
+  Future<void> _pickAddress(AddressSuggestion suggestion, {required bool isOrigin}) async {
     final geocoded = await _addressSearchService.geocodeAddress(address: suggestion.description, countryCode: 'US');
     if (!mounted) return;
     setState(() {
-      _addressController.text = geocoded?.formattedAddress ?? suggestion.description;
-      _deliveryLat = geocoded?.latitude;
-      _deliveryLng = geocoded?.longitude;
-      _addressSuggestions.clear();
+      if (isOrigin) {
+        _originAddressController.text = geocoded?.formattedAddress ?? suggestion.description;
+        _pickupLat = geocoded?.latitude;
+        _pickupLng = geocoded?.longitude;
+        _originAddressSuggestions.clear();
+      } else {
+        _addressController.text = geocoded?.formattedAddress ?? suggestion.description;
+        _deliveryLat = geocoded?.latitude;
+        _deliveryLng = geocoded?.longitude;
+        _addressSuggestions.clear();
+      }
     });
   }
 
@@ -162,9 +225,20 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
           _showMessage('El nombre del destinatario debe llevar letras y espacios.');
           return false;
         }
-        if (_recipientPhoneController.text.trim().isEmpty || _addressController.text.trim().isEmpty) {
-          _showMessage('Completa el destinatario y la dirección de entrega.');
+        if (_recipientPhoneController.text.trim().isEmpty) {
+          _showMessage('Completa el teléfono del destinatario.');
           return false;
+        }
+        if (_direction == 'gt_to_us') {
+          if (_addressController.text.trim().isEmpty) {
+            _showMessage('Completa la dirección de entrega en USA.');
+            return false;
+          }
+        } else {
+          if (_originAddressController.text.trim().isEmpty || _addressController.text.trim().isEmpty) {
+            _showMessage('Completa el origen en USA y el destino en Guatemala.');
+            return false;
+          }
         }
         return true;
       default:
@@ -185,6 +259,15 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     setState(() => _submitting = true);
 
     try {
+      final receiverAddress = _direction == 'gt_to_us'
+          ? '$_selectedUsCity, $_selectedUsState • ${_addressController.text.trim()}'
+          : [
+              _selectedGtMunicipality,
+              _selectedGtDepartment,
+              if (_selectedGtZone.isNotEmpty) _selectedGtZone,
+              _addressController.text.trim(),
+            ].join(' • ');
+
       final shipment = ShipmentModel(
         id: '',
         userId: userId,
@@ -192,21 +275,23 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         peso: _category == 'documentos' ? null : double.tryParse(_weightController.text.trim()),
         descripcion: _descriptionController.text.trim(),
         valor: double.parse(_valueController.text.trim()),
-        origen: 'GT',
-        destino: 'US',
+        origen: _direction == 'gt_to_us' ? 'GT' : 'US',
+        destino: _direction == 'gt_to_us' ? 'US' : 'GT',
         remitenteNombre: user.nombre,
         remitenteTelefono: user.telefono,
-        remitenteDireccion: user.direccion,
-        remitenteRegion: user.estado,
+        remitenteDireccion: _direction == 'gt_to_us' ? user.direccion : _originAddressController.text.trim(),
+        remitenteRegion: _direction == 'gt_to_us' ? user.estado : _selectedUsState,
         receptorNombre: _recipientNameController.text.trim(),
         receptorTelefono: _recipientPhoneController.text.trim(),
-        receptorDireccion: '$_selectedCity, $_selectedState • ${_addressController.text.trim()}',
+        receptorDireccion: receiverAddress,
         imagenes: const [],
         seguro: _insuranceEnabled,
         costoSeguro: _insuranceEnabled ? 15 : 0,
+        pickupLat: _pickupLat,
+        pickupLng: _pickupLng,
         deliveryLat: _deliveryLat,
         deliveryLng: _deliveryLng,
-        estado: 'published',
+        estado: 'pending',
       );
 
       final created = await _shipmentService.createShipment(shipment);
@@ -256,10 +341,19 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
   Widget _buildCategoryStep() {
     return _stepCard(
-      title: 'Paso 1. Qué vas a enviar',
-      subtitle: 'Un formulario más limpio, claro y rápido.',
+      title: 'Paso 1. Ruta y tipo de envío',
+      subtitle: 'Elige el sentido del trayecto antes de describir el paquete.',
       child: Column(
         children: [
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'gt_to_us', label: Text('GT a USA')),
+              ButtonSegment(value: 'us_to_gt', label: Text('USA a GT')),
+            ],
+            selected: {_direction},
+            onSelectionChanged: (selection) => setState(() => _direction = selection.first),
+          ),
+          const SizedBox(height: 16),
           SegmentedButton<String>(
             segments: const [
               ButtonSegment(value: 'libra', label: Text('Libra')),
@@ -320,9 +414,15 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   }
 
   Widget _buildRecipientStep() {
+    final destinationIsUs = _direction == 'gt_to_us';
+    final gtMunicipalities = municipalitiesForDepartment(_selectedGtDepartment);
+    final gtZones = zonesForDepartment(_selectedGtDepartment);
+
     return _stepCard(
-      title: 'Paso 3. Destino y destinatario',
-      subtitle: 'Estado y ciudad reales de USA, con dirección autocompletada.',
+      title: 'Paso 3. Origen, destino y destinatario',
+      subtitle: destinationIsUs
+          ? 'Sales desde Guatemala y entregas en USA.'
+          : 'Sales desde USA con Google Places y entregas en Guatemala.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -363,51 +463,142 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             ),
             const SizedBox(height: 16),
           ],
+          if (!destinationIsUs) ...[
+            TextField(controller: _originAddressController, decoration: const InputDecoration(labelText: 'Origen en USA con Google Places')),
+            if (_originAddressSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Column(
+                  children: _originAddressSuggestions.map((suggestion) {
+                    return ListTile(
+                      title: Text(suggestion.description),
+                      onTap: () => _pickAddress(suggestion, isOrigin: true),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedUsState,
+              decoration: const InputDecoration(labelText: 'Estado de origen en USA'),
+              items: usStatesCatalog.map((state) => DropdownMenuItem(value: state.name, child: Text(state.name))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _selectedUsState = value;
+                  _selectedUsCity = citiesForUsState(value).first;
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedUsCity,
+              decoration: const InputDecoration(labelText: 'Ciudad de origen en USA'),
+              items: citiesForUsState(_selectedUsState).map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedUsCity = value);
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
           TextField(controller: _recipientNameController, decoration: const InputDecoration(labelText: 'Nombre del destinatario')),
           const SizedBox(height: 12),
-          TextField(controller: _recipientPhoneController, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Teléfono USA')),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _selectedState,
-            decoration: const InputDecoration(labelText: 'Estado'),
-            items: usStatesCatalog.map((state) => DropdownMenuItem(value: state.name, child: Text(state.name))).toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _selectedState = value;
-                _selectedCity = citiesForUsState(value).first;
-              });
-            },
+          TextField(
+            controller: _recipientPhoneController,
+            keyboardType: TextInputType.phone,
+            decoration: InputDecoration(labelText: destinationIsUs ? 'Teléfono USA' : 'Teléfono en Guatemala'),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: _selectedCity,
-            decoration: const InputDecoration(labelText: 'Ciudad'),
-            items: citiesForUsState(_selectedState).map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _selectedCity = value);
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(controller: _addressController, decoration: const InputDecoration(labelText: 'Dirección con Google Places')),
-          if (_addressSuggestions.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceSoft,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: AppTheme.border),
-              ),
-              child: Column(
-                children: _addressSuggestions.map((suggestion) {
-                  return ListTile(
-                    title: Text(suggestion.description),
-                    onTap: () => _pickAddress(suggestion),
-                  );
-                }).toList(),
-              ),
+          if (destinationIsUs) ...[
+            DropdownButtonFormField<String>(
+              value: _selectedUsState,
+              decoration: const InputDecoration(labelText: 'Estado'),
+              items: usStatesCatalog.map((state) => DropdownMenuItem(value: state.name, child: Text(state.name))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _selectedUsState = value;
+                  _selectedUsCity = citiesForUsState(value).first;
+                });
+              },
             ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedUsCity,
+              decoration: const InputDecoration(labelText: 'Ciudad'),
+              items: citiesForUsState(_selectedUsState).map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedUsCity = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: _addressController, decoration: const InputDecoration(labelText: 'Dirección con Google Places')),
+            if (_addressSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSoft,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: Column(
+                  children: _addressSuggestions.map((suggestion) {
+                    return ListTile(
+                      title: Text(suggestion.description),
+                      onTap: () => _pickAddress(suggestion, isOrigin: false),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ] else ...[
+            DropdownButtonFormField<String>(
+              value: _selectedGtDepartment,
+              decoration: const InputDecoration(labelText: 'Departamento en Guatemala'),
+              items: guatemalaDepartments.map((item) => DropdownMenuItem(value: item.name, child: Text(item.name))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                final municipalities = municipalitiesForDepartment(value);
+                final zones = zonesForDepartment(value);
+                setState(() {
+                  _selectedGtDepartment = value;
+                  _selectedGtMunicipality = municipalities.first;
+                  _selectedGtZone = zones.isNotEmpty ? zones.first : '';
+                });
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedGtMunicipality,
+              decoration: const InputDecoration(labelText: 'Municipio'),
+              items: gtMunicipalities.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedGtMunicipality = value);
+              },
+            ),
+            if (gtZones.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: _selectedGtZone,
+                decoration: const InputDecoration(labelText: 'Zona'),
+                items: gtZones.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _selectedGtZone = value);
+                },
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(controller: _addressController, decoration: const InputDecoration(labelText: 'Dirección exacta de entrega en Guatemala')),
           ],
           const SizedBox(height: 12),
           SizedBox(
@@ -424,9 +615,12 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   }
 
   Widget _buildDeclarationStep() {
+    final enteringGuatemala = _direction == 'us_to_gt';
     return _stepCard(
       title: 'Paso 4. Declaración',
-      subtitle: 'Cierre legal simple y visualmente limpio.',
+      subtitle: enteringGuatemala
+          ? 'Aplica control de ingreso a Guatemala y validación aduanera SAT.'
+          : 'Cierre legal simple antes de publicar tu envío.',
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -438,8 +632,16 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
           contentPadding: EdgeInsets.zero,
           value: _acceptDeclaration,
           onChanged: (value) => setState(() => _acceptDeclaration = value ?? false),
-          title: const Text('Declaro que no envío productos prohibidos ni contenido oculto.'),
-          subtitle: const Text('Acepto que i-WAY puede rechazar, retener o reportar envíos que incumplan la política.'),
+          title: Text(
+            enteringGuatemala
+                ? 'Declaro que este envío cumple con requisitos de ingreso a Guatemala y no contiene mercancía prohibida ante SAT.'
+                : 'Declaro que no envío productos prohibidos ni contenido oculto.',
+          ),
+          subtitle: Text(
+            enteringGuatemala
+                ? 'Acepto que i-WAY y la autoridad aduanera pueden retener, inspeccionar o rechazar el paquete si incumple normas de ingreso al país.'
+                : 'Acepto que i-WAY puede rechazar, retener o reportar envíos que incumplan la política.',
+          ),
         ),
       ),
     );
@@ -448,12 +650,14 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _originDebounce?.cancel();
     _descriptionController.dispose();
     _weightController.dispose();
     _valueController.dispose();
     _recipientNameController.dispose();
     _recipientPhoneController.dispose();
     _addressController.dispose();
+    _originAddressController.dispose();
     super.dispose();
   }
 

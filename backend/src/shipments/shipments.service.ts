@@ -54,16 +54,14 @@ export class ShipmentsService {
         return 'recogido';
       case ShipmentStatus.in_transit:
         return 'en ruta';
-      case ShipmentStatus.in_delivery:
-        return 'por entregar';
+      case ShipmentStatus.arrived:
+        return 'arribó';
       case ShipmentStatus.delivered:
         return 'entregado';
-      case ShipmentStatus.disputed:
-        return 'en disputa';
       case ShipmentStatus.offered:
         return 'con ofertas';
-      case ShipmentStatus.published:
-        return 'publicado';
+      case ShipmentStatus.pending:
+        return 'pendiente';
       default:
         return status;
     }
@@ -158,7 +156,7 @@ export class ShipmentsService {
     const shipment = await this.prisma.shipment.create({
       data: {
         customerId: payload.customerId,
-        status: ShipmentStatus.published,
+        status: ShipmentStatus.pending,
         direction,
         originCountryCode: payload.originCountryCode.toUpperCase(),
         destinationCountryCode: payload.destinationCountryCode.toUpperCase(),
@@ -242,7 +240,7 @@ export class ShipmentsService {
 
     const shipments = await this.prisma.shipment.findMany({
       where: {
-        status: { in: [ShipmentStatus.published, ShipmentStatus.offered] },
+        status: { in: [ShipmentStatus.pending, ShipmentStatus.offered] },
         assignedTravelerId: null,
         customerId: { not: travelerId },
         ...(activeDirections.length > 0 ? { direction: { in: activeDirections } } : {}),
@@ -480,7 +478,7 @@ export class ShipmentsService {
       select: { id: true },
     });
 
-    if (openDispute && payload.status !== ShipmentStatus.disputed) {
+    if (openDispute) {
       throw new ForbiddenException('Este envío tiene una disputa abierta y no puede avanzar hasta resolverse.');
     }
 
@@ -491,7 +489,7 @@ export class ShipmentsService {
       const travelerAllowedStatuses: ShipmentStatus[] = [
         ShipmentStatus.picked_up,
         ShipmentStatus.in_transit,
-        ShipmentStatus.in_delivery,
+        ShipmentStatus.arrived,
         ShipmentStatus.delivered,
       ];
 

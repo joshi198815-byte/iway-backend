@@ -1,19 +1,18 @@
 enum ShipmentStatusValue {
-  published,
+  pending,
   offered,
   assigned,
   pickedUp,
   inTransit,
-  inDelivery,
+  arrived,
   delivered,
-  disputed,
 }
 
 extension ShipmentStatusValueX on ShipmentStatusValue {
   String get backendValue {
     switch (this) {
-      case ShipmentStatusValue.published:
-        return 'published';
+      case ShipmentStatusValue.pending:
+        return 'pending';
       case ShipmentStatusValue.offered:
         return 'offered';
       case ShipmentStatusValue.assigned:
@@ -22,20 +21,18 @@ extension ShipmentStatusValueX on ShipmentStatusValue {
         return 'picked_up';
       case ShipmentStatusValue.inTransit:
         return 'in_transit';
-      case ShipmentStatusValue.inDelivery:
-        return 'in_delivery';
+      case ShipmentStatusValue.arrived:
+        return 'arrived';
       case ShipmentStatusValue.delivered:
         return 'delivered';
-      case ShipmentStatusValue.disputed:
-        return 'disputed';
     }
   }
 }
 
 ShipmentStatusValue? parseShipmentStatus(String status) {
   switch (status) {
-    case 'published':
-      return ShipmentStatusValue.published;
+    case 'pending':
+      return ShipmentStatusValue.pending;
     case 'offered':
       return ShipmentStatusValue.offered;
     case 'assigned':
@@ -44,12 +41,10 @@ ShipmentStatusValue? parseShipmentStatus(String status) {
       return ShipmentStatusValue.pickedUp;
     case 'in_transit':
       return ShipmentStatusValue.inTransit;
-    case 'in_delivery':
-      return ShipmentStatusValue.inDelivery;
+    case 'arrived':
+      return ShipmentStatusValue.arrived;
     case 'delivered':
       return ShipmentStatusValue.delivered;
-    case 'disputed':
-      return ShipmentStatusValue.disputed;
     default:
       return null;
   }

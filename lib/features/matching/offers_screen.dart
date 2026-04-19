@@ -294,13 +294,13 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   String? emptyStateHint() {
     final status = shipment?.estado ?? '';
     if (isTraveler) {
-      if (status == 'assigned' || status == 'picked_up' || status == 'in_transit' || status == 'in_delivery' || status == 'delivered') {
+      if (status == 'assigned' || status == 'picked_up' || status == 'in_transit' || status == 'arrived' || status == 'delivered') {
         return 'Este envío ya avanzó demasiado para recibir nuevas propuestas.';
       }
       return 'Propón un precio competitivo para entrar en la conversación.';
     }
 
-    if (status == 'published') {
+    if (status == 'pending') {
       return 'Cuando lleguen propuestas de viajeros, aparecerán aquí para compararlas.';
     }
     if (status == 'assigned') {

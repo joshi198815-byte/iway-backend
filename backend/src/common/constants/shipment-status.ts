@@ -1,12 +1,9 @@
 export enum ShipmentStatus {
-  Draft = 'draft',
-  Published = 'published',
+  Pending = 'pending',
   Offered = 'offered',
   Assigned = 'assigned',
   PickedUp = 'picked_up',
   InTransit = 'in_transit',
-  InDelivery = 'in_delivery',
+  Arrived = 'arrived',
   Delivered = 'delivered',
-  Cancelled = 'cancelled',
-  Disputed = 'disputed',
 }

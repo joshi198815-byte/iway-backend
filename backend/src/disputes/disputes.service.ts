@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ShipmentStatus } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -46,33 +45,19 @@ export class DisputesService {
       },
     });
 
-    await this.prisma.shipment.update({
-      where: { id: payload.shipmentId },
-      data: { status: ShipmentStatus.disputed },
-    });
-
-    await this.prisma.shipmentEvent.createMany({
-      data: [
-        {
+    await this.prisma.shipmentEvent.create({
+      data: {
+        shipmentId: payload.shipmentId,
+        eventType: 'dispute_opened',
+        createdBy: requester.sub,
+        eventPayload: {
+          disputeId: dispute.id,
+          reason: payload.reason,
+          context: payload.context ?? null,
           shipmentId: payload.shipmentId,
-          eventType: `status_${ShipmentStatus.disputed}`,
-          createdBy: requester.sub,
-          eventPayload: {
-            previousStatus: shipment.status,
-            nextStatus: ShipmentStatus.disputed,
-          },
+          openedBy: requester.sub,
         },
-        {
-          shipmentId: payload.shipmentId,
-          eventType: 'dispute_opened',
-          createdBy: requester.sub,
-          eventPayload: {
-            disputeId: dispute.id,
-            reason: payload.reason,
-            context: payload.context ?? null,
-          },
-        },
-      ],
+      },
     });
 
     await this.prisma.auditLog.create({
@@ -85,6 +70,9 @@ export class DisputesService {
           shipmentId: payload.shipmentId,
           reason: payload.reason,
           context: payload.context ?? null,
+          openedBy: requester.sub,
+          customerId: shipment.customerId,
+          assignedTravelerId: shipment.assignedTravelerId,
         },
       },
     });
@@ -92,16 +80,6 @@ export class DisputesService {
     const notifyTargets = [shipment.customerId, shipment.assignedTravelerId].filter(
       (id): id is string => Boolean(id && id !== requester.sub),
     );
-    this.realtimeGateway.emitShipmentStatusChanged(
-      payload.shipmentId,
-      {
-        shipmentId: payload.shipmentId,
-        previousStatus: shipment.status,
-        nextStatus: ShipmentStatus.disputed,
-      },
-      [shipment.customerId, shipment.assignedTravelerId],
-    );
-
     if (notifyTargets.length > 0) {
       await this.notificationsService.sendPushMany(
         notifyTargets,
@@ -199,9 +177,7 @@ export class DisputesService {
       },
     });
 
-    const nextShipmentStatus = payload.status === 'resolved' || payload.status === 'rejected'
-      ? (dispute.shipment.assignedTravelerId ? ShipmentStatus.assigned : ShipmentStatus.offered)
-      : ShipmentStatus.disputed;
+    const nextShipmentStatus = dispute.shipment.status;
 
     await this.prisma.shipmentEvent.create({
       data: {
@@ -214,37 +190,6 @@ export class DisputesService {
         },
       },
     });
-
-    if (payload.status === 'resolved' || payload.status === 'rejected') {
-      await this.prisma.shipment.update({
-        where: { id: dispute.shipmentId },
-        data: {
-          status: nextShipmentStatus,
-        },
-      });
-
-      await this.prisma.shipmentEvent.create({
-        data: {
-          shipmentId: dispute.shipmentId,
-          eventType: `status_${nextShipmentStatus}`,
-          createdBy: requester.sub,
-          eventPayload: {
-            previousStatus: dispute.shipment.status,
-            nextStatus: nextShipmentStatus,
-          },
-        },
-      });
-    }
-
-    this.realtimeGateway.emitShipmentStatusChanged(
-      dispute.shipmentId,
-      {
-        shipmentId: dispute.shipmentId,
-        previousStatus: dispute.shipment.status,
-        nextStatus: nextShipmentStatus,
-      },
-      [dispute.shipment.customerId, dispute.shipment.assignedTravelerId],
-    );
 
     await this.notificationsService.sendPushMany(
       [dispute.shipment.customerId, dispute.shipment.assignedTravelerId].filter(

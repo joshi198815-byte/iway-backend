@@ -117,6 +117,19 @@ export class TransfersService {
       }
     }
 
+    const relatedCommissions = await this.prisma.travelerCommission.findMany({
+      where: {
+        travelerId,
+        status: { in: [CommissionStatus.pending, CommissionStatus.due, CommissionStatus.overdue, CommissionStatus.for_review] },
+      },
+      select: {
+        shipmentId: true,
+        commissionAmount: true,
+      },
+      orderBy: { generatedAt: 'asc' },
+      take: 50,
+    });
+
     const transfer = await this.prisma.transferPayment.create({
       data: {
         travelerId,
@@ -135,9 +148,14 @@ export class TransfersService {
         entityId: transfer.id,
         action: 'transfer_submitted',
         payload: {
+          travelerId,
           amount: payload.amount,
           weeklySettlementId: payload.weeklySettlementId ?? null,
           bankReference: payload.bankReference ?? null,
+          relatedShipments: relatedCommissions.map((item) => ({
+            shipmentId: item.shipmentId,
+            amount: Number(item.commissionAmount),
+          })),
           payoutPolicy,
         },
       },
@@ -232,6 +250,7 @@ export class TransfersService {
     return transfers.map((item) => ({
       ...item,
       transferredAmount: Number(item.transferredAmount),
+      travelerId: item.travelerId,
       weeklySettlement: item.weeklySettlement
         ? {
             ...item.weeklySettlement,

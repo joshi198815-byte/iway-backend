@@ -341,7 +341,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
 
   int statusIndex(String estado) {
     switch (estado) {
-      case 'published':
+      case 'pending':
         return 0;
       case 'offered':
         return 1;
@@ -351,7 +351,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         return 3;
       case 'in_transit':
         return 4;
-      case 'in_delivery':
+      case 'arrived':
         return 5;
       case 'delivered':
         return 6;
@@ -367,8 +367,8 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
       case 'picked_up':
         return (status: 'in_transit', label: 'Marcar en ruta');
       case 'in_transit':
-        return (status: 'in_delivery', label: 'Marcar por entregar');
-      case 'in_delivery':
+        return (status: 'arrived', label: 'Marcar arribó');
+      case 'arrived':
         return (status: 'delivered', label: 'Marcar entregado');
       default:
         return null;
