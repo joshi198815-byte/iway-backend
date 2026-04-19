@@ -218,10 +218,14 @@ class PushNotificationService {
   }
 
   static void _pushRoute(String route, {String? shipmentId}) {
+    final effectiveRoute = route == '/verify_contact' && SessionService.isPhoneVerified
+        ? '/home'
+        : route;
+
     final navigator = navigatorKey.currentState;
     if (navigator == null) {
       _pendingNavigation = (
-        route: route,
+        route: effectiveRoute,
         shipmentId: shipmentId?.isNotEmpty == true ? shipmentId : null,
       );
       return;
@@ -229,7 +233,7 @@ class PushNotificationService {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       navigator.pushNamed(
-        route,
+        effectiveRoute,
         arguments: shipmentId?.isNotEmpty == true ? shipmentId : null,
       );
     });
