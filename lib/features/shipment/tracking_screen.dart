@@ -50,6 +50,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   bool updatingStatus = false;
   bool routeVisible = false;
   String routeProvider = 'estimated-segments';
+  bool _ratingPromptShown = false;
   String? routeSummary;
   String? routeFallbackDetail;
   double? routeDistanceKm;
@@ -148,14 +149,16 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         routeDistanceKm = distanceKm is num ? distanceKm.toDouble() : null;
         routeDurationMinutes = durationMinutes is num ? durationMinutes.round() : null;
         routeSummary = distanceKm is num
-            ? '${provider == 'google-directions' ? 'Ruta vial' : 'Ruta estimada'} ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
+            ? 'Recorrido ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
             : hasUsableRoute
-                ? 'Mostrando ruta operacional mínima desde tracking.'
-                : 'Todavía no hay ruta visible para este envío.';
+                ? 'Mapa actualizado con el recorrido disponible.'
+                : 'El mapa se completará cuando el envío tenga más puntos confirmados.';
         routeFallbackDetail = distanceKm is num && hasPolyline
             ? null
             : buildFallbackDetail(shipmentData, routeData);
       });
+
+      _maybeOpenRating(shipmentData);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -169,6 +172,19 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         const SnackBar(content: Text('No se pudo cargar el tracking.')),
       );
     }
+  }
+
+  void _maybeOpenRating(ShipmentModel shipmentData) {
+    final currentUserId = SessionService.currentUserId;
+    if (_ratingPromptShown || !mounted || currentUserId == null) return;
+    if (shipmentData.estado != 'delivered') return;
+    if (shipmentData.userId != currentUserId) return;
+
+    _ratingPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/rating', arguments: widget.shipmentId);
+    });
   }
 
   Future<void> openDispute() async {

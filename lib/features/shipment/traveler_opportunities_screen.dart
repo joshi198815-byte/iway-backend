@@ -102,11 +102,18 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
 
   String _pickupFitLabel(ShipmentModel shipment) {
     if (shipment.remitenteRegion.trim().isEmpty) {
-      return 'Aún no hay departamento confirmado para medir cercanía.';
+      return 'Ubicación de recogida pendiente de confirmación.';
     }
     return _matchesTravelerRoute(shipment)
-        ? 'Esta recogida sí coincide con una de tus rutas activas.'
-        : 'Esta recogida no coincide exacto con tus rutas guardadas. Revísala antes de pujar.';
+        ? 'Coincide con una de tus rutas activas.'
+        : 'Revisa si esta recogida te conviene antes de ofertar.';
+  }
+
+  String _destinationSummary(ShipmentModel shipment) {
+    final address = shipment.receptorDireccion.trim();
+    if (address.isEmpty) return 'Destino USA pendiente';
+    final parts = address.split('•').first.trim();
+    return parts.isEmpty ? address : parts;
   }
 
   String _recommendedPickupPoint(ShipmentModel shipment) {
@@ -212,14 +219,17 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          shipment.descripcion?.isNotEmpty == true
-                                              ? shipment.descripcion!
-                                              : 'Envío sin descripción adicional.',
-                                          style: const TextStyle(fontWeight: FontWeight.w600),
+                                          shipment.customerName.isEmpty ? 'Cliente i-Way' : shipment.customerName,
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Calificación: ${shipment.customerRatingAvg > 0 ? shipment.customerRatingAvg.toStringAsFixed(1) : 'Nueva'} • ${shipment.remitenteRegion.isEmpty ? 'Origen GT pendiente' : shipment.remitenteRegion} → ${_destinationSummary(shipment)}',
+                                          style: const TextStyle(color: AppTheme.muted),
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Valor: ${CurrencyPresenter.formatForShipment(shipment, shipment.valor)} • Tipo: ${shipment.tipo}',
+                                          '${shipment.tipo.toUpperCase()}${shipment.peso != null ? ' • ${shipment.peso!.toStringAsFixed(1)} lb' : ''} • ${CurrencyPresenter.formatForShipment(shipment, shipment.valor)}',
                                           style: const TextStyle(color: AppTheme.muted),
                                         ),
                                         const SizedBox(height: 8),
@@ -299,19 +309,13 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Entrega para: ${shipment.receptorNombre.isEmpty ? 'No indicado' : shipment.receptorNombre}',
+                                          'Cliente: ${shipment.customerName.isEmpty ? 'Cliente i-Way' : shipment.customerName}',
                                           style: const TextStyle(color: AppTheme.muted),
                                         ),
-                                        if (shipment.receptorTelefono.isNotEmpty)
-                                          Text(
-                                            'Teléfono: ${shipment.receptorTelefono}',
-                                            style: const TextStyle(color: AppTheme.muted),
-                                          ),
-                                        if (shipment.receptorDireccion.isNotEmpty)
-                                          Text(
-                                            'Dirección: ${shipment.receptorDireccion}',
-                                            style: const TextStyle(color: AppTheme.muted),
-                                          ),
+                                        Text(
+                                          'Destino: ${_destinationSummary(shipment)}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
                                         if (shipment.marketplaceInsights.isNotEmpty) ...[
                                           const SizedBox(height: 10),
                                           ...shipment.marketplaceInsights.take(2).map(
@@ -329,17 +333,6 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                           spacing: 10,
                                           runSpacing: 10,
                                           children: [
-                                            OutlinedButton.icon(
-                                              onPressed: () {
-                                                Navigator.pushNamed(
-                                                  context,
-                                                  '/map',
-                                                  arguments: shipment.id,
-                                                );
-                                              },
-                                              icon: const Icon(Icons.map_outlined),
-                                              label: const Text('Ver mapa'),
-                                            ),
                                             ElevatedButton(
                                               onPressed: isBlocked
                                                   ? null

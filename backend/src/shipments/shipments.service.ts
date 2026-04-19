@@ -234,6 +234,12 @@ export class ShipmentsService {
           },
         },
         images: true,
+        customer: {
+          select: {
+            fullName: true,
+            ratingAvg: true,
+          },
+        },
       },
       orderBy: [{ createdAt: 'desc' }],
     });
@@ -272,6 +278,8 @@ export class ShipmentsService {
 
         return {
           ...shipment,
+          customerName: shipment.customer?.fullName ?? 'Cliente i-Way',
+          customerRatingAvg: this.normalizeDecimal(shipment.customer?.ratingAvg),
           offerCount,
           marketplaceScore: score,
           marketplaceTier: score >= 80 ? 'prime' : score >= 65 ? 'strong' : 'watch',

@@ -221,11 +221,11 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         polylines: fallbackPolyline,
         fitPoints: fallbackPoints,
         summary: fallbackPoints.length >= 2
-            ? 'Mostrando ruta operacional mínima mientras llega la ruta vial.'
-            : 'Mapa parcial, faltan coordenadas suficientes para dibujar una ruta.',
+            ? 'Mostrando el trayecto disponible por ahora.'
+            : 'El recorrido se completará cuando el envío tenga más puntos confirmados.',
         detail: detailParts.isEmpty
-            ? 'Usando puntos disponibles del envío y la última ubicación conocida.'
-            : detailParts.join(' · '),
+            ? 'Usando la información confirmada del envío.'
+            : 'Seguimiento en preparación.',
       );
     }
 
@@ -287,7 +287,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         routeMarkers = hasUsableRoute ? markers : fallback.markers;
         routePolylines = polylines.isNotEmpty ? polylines : fallback.polylines;
         routeSummary = distanceKm is num
-            ? '${provider == 'google-directions' ? 'Ruta vial' : 'Ruta estimada'} ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
+            ? 'Recorrido ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
             : fallback.summary;
         routeFallbackDetail = distanceKm is num && hasUsableRoute ? null : fallback.detail;
       });
@@ -539,7 +539,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                               'Recibe: ${shipment!.receptorNombre}',
                               style: const TextStyle(color: AppTheme.muted),
                             ),
-                          if (shipment!.receptorTelefono.isNotEmpty)
+                          if ((SessionService.currentUser?.tipo != 'traveler' || shipment!.assignedTravelerId == SessionService.currentUserId) && shipment!.receptorTelefono.isNotEmpty)
                             Text(
                               'Teléfono: ${shipment!.receptorTelefono}',
                               style: const TextStyle(color: AppTheme.muted),
@@ -566,7 +566,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                           children: [
                             AppInfoChip(
                               icon: Icons.pin_drop_outlined,
-                              label: widget.shipmentId == null ? 'Mapa libre' : 'Shipment activo',
+                              label: widget.shipmentId == null ? 'Mapa general' : 'Envío activo',
                             ),
                             AppInfoChip(
                               icon: Icons.gps_fixed,
@@ -578,17 +578,15 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             ),
                             AppInfoChip(
                               icon: Icons.alt_route,
-                              label: routePolylines.isNotEmpty ? 'Ruta visible' : 'Sin ruta',
+                              label: routePolylines.isNotEmpty ? 'Trayecto visible' : 'Ubicación activa',
                             ),
                             AppInfoChip(
-                              icon: routeFallbackDetail == null ? Icons.verified_outlined : Icons.build_circle_outlined,
-                              label: routeFallbackDetail == null ? 'Mapa completo' : 'Modo fallback',
+                              icon: Icons.verified_outlined,
+                              label: 'Seguimiento en vivo',
                             ),
                             AppInfoChip(
-                              icon: routeProvider == 'google-directions'
-                                  ? Icons.route_rounded
-                                  : Icons.timeline_outlined,
-                              label: routeProvider == 'google-directions' ? 'Ruta vial' : 'Ruta estimada',
+                              icon: Icons.route_rounded,
+                              label: 'Entrega final',
                             ),
                           ],
                         ),

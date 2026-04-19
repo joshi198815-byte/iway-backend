@@ -17,6 +17,8 @@ class ShipmentModel {
   final String receptorNombre;
   final String receptorTelefono;
   final String receptorDireccion;
+  final String customerName;
+  final double customerRatingAvg;
   final List<String> imagenes;
   final List<String> imagenesReferencia;
   final List<String> evidenciasEntrega;
@@ -56,6 +58,8 @@ class ShipmentModel {
       receptorNombre: receptorNombre,
       receptorTelefono: receptorTelefono,
       receptorDireccion: receptorDireccion,
+      customerName: customerName,
+      customerRatingAvg: customerRatingAvg,
       imagenes: imagenes,
       imagenesReferencia: imagenesReferencia,
       evidenciasEntrega: evidenciasEntrega,
@@ -90,6 +94,8 @@ class ShipmentModel {
     required this.receptorNombre,
     required this.receptorTelefono,
     required this.receptorDireccion,
+    this.customerName = '',
+    this.customerRatingAvg = 0,
     required this.imagenes,
     this.imagenesReferencia = const [],
     this.evidenciasEntrega = const [],
@@ -139,6 +145,8 @@ class ShipmentModel {
       receptorNombre: (json['receiverName'] ?? json['receptorNombre'] ?? '').toString(),
       receptorTelefono: (json['receiverPhone'] ?? json['receptorTelefono'] ?? '').toString(),
       receptorDireccion: (json['receiverAddress'] ?? json['receptorDireccion'] ?? '').toString(),
+      customerName: (json['customerName'] ?? json['customer']?['fullName'] ?? '').toString(),
+      customerRatingAvg: _toDouble(json['customerRatingAvg'] ?? json['customer']?['ratingAvg']) ?? 0,
       imagenes: (json['imagenes'] as List?)?.map((e) => e.toString()).toList() ??
           backendImages
               .map((e) => (e['imageUrl'] ?? '').toString())
