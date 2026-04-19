@@ -8,6 +8,7 @@ class SavedRecipient {
   final String address;
   final String country;
   final String region;
+  final String city;
 
   const SavedRecipient({
     required this.name,
@@ -15,6 +16,7 @@ class SavedRecipient {
     required this.address,
     required this.country,
     required this.region,
+    this.city = '',
   });
 
   factory SavedRecipient.fromJson(Map<String, dynamic> json) {
@@ -24,6 +26,7 @@ class SavedRecipient {
       address: (json['address'] ?? '').toString(),
       country: (json['country'] ?? '').toString(),
       region: (json['region'] ?? '').toString(),
+      city: (json['city'] ?? '').toString(),
     );
   }
 
@@ -33,6 +36,7 @@ class SavedRecipient {
         'address': address,
         'country': country,
         'region': region,
+        'city': city,
       };
 }
 

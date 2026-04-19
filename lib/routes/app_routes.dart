@@ -9,6 +9,8 @@ import '../features/disputes/support_center_screen.dart';
 import '../features/shipment/create_shipment_screen.dart';
 import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/shipment/my_orders_screen.dart';
+import '../features/shipment/recipient_management_screen.dart';
+import '../features/shipment/searching_traveler_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/matching/offers_screen.dart';
 import '../features/shipment/models/shipment_model.dart';
@@ -19,6 +21,7 @@ import '../features/payments/debts_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/rating/my_ratings_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/settings/settings_screen.dart';
 
 class AppRoutes {
   static const String initial = '/';
@@ -42,6 +45,8 @@ class AppRoutes {
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/my_orders': (context) => const MyOrdersScreen(),
+    '/recipients': (context) => const RecipientManagementScreen(),
+    '/settings': (context) => const SettingsScreen(),
     '/support': (context) => const SupportCenterScreen(),
     '/debts': (context) => const DebtsScreen(),
     '/map': (context) {
@@ -84,6 +89,13 @@ class AppRoutes {
       return _invalidArgumentsScreen('Tracking');
     },
     '/notifications': (context) => const NotificationsScreen(),
+    '/searching_traveler': (context) {
+      final id = ModalRoute.of(context)?.settings.arguments;
+      if (id is! String || id.isEmpty) {
+        return _invalidArgumentsScreen('Buscando viajero');
+      }
+      return SearchingTravelerScreen(shipmentId: id);
+    },
     '/chat': (context) {
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args is String && args.isNotEmpty) {

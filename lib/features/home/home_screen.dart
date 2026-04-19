@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
-import 'package:iway_app/shared/ui/app_action_cards.dart';
-import 'package:iway_app/shared/ui/app_info_chip.dart';
 import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -19,12 +19,52 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  static const _travelerOnlineKey = 'traveler_online';
+
   final _shipmentService = ShipmentService();
   final _realtime = RealtimeService.instance;
+
   late Future<List<ShipmentModel>> _myShipmentsFuture;
-  StreamSubscription<dynamic>? _notificationSubscription;
-  StreamSubscription<dynamic>? _shipmentStatusSubscription;
-  StreamSubscription<dynamic>? _offerSubscription;
+  StreamSubscription<dynamic>? _globalSyncSubscription;
+  bool _travelerOnline = true;
+
+  bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _myShipmentsFuture = _shipmentService.getMyShipments();
+    _loadPreferences();
+    _bindRealtime();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _travelerOnline = prefs.getBool(_travelerOnlineKey) ?? true;
+    });
+  }
+
+  Future<void> _setTravelerOnline(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_travelerOnlineKey, value);
+    if (!mounted) return;
+    setState(() => _travelerOnline = value);
+  }
+
+  Future<void> _bindRealtime() async {
+    await _realtime.ensureConnected();
+    _globalSyncSubscription = _realtime.globalEntitySync.listen((_) => _refreshShipments());
+  }
+
+  Future<void> _refreshShipments() async {
+    if (!mounted) return;
+    setState(() {
+      _myShipmentsFuture = _shipmentService.getMyShipments();
+    });
+  }
 
   Future<bool> _confirmExit() async {
     final shouldExit = await showDialog<bool>(
@@ -34,14 +74,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         title: const Text('¿Quieres salir de i-way?'),
         content: const Text('Si sales ahora, se cerrará i-way en este dispositivo.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salir'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Salir')),
         ],
       ),
     );
@@ -50,34 +84,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _myShipmentsFuture = _shipmentService.getMyShipments();
-    _bindRealtime();
-  }
-
-  Future<void> _bindRealtime() async {
-    await _realtime.ensureConnected();
-    _notificationSubscription = _realtime.notificationUpdated.listen((_) => _refreshShipments());
-    _shipmentStatusSubscription = _realtime.shipmentStatusChanged.listen((_) => _refreshShipments());
-    _offerSubscription = _realtime.offerUpdated.listen((_) => _refreshShipments());
-  }
-
-  Future<void> _refreshShipments() async {
-    if (!mounted) return;
-    setState(() {
-      _myShipmentsFuture = _shipmentService.getMyShipments();
-    });
-    await _myShipmentsFuture;
-  }
-
-  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _notificationSubscription?.cancel();
-    _shipmentStatusSubscription?.cancel();
-    _offerSubscription?.cancel();
+    _globalSyncSubscription?.cancel();
     super.dispose();
   }
 
@@ -88,57 +97,223 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  List<String> _travelerRoutes() {
-    final routes = SessionService.currentUser?.rutas ?? const [];
-    return routes.where((e) => e.trim().isNotEmpty).toList();
+  Widget _buildBanner({required IconData icon, required String title, required String subtitle}) {
+    return Container(
+      width: 260,
+      margin: const EdgeInsets.only(right: 12),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppTheme.accent),
+          const SizedBox(height: 12),
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text(subtitle, style: const TextStyle(color: AppTheme.muted, height: 1.4)),
+        ],
+      ),
+    );
   }
 
-  void _showSupport(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
+  Drawer _buildDrawer() {
+    final user = SessionService.currentUser;
+
+    ListTile tile({required IconData icon, required String title, required VoidCallback onTap, Color? color}) {
+      return ListTile(
+        leading: Icon(icon, color: color),
+        title: Text(title, style: TextStyle(color: color)),
+        onTap: () {
+          Navigator.pop(context);
+          onTap();
+        },
+      );
+    }
+
+    return Drawer(
+      child: SafeArea(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Soporte técnico',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Puedes ver tus incidencias abiertas, resueltas o escaladas. Si necesitas abrir una nueva, también puedes hacerlo desde el pedido afectado.',
-              style: TextStyle(color: AppTheme.muted, height: 1.4),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, '/support');
-                },
-                child: const Text('Abrir soporte'),
+            UserAccountsDrawerHeader(
+              decoration: const BoxDecoration(color: AppTheme.surface),
+              currentAccountPicture: CircleAvatar(
+                backgroundColor: AppTheme.surfaceSoft,
+                backgroundImage: (user?.selfiePath ?? '').isNotEmpty ? NetworkImage(user!.selfiePath!) : null,
+                child: (user?.selfiePath ?? '').isEmpty ? const Icon(Icons.person_outline, size: 32) : null,
               ),
+              accountName: Text(user?.nombre ?? 'Usuario'),
+              accountEmail: Text(user?.email ?? ''),
             ),
+            if (_isTraveler)
+              SwitchListTile(
+                value: _travelerOnline,
+                onChanged: _setTravelerOnline,
+                title: const Text('En línea'),
+                subtitle: Text(_travelerOnline ? 'Recibiendo pedidos compatibles' : 'Desconectado'),
+              ),
+            tile(icon: Icons.person_outline, title: _isTraveler ? 'Editar perfil' : 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
+            tile(icon: Icons.history_rounded, title: _isTraveler ? 'Pedidos' : 'Historial', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            if (!_isTraveler)
+              tile(icon: Icons.group_outlined, title: 'Gestión de destinatarios', onTap: () => Navigator.pushNamed(context, '/recipients')),
+            if (_isTraveler)
+              tile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet', onTap: () => Navigator.pushNamed(context, '/debts')),
+            if (_isTraveler)
+              tile(icon: Icons.route_outlined, title: 'Mis rutas', onTap: () => Navigator.pushNamed(context, '/profile')),
+            tile(icon: Icons.settings_outlined, title: 'Ajustes', onTap: () => Navigator.pushNamed(context, '/settings')),
+            tile(icon: Icons.support_agent_outlined, title: 'Soporte técnico', onTap: () => Navigator.pushNamed(context, '/support')),
+            const Spacer(),
+            tile(icon: Icons.delete_outline, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/support')),
           ],
         ),
       ),
     );
   }
 
-  String _statusLabel(String status) => ShipmentStatusPresenter.label(status);
+  Widget _buildCustomerHero() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Envía con claridad y seguimiento real', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          const Text('Publica tu envío, espera ofertas y sigue todo el proceso sin compartir tu número antes de tiempo.', style: TextStyle(color: AppTheme.muted, height: 1.4)),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.pushNamed(context, '/create_shipment'),
+              icon: const Icon(Icons.add_box_outlined),
+              label: const Text('Crear Envío'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTravelerHero() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Panel del viajero', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 8),
+                    Text(
+                      _travelerOnline ? 'Estás disponible para recibir pedidos compatibles con tus rutas.' : 'Estás desconectado. No deberías operar nuevas coincidencias hasta activarte.',
+                      style: const TextStyle(color: AppTheme.muted, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(value: _travelerOnline, onChanged: _setTravelerOnline),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/traveler_opportunities'),
+                  icon: const Icon(Icons.local_offer_outlined),
+                  label: const Text('Ver ofertas'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/my_orders'),
+                  icon: const Icon(Icons.local_shipping_outlined),
+                  label: const Text('Mis pedidos'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShipmentList(List<ShipmentModel> shipments) {
+    if (shipments.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Text(
+          _isTraveler ? 'Aún no tienes pedidos en tu historial.' : 'Todavía no has publicado envíos.',
+          style: const TextStyle(color: AppTheme.muted),
+        ),
+      );
+    }
+
+    final recent = shipments.take(4).toList();
+    return Column(
+      children: recent.map((shipment) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '${shipment.receptorNombre.isEmpty ? 'Destinatario pendiente' : shipment.receptorNombre} • ${ShipmentStatusPresenter.label(shipment.estado)}',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Text('${shipment.origen} → ${shipment.destino}', style: const TextStyle(color: AppTheme.muted)),
+              const SizedBox(height: 4),
+              Text(shipment.descripcion?.isNotEmpty == true ? shipment.descripcion! : shipment.tipo, style: const TextStyle(color: AppTheme.muted)),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => Navigator.pushNamed(context, '/tracking', arguments: shipment.id),
+                  child: const Text('Abrir detalle'),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final user = SessionService.currentUser;
-    final isTraveler = user?.tipo == 'traveler';
-    final routes = _travelerRoutes();
 
     return PopScope(
       canPop: false,
@@ -149,381 +324,83 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         await SystemNavigator.pop();
       },
       child: Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF101116),
-              AppTheme.background,
-            ],
+        drawer: _buildDrawer(),
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                _myShipmentsFuture = _shipmentService.getMyShipments();
-              });
-              await _myShipmentsFuture;
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          child: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshShipments,
+              child: FutureBuilder<List<ShipmentModel>>(
+                future: _myShipmentsFuture,
+                builder: (context, snapshot) {
+                  final shipments = snapshot.data ?? const <ShipmentModel>[];
+                  return ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isTraveler ? 'Panel del viajero' : 'Panel del cliente',
-                              style: Theme.of(context).textTheme.headlineMedium,
+                      Row(
+                        children: [
+                          Builder(
+                            builder: (context) => IconButton(
+                              onPressed: () => Scaffold.of(context).openDrawer(),
+                              icon: const Icon(Icons.menu_rounded),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              isTraveler
-                                  ? 'Aquí ves tus rutas, tus pedidos y lo importante para operar.'
-                                  : 'Crea envíos, revisa su estado y sigue las ofertas desde aquí.',
-                              style: Theme.of(context).textTheme.bodyMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      _TopAction(
-                        icon: Icons.notifications_none_rounded,
-                        onTap: () => Navigator.pushNamed(context, '/notifications'),
-                      ),
-                      const SizedBox(width: 10),
-                      _TopAction(
-                        icon: Icons.person_outline_rounded,
-                        onTap: () => Navigator.pushNamed(context, '/profile'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      AppInfoChip(
-                        icon: Icons.public,
-                        label: user?.pais.isNotEmpty == true ? user!.pais : 'GT ↔ USA',
-                      ),
-                      AppInfoChip(
-                        icon: Icons.verified_user_outlined,
-                        label: user?.verificado == true ? 'Perfil aprobado' : 'Perfil en revisión',
-                      ),
-                      if (isTraveler)
-                        AppInfoChip(
-                          icon: Icons.route_outlined,
-                          label: routes.isEmpty ? 'Rutas por definir' : '${routes.length} ruta${routes.length == 1 ? '' : 's'} activa${routes.length == 1 ? '' : 's'}',
-                        )
-                      else
-                        AppInfoChip(
-                          icon: Icons.photo_camera_front_outlined,
-                          label: (user?.selfiePath ?? '').isEmpty ? 'Falta selfie' : 'Selfie cargada',
-                        ),
-                    ],
-                  ),
-                  if (isTraveler) ...[
-                    const SizedBox(height: 18),
-                    _RoutesCard(routes: routes),
-                  ],
-                  if (!isTraveler) ...[
-                    const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppTheme.border),
-                      ),
-                      child: Text(
-                        (user?.selfiePath ?? '').isEmpty
-                            ? 'Antes de publicar un envío, completa tu selfie en Perfil. Así evitamos cuentas incompletas y el flujo no se rompe.'
-                            : 'Tu perfil ya tiene selfie. Puedes publicar envíos y seguirlos desde Mis pedidos.',
-                        style: const TextStyle(color: AppTheme.muted, height: 1.4),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 22),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: AppTheme.border),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black54,
-                          blurRadius: 30,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isTraveler ? 'Tu operación' : 'Tus acciones rápidas',
-                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 20),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          isTraveler
-                              ? 'Mantén tu perfil al día, revisa pedidos activos y controla tus pagos.'
-                              : 'Publica un envío, revisa tus pedidos y controla su estado sin perderte.',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                        const SizedBox(height: 18),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width > 520
-                                  ? (MediaQuery.of(context).size.width - 64) / 2
-                                  : double.infinity,
-                              child: AppQuickActionCard(
-                                icon: isTraveler ? Icons.local_shipping_outlined : Icons.add_box_outlined,
-                                title: isTraveler ? 'Mis pedidos' : 'Crear envío',
-                                subtitle: isTraveler ? 'Activos y completados' : 'Publica un envío nuevo',
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  isTraveler ? '/my_orders' : '/create_shipment',
-                                ),
-                              ),
-                            ),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width > 520
-                                  ? (MediaQuery.of(context).size.width - 64) / 2
-                                  : double.infinity,
-                              child: AppQuickActionCard(
-                                icon: isTraveler ? Icons.local_offer_outlined : Icons.list_alt_outlined,
-                                title: isTraveler ? 'Oportunidades' : 'Mis pedidos',
-                                subtitle: isTraveler ? 'Explora envíos disponibles' : 'Publicado, en ruta o completado',
-                                onTap: () => Navigator.pushNamed(
-                                  context,
-                                  isTraveler ? '/traveler_opportunities' : '/my_orders',
-                                ),
-                              ),
-                            ),
-                            if (isTraveler)
-                              SizedBox(
-                                width: MediaQuery.of(context).size.width > 520
-                                    ? (MediaQuery.of(context).size.width - 64) / 2
-                                    : double.infinity,
-                                child: AppQuickActionCard(
-                                  icon: Icons.account_balance_wallet_outlined,
-                                  title: 'Comisiones',
-                                  subtitle: 'Pagos, cortes y saldo',
-                                  onTap: () => Navigator.pushNamed(context, '/debts'),
-                                ),
-                              ),
-                            SizedBox(
-                              width: MediaQuery.of(context).size.width > 520
-                                  ? (MediaQuery.of(context).size.width - 64) / 2
-                                  : double.infinity,
-                              child: AppQuickActionCard(
-                                icon: Icons.support_agent_outlined,
-                                title: 'Soporte técnico',
-                                subtitle: 'Ayuda si algo falla',
-                                onTap: () => _showSupport(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!isTraveler) ...[
-                    const SizedBox(height: 22),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surface,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: AppTheme.border),
-                      ),
-                      child: FutureBuilder<List<ShipmentModel>>(
-                        future: _myShipmentsFuture,
-                        builder: (context, snapshot) {
-                          final shipments = snapshot.data ?? const <ShipmentModel>[];
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Tus envíos recientes',
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 10),
-                              if (snapshot.connectionState == ConnectionState.waiting)
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  child: Center(child: CircularProgressIndicator()),
-                                )
-                              else if (shipments.isEmpty)
-                                const Text(
-                                  'Todavía no tienes envíos publicados.',
-                                  style: TextStyle(color: AppTheme.muted),
-                                )
-                              else
-                                ...shipments.take(3).map(
-                                  (shipment) => Container(
-                                    margin: const EdgeInsets.only(top: 10),
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surfaceSoft,
-                                      borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(color: AppTheme.border),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                '${shipment.origen} → ${shipment.destino}',
-                                                style: const TextStyle(fontWeight: FontWeight.w700),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                shipment.descripcion?.isNotEmpty == true
-                                                    ? shipment.descripcion!
-                                                    : shipment.receptorDireccion,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(color: AppTheme.muted),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              _statusLabel(shipment.estado),
-                                              style: const TextStyle(fontWeight: FontWeight.w700),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            TextButton(
-                                              onPressed: () => Navigator.pushNamed(
-                                                context,
-                                                '/offers',
-                                                arguments: shipment.id,
-                                              ),
-                                              child: const Text('Ver ofertas'),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              if (shipments.length > 3) ...[
-                                const SizedBox(height: 12),
-                                TextButton(
-                                  onPressed: () => Navigator.pushNamed(context, '/my_orders'),
-                                  child: const Text('Ver todos mis pedidos'),
-                                ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Hola, ${user?.nombre.split(' ').first ?? 'i-Way'}', style: Theme.of(context).textTheme.headlineMedium),
+                                const SizedBox(height: 4),
+                                Text(_isTraveler ? 'Controla rutas, pedidos y soporte.' : 'Publica envíos y espera ofertas con tranquilidad.', style: const TextStyle(color: AppTheme.muted)),
                               ],
-                            ],
-                          );
-                        },
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                            icon: const Icon(Icons.notifications_none_rounded),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ],
+                      const SizedBox(height: 16),
+                      _isTraveler ? _buildTravelerHero() : _buildCustomerHero(),
+                      const SizedBox(height: 20),
+                      const Text('Información importante', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 170,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            _buildBanner(icon: Icons.security_rounded, title: 'Seguridad', subtitle: 'Chat interno, estados en tiempo real y control operativo durante todo el envío.'),
+                            _buildBanner(icon: Icons.shield_outlined, title: 'Seguro', subtitle: 'Activa cobertura opcional ante pérdida o robo cuando el valor declarado lo requiera.'),
+                            _buildBanner(icon: Icons.verified_user_outlined, title: 'Cobertura total en USA', subtitle: 'Entrega final con destinatarios guardados y dirección validada por autocompletado.'),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(_isTraveler ? 'Pedidos recientes' : 'Historial reciente', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      if (snapshot.connectionState == ConnectionState.waiting)
+                        const Center(child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: CircularProgressIndicator(),
+                        ))
+                      else
+                        _buildShipmentList(shipments),
+                    ],
+                  );
+                },
               ),
             ),
           ),
         ),
-      ),
-    ));
-  }
-}
-
-class _RoutesCard extends StatelessWidget {
-  final List<String> routes;
-
-  const _RoutesCard({required this.routes});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Estados / rutas que cubres',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 10),
-          if (routes.isEmpty)
-            const Text(
-              'Todavía no has definido tus rutas. Puedes editarlas en tu perfil.',
-              style: TextStyle(color: AppTheme.muted),
-            )
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: routes
-                  .map(
-                    (route) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceSoft,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: AppTheme.border),
-                      ),
-                      child: Text(route),
-                    ),
-                  )
-                  .toList(),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TopAction extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _TopAction({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      height: 48,
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: IconButton(
-        icon: Icon(icon),
-        onPressed: onTap,
       ),
     );
   }
