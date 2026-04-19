@@ -1,120 +1,101 @@
-# IWAY Release Checklist
+# RELEASE CHECKLIST - I-WAY
 
-## Estado validado en esta sesión
+## 1) Backend production deploy
 
-- Frontend Flutter conectado al backend real NestJS + Prisma
-- `flutter pub get` ejecutado
-- `flutter analyze` sin errores
-- Smoke test backend completado para:
-  - register customer
-  - register traveler
-  - create shipment
-  - create offer
-  - accept offer
-  - chat create/send
-  - tracking send/latest/timeline/eta
-  - ratings create/list
-  - notifications list/mark-read
-- Prueba visual manual reportada como correcta por el usuario
+### Antes de desplegar
+- Confirmar variables productivas:
+  - `DATABASE_URL`
+  - `JWT_SECRET`
+  - claves finales/restringidas de Maps/Firebase si aplican
+- Confirmar que el backend apunta al schema correcto de Postgres
 
-## Pre-release manual QA
-
-### Auth
-- [ ] Login correcto
-- [ ] Error visible con credenciales inválidas
-- [ ] Registro cliente correcto
-- [ ] Registro viajero correcto
-- [ ] Logout correcto
-
-### Core flow
-- [ ] Crear envío
-- [ ] Ver ofertas del envío
-- [ ] Crear oferta como traveler
-- [ ] Aceptar oferta como customer
-- [ ] Abrir chat del envío
-- [ ] Enviar mensaje
-- [ ] Abrir tracking
-- [ ] Cambiar estado a assigned
-- [ ] Cambiar estado a delivered
-
-### Activity
-- [ ] Rating enviado correctamente
-- [ ] Notifications visibles
-- [ ] Notifications se marcan como leídas
-- [ ] Debt summary carga sin error
-
-### UX
-- [ ] No loaders infinitos
-- [ ] No pantallas vacías sin contexto
-- [ ] Navegación back consistente
-- [ ] Home, map y profile se sienten consistentes con el tema premium
-
-## Configuración esperada
-
-### Backend
-Archivo: `backend/.env`
-
-Valores mínimos:
-
-```env
-PORT=3000
-DATABASE_URL="postgresql://iway:iway_staging_change_me@127.0.0.1:5432/iway_staging?schema=public"
-JWT_SECRET="replace-with-a-long-random-secret-at-least-32-chars"
-```
-
-### Frontend API
-Por defecto:
-- Producción -> `https://api.iway.one/api`
-- Si responde `404`, el cliente también intenta automáticamente `https://api.iway.one`
-
-Override opcional:
-
+### Comandos esperados en backend
 ```bash
-flutter run --dart-define=API_BASE_URL=https://api.iway.one/api
+cd backend
+npm install --include=dev
+npm run prisma:generate:postgres
+npm run db:push:postgres
+npm run typecheck
+npm run build
 ```
 
-### Web Maps
-Archivo local no versionado: `web/maps-config.js`
+### Validación mínima después del deploy
+- Login funciona
+- Crear envío funciona
+- Ver oportunidades funciona
+- Crear oferta funciona
+- Aceptar oferta funciona
+- Chat abre
+- Tracking carga
 
-Crear desde `web/maps-config.example.js` y colocar:
+## 2) Android release
 
-```js
-window.GOOGLE_MAPS_API_KEY = 'TU_GOOGLE_MAPS_API_KEY';
+### Build esperado
+```bash
+flutter pub get
+flutter build appbundle --release \
+  --dart-define=API_BASE_URL=https://api.iway.one/api \
+  --dart-define=GOOGLE_MAPS_API_KEY=TU_KEY
 ```
 
-## Dependencias a revisar después, no urgentes
+### Confirmar antes del build
+- Flutter SDK real instalado
+- Android SDK listo
+- keystore/config release correctos
+- backend productivo ya arriba
 
-No se recomienda actualizar ahora mismo si el foco es estabilidad.
+## 3) Smoke QA en teléfono real
 
-Direct dependencies con versiones más nuevas disponibles:
-- `cupertino_icons`
-- `geolocator`
-- `google_maps_flutter`
-- `image_picker`
-- `shared_preferences`
+### A. Cliente
+- Registrarse o iniciar sesión
+- Ir a Perfil
+- Guardar remitente actual
+- Crear remitente nuevo
+- Crear envío con remitente guardado
+- Guardar destinatario
+- Publicar envío
 
-Notas:
-- `geolocator` tiene salto fuerte hasta `14.x`, mejor probarlo aparte.
-- `google_maps_flutter` también conviene evaluarlo con smoke test visual antes de subir versión.
+### B. Traveler
+- Iniciar sesión como traveler
+- Ir a Mi perfil
+- Seleccionar rutas de USA desde el selector de estados
+- Guardar cambios
+- Abrir Oportunidades
+- Confirmar que cada envío muestre:
+  - departamento/estado de recogida
+  - si coincide o no con rutas activas
+  - punto sugerido de encuentro
+  - distancia aproximada al pickup (si hay permisos + coordenadas)
+- Abrir mapa desde Oportunidades
+- Entrar a Ofertas
+- Confirmar que también muestre pickup/contexto/chat/mapa
+- Enviar oferta
 
-## Riesgos conocidos
+### C. Cliente acepta
+- Abrir ofertas del envío
+- Aceptar traveler
+- Confirmar:
+  - se crea/asigna correctamente
+  - aparece mensaje automático en chat
+  - tracking muestra pickup/contacto/punto sugerido
 
-- Linux desktop requiere toolchain del sistema (`cmake`, `clang`, `ninja-build`, `pkg-config`, `libgtk-3-dev`).
-- El repo en este entorno no estaba inicializado como git, así que el cierre de cambios no pudo dejar commit desde esta sesión.
+### D. Coordinación y operación
+- Abrir chat desde tracking u ofertas
+- Confirmar que el draft inicial ayude a coordinar pickup
+- Traveler marca recogido
+- Tracking avanza
+- Mapa abre
+- Entrega final funciona
 
-## Recomendación de siguiente fase
+## 4) Criterio de salida
 
-1. QA manual corta de release
-2. Inicializar o conectar repo git correctamente
-3. Hacer commit limpio de cierre
-4. Si el producto sigue creciendo, recién ahí revisar upgrades de dependencias por lotes
+Se considera listo para producción si:
+- backend deployado sin errores
+- schema nuevo aplicado
+- app release compila
+- smoke QA completo pasa sin bloqueos críticos
+- no hay errores de login, shipment, offer, chat o tracking
 
-
-### Production infra
-- [ ] `.env.production` creado con secretos reales
-- [ ] `docker compose -f backend/docker-compose.production.yml up -d --build` validado
-- [ ] `/api/health` responde en entorno productivo
-- [ ] backup PostgreSQL probado
-- [ ] almacenamiento persistente de `uploads/` confirmado
-- [ ] reverse proxy + HTTPS configurados
-- [ ] Firebase production keys cargadas si push nativo estará activo
+## 5) No mezclar en release
+- Evitar subir cambios ajenos de tooling/desktop/web si no forman parte del release móvil/backend
+- Revisar bien el diff final antes de merge/deploy
