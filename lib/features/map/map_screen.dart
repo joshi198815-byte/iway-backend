@@ -478,7 +478,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             Text(
                               widget.shipmentId == null
                                   ? 'Explora tu ubicación actual.'
-                                  : 'Shipment vinculado: ${widget.shipmentId}',
+                                  : 'Envío vinculado: ${widget.shipmentId}',
                               style: const TextStyle(color: AppTheme.muted),
                             ),
                             if (loadingRemote) ...[
@@ -566,15 +566,15 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                           children: [
                             AppInfoChip(
                               icon: Icons.pin_drop_outlined,
-                              label: widget.shipmentId == null ? 'Mapa general' : 'Envío activo',
+                              label: widget.shipmentId == null ? 'Mapa general' : 'Envío en curso',
                             ),
                             AppInfoChip(
                               icon: Icons.gps_fixed,
-                              label: sending ? 'Enviando...' : 'GPS activo',
+                              label: sending ? 'Enviando...' : 'Ubicación activa',
                             ),
                             AppInfoChip(
                               icon: Icons.sync,
-                              label: loadingRemote ? 'Sincronizando' : 'Mapa estable',
+                              label: loadingRemote ? 'Sincronizando' : 'Mapa listo',
                             ),
                             AppInfoChip(
                               icon: Icons.alt_route,
@@ -606,7 +606,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                               if (routeDurationMinutes != null)
                                 Expanded(
                                   child: _MetricCard(
-                                    label: 'ETA vial',
+                                    label: 'Tiempo estimado',
                                     value: '${routeDurationMinutes!} min',
                                   ),
                                 ),

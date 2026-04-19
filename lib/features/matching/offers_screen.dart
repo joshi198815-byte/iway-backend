@@ -655,7 +655,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         runSpacing: 8,
                                         children: [
                                           _OfferChip(
-                                            label: 'Score ${offer.marketplaceScore}',
+                                            label: 'Puntaje ${offer.marketplaceScore}',
                                             color: offer.marketplaceScore >= 80
                                                 ? const Color(0xFF59D38C)
                                                 : offer.marketplaceScore >= 65
@@ -667,7 +667,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                             color: const Color(0xFF8AB4FF),
                                           ),
                                           _OfferChip(
-                                            label: 'Verif ${offer.travelerVerificationScore}',
+                                            label: 'Verificación ${offer.travelerVerificationScore}',
                                             color: const Color(0xFFFFD27A),
                                           ),
                                         ],
@@ -679,7 +679,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        'Rating ${offer.travelerRatingAvg.toStringAsFixed(1)} • Cumplimiento ${(offer.acceptanceRate * 100).toStringAsFixed(0)}%',
+                                        'Calificación ${offer.travelerRatingAvg.toStringAsFixed(1)} • Cumplimiento ${(offer.acceptanceRate * 100).toStringAsFixed(0)}%',
                                         style: const TextStyle(color: AppTheme.muted, fontSize: 12),
                                       ),
                                       const SizedBox(height: 4),

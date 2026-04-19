@@ -619,8 +619,8 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                 AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                 const SizedBox(height: 24),
                 const AppPageIntro(
-                  title: 'Tracking del envío',
-                  subtitle: 'Estado, ETA y eventos relevantes en una sola vista.',
+                  title: 'Seguimiento del envío',
+                  subtitle: 'Estado, tiempo estimado y eventos relevantes en una sola vista.',
                 ),
                 const SizedBox(height: 20),
                 AppGlassSection(
@@ -640,7 +640,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 220),
                         child: Text(
-                          'ETA: $etaLabel',
+                          'Tiempo estimado: $etaLabel',
                           key: ValueKey(etaLabel),
                           style: const TextStyle(color: AppTheme.muted),
                         ),
@@ -757,7 +757,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                           ),
                           _TrackingChip(
                             icon: routeFallbackDetail == null ? Icons.verified_outlined : Icons.build_circle_outlined,
-                            label: routeFallbackDetail == null ? 'Mapa completo' : 'Modo fallback',
+                            label: routeFallbackDetail == null ? 'Mapa completo' : 'Ruta aproximada',
                           ),
                           _TrackingChip(
                             icon: routeProvider == 'google-directions' ? Icons.route_rounded : Icons.timeline_outlined,
@@ -781,7 +781,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                             if (routeDurationMinutes != null)
                               Expanded(
                                 child: _TrackingMetric(
-                                  label: 'ETA vial',
+                                  label: 'Tiempo estimado',
                                   value: '${routeDurationMinutes!} min',
                                 ),
                               ),
