@@ -12,12 +12,14 @@ class UserModel {
   final String tipo;
   final TravelerType? travelerType;
   final String? documento;
-  final String? selfiePath;
+  final String? selfieUrl;
   final List<String>? rutas;
   final bool verificado;
   final bool bloqueado;
   final bool telefonoVerificado;
   final bool emailVerificado;
+
+  String? get selfiePath => selfieUrl;
 
   UserModel({
     required this.id,
@@ -31,7 +33,7 @@ class UserModel {
     required this.tipo,
     this.travelerType,
     this.documento,
-    this.selfiePath,
+    this.selfieUrl,
     this.rutas,
     this.verificado = false,
     this.bloqueado = false,
@@ -67,9 +69,13 @@ class UserModel {
       documento: travelerProfile is Map<String, dynamic>
           ? travelerProfile['documentNumber']?.toString()
           : json['documento']?.toString(),
-      selfiePath: travelerProfile is Map<String, dynamic>
-          ? travelerProfile['selfieUrl']?.toString() ?? json['selfieUrl']?.toString()
-          : json['selfieUrl']?.toString() ?? json['selfiePath']?.toString(),
+      selfieUrl: travelerProfile is Map<String, dynamic>
+          ? travelerProfile['selfieUrl']?.toString() ??
+              json['selfieUrl']?.toString() ??
+              json['fotoPerfil']?.toString()
+          : json['selfieUrl']?.toString() ??
+              json['fotoPerfil']?.toString() ??
+              json['selfiePath']?.toString(),
       rutas: derivedRoutes.isNotEmpty
           ? derivedRoutes
           : travelerProfile is Map<String, dynamic>
@@ -104,7 +110,7 @@ class UserModel {
         json['travelerType']?.toString(),
       ),
       documento: json['documento']?.toString(),
-      selfiePath: json['selfiePath']?.toString(),
+      selfieUrl: json['selfieUrl']?.toString() ?? json['selfiePath']?.toString(),
       rutas: (json['rutas'] as List?)?.map((e) => e.toString()).toList(),
       verificado: json['verificado'] == true,
       bloqueado: json['bloqueado'] == true,
@@ -112,6 +118,12 @@ class UserModel {
       emailVerificado: json['emailVerificado'] == true,
     );
   }
+
+  factory UserModel.fromJson(Map<String, dynamic> json) =>
+      UserModel.fromBackendJson(json);
+
+  factory UserModel.fromMap(Map<String, dynamic> json) =>
+      UserModel.fromStorageJson(json);
 
   UserModel copyWith({
     String? id,
@@ -125,7 +137,7 @@ class UserModel {
     String? tipo,
     TravelerType? travelerType,
     String? documento,
-    String? selfiePath,
+    String? selfieUrl,
     List<String>? rutas,
     bool? verificado,
     bool? bloqueado,
@@ -144,7 +156,7 @@ class UserModel {
       tipo: tipo ?? this.tipo,
       travelerType: travelerType ?? this.travelerType,
       documento: documento ?? this.documento,
-      selfiePath: selfiePath ?? this.selfiePath,
+      selfieUrl: selfieUrl ?? this.selfieUrl,
       rutas: rutas ?? this.rutas,
       verificado: verificado ?? this.verificado,
       bloqueado: bloqueado ?? this.bloqueado,
@@ -153,7 +165,7 @@ class UserModel {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'nombre': nombre,
@@ -166,7 +178,8 @@ class UserModel {
       'tipo': tipo,
       'travelerType': travelerType?.apiValue,
       'documento': documento,
-      'selfiePath': selfiePath,
+      'selfieUrl': selfieUrl,
+      'selfiePath': selfieUrl,
       'rutas': rutas,
       'verificado': verificado,
       'bloqueado': bloqueado,
@@ -174,4 +187,6 @@ class UserModel {
       'emailVerificado': emailVerificado,
     };
   }
+
+  Map<String, dynamic> toJson() => toMap();
 }
