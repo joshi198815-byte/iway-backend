@@ -51,6 +51,11 @@ flutter build appbundle --release --dart-define=API_BASE_URL=https://api.iway.on
 
 ## 🔴 Pendiente crítico
 
+### Migración nueva requerida
+- El modelo `Shipment` ahora incluye `senderName`, `senderPhone`, `senderAddress` y `senderStateRegion`
+- Antes de desplegar backend productivo hay que ejecutar la actualización de Prisma/Postgres para persistir remitente por envío
+- Sin ese cambio de base de datos, el backend nuevo no debe subirse a producción
+
 ### Infraestructura productiva
 - No existe todavía dominio/API HTTPS final
 - `JWT_SECRET` real fuerte todavía debe definirse en entorno productivo

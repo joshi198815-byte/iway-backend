@@ -177,7 +177,7 @@ export class ShipmentsService {
 
         score = Math.max(1, Math.min(100, Math.round(score)));
 
-        const pickupRegion = shipment.senderStateRegion?.trim() || 'sin departamento confirmado';
+        const pickupRegion = (shipment as { senderStateRegion?: string | null }).senderStateRegion?.trim() || 'sin departamento confirmado';
         const insights = [
           activeDirections.includes(shipment.direction) ? 'Coincide con tu ruta activa' : 'Revisa si esta ruta encaja con tu operación',
           `Recogida en ${pickupRegion}`,

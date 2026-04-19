@@ -227,6 +227,10 @@ model Shipment {
   description            String?
   declaredValue          Decimal
   weightLb               Decimal?
+  senderName             String?
+  senderPhone            String?
+  senderAddress          String?
+  senderStateRegion      String?
   receiverName           String
   receiverPhone          String
   receiverAddress        String
