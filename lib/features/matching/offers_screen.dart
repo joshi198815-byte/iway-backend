@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/matching/models/offer_model.dart';
 import 'package:iway_app/features/matching/services/matching_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
@@ -29,6 +31,9 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   final shipmentService = ShipmentService();
   final priceController = TextEditingController();
   final realtime = RealtimeService.instance;
+  final locationService = LocationService();
+
+  Position? currentPosition;
 
   ShipmentModel? shipment;
   List<OfferModel> offers = [];
@@ -44,6 +49,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadCurrentPosition();
     loadOffers();
     bindRealtime();
   }
@@ -82,6 +88,12 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     if (state == AppLifecycleState.resumed) {
       loadOffers();
     }
+  }
+
+  Future<void> _loadCurrentPosition() async {
+    final position = await locationService.getLocation();
+    if (!mounted) return;
+    setState(() => currentPosition = position);
   }
 
   Future<void> loadOffers() async {
@@ -287,6 +299,25 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     return 'Todavía no hay punto exacto confirmado.';
   }
 
+  String? _distanceToPickupLabel(ShipmentModel shipment) {
+    final origin = currentPosition;
+    if (origin == null || shipment.pickupLat == null || shipment.pickupLng == null) {
+      return null;
+    }
+
+    final meters = Geolocator.distanceBetween(
+      origin.latitude,
+      origin.longitude,
+      shipment.pickupLat!,
+      shipment.pickupLng!,
+    );
+
+    if (meters < 1000) {
+      return '${meters.round()} m de tu ubicación actual';
+    }
+    return '${(meters / 1000).toStringAsFixed(1)} km de tu ubicación actual';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -370,6 +401,11 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       'Punto sugerido de encuentro: ${_recommendedPickupPoint(shipment!)}',
                                       style: const TextStyle(color: AppTheme.muted),
                                     ),
+                                    if (_distanceToPickupLabel(shipment!) != null)
+                                      Text(
+                                        'Distancia aproximada: ${_distanceToPickupLabel(shipment!)}',
+                                        style: const TextStyle(color: AppTheme.muted),
+                                      ),
                                     if (shipment!.remitenteNombre.isNotEmpty)
                                       Text(
                                         'Remitente: ${shipment!.remitenteNombre}',
