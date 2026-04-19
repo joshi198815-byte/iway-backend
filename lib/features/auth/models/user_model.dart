@@ -8,6 +8,7 @@ class UserModel {
   final String pais;
   final String estado;
   final String direccion;
+  final String ciudad;
   final String tipo;
   final TravelerType? travelerType;
   final String? documento;
@@ -26,6 +27,7 @@ class UserModel {
     required this.pais,
     required this.estado,
     required this.direccion,
+    required this.ciudad,
     required this.tipo,
     this.travelerType,
     this.documento,
@@ -55,6 +57,7 @@ class UserModel {
       pais: (json['detectedCountryCode'] ?? json['countryCode'] ?? '').toString(),
       estado: stateRegion,
       direccion: (json['address'] ?? json['direccion'] ?? '').toString(),
+      ciudad: (json['city'] ?? json['ciudad'] ?? '').toString(),
       tipo: (json['role'] ?? json['tipo'] ?? '').toString(),
       travelerType: travelerProfile is Map<String, dynamic>
           ? TravelerTypeExtension.fromApiValue(
@@ -95,6 +98,7 @@ class UserModel {
       pais: (json['pais'] ?? '').toString(),
       estado: (json['estado'] ?? '').toString(),
       direccion: (json['direccion'] ?? '').toString(),
+      ciudad: (json['ciudad'] ?? '').toString(),
       tipo: (json['tipo'] ?? '').toString(),
       travelerType: TravelerTypeExtension.fromApiValue(
         json['travelerType']?.toString(),
@@ -117,6 +121,7 @@ class UserModel {
     String? pais,
     String? estado,
     String? direccion,
+    String? ciudad,
     String? tipo,
     TravelerType? travelerType,
     String? documento,
@@ -135,6 +140,7 @@ class UserModel {
       pais: pais ?? this.pais,
       estado: estado ?? this.estado,
       direccion: direccion ?? this.direccion,
+      ciudad: ciudad ?? this.ciudad,
       tipo: tipo ?? this.tipo,
       travelerType: travelerType ?? this.travelerType,
       documento: documento ?? this.documento,
@@ -156,6 +162,7 @@ class UserModel {
       'pais': pais,
       'estado': estado,
       'direccion': direccion,
+      'ciudad': ciudad,
       'tipo': tipo,
       'travelerType': travelerType?.apiValue,
       'documento': documento,

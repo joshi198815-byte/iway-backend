@@ -30,13 +30,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? response
         : {
             statusCode: status,
-            message: isHttpException ? response : 'Internal server error',
+            message: isHttpException ? response : 'Error interno del servidor',
           };
 
     const errorMessage =
       typeof payload === 'object' && payload !== null && 'message' in payload
         ? String((payload as { message?: unknown }).message)
-        : 'Internal server error';
+        : 'Error interno del servidor';
 
     runtimeObservability.recordError({
       requestId,

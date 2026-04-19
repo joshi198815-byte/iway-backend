@@ -104,9 +104,7 @@ class _ContactVerificationScreenState extends State<ContactVerificationScreen> {
     await SessionService.markCurrentPhoneVerifiedLocally();
     try {
       await _authService.markPhoneVerified();
-    } catch (_) {
-      // Mantener la validación local aunque la sincronización remota falle temporalmente.
-    }
+    } catch (_) {}
     if (!mounted) return;
     setState(() => verifyingCode = false);
     showMessage('Tu cuenta quedó validada.');

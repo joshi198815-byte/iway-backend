@@ -127,12 +127,12 @@ export class RealtimeGateway implements OnGatewayConnection {
       (client.handshake.headers.authorization as string | undefined);
 
     if (!rawToken) {
-      throw new UnauthorizedException('missing token');
+      throw new UnauthorizedException('Token requerido.');
     }
 
     const token = rawToken.replace(/^Bearer\s+/i, '').trim();
     if (!token) {
-      throw new UnauthorizedException('invalid token');
+      throw new UnauthorizedException('Token inválido.');
     }
 
     return this.jwtService.verify<AuthUser>(token, {

@@ -34,7 +34,7 @@ export class HealthService {
       return {
         ok: false,
         latencyMs: Date.now() - startedAt,
-        message: error instanceof Error ? error.message : 'database check failed',
+        message: error instanceof Error ? error.message : 'falló la verificación de base de datos',
       };
     }
   }

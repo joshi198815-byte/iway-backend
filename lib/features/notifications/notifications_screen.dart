@@ -175,7 +175,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'shipment_status_changed':
         return 'Operación';
       case 'tracking_updated':
-        return 'Tracking';
+        return 'Seguimiento';
       case 'rating':
         return 'Calificación';
       case 'traveler_verification':

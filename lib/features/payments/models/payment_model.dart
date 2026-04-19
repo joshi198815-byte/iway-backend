@@ -5,7 +5,7 @@ class PaymentModel {
   final String shipmentId;
 
   final double monto;
-  final String tipo; // libra | tierra
+  final String tipo;
 
   final bool pagado;
 
