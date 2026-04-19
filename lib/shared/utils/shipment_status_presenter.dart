@@ -1,68 +1,68 @@
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/shared/models/shipment_status.dart';
 
 class ShipmentStatusPresenter {
   static String label(String status) {
-    switch (status) {
-      case 'published':
+    switch (parseShipmentStatus(status)) {
+      case ShipmentStatusValue.published:
         return 'Publicado';
-      case 'offered':
+      case ShipmentStatusValue.offered:
         return 'Con ofertas';
-      case 'assigned':
+      case ShipmentStatusValue.assigned:
         return 'Asignado';
-      case 'picked_up':
+      case ShipmentStatusValue.pickedUp:
         return 'Recogido';
-      case 'in_transit':
+      case ShipmentStatusValue.inTransit:
         return 'En ruta';
-      case 'in_delivery':
+      case ShipmentStatusValue.inDelivery:
         return 'Por entregar';
-      case 'delivered':
+      case ShipmentStatusValue.delivered:
         return 'Entregado';
-      case 'disputed':
+      case ShipmentStatusValue.disputed:
         return 'En disputa';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
+      case null:
         return status.isEmpty ? 'Sin estado' : status;
     }
   }
 
   static String helper(String status) {
-    switch (status) {
-      case 'published':
+    switch (parseShipmentStatus(status)) {
+      case ShipmentStatusValue.published:
         return 'El envío ya está publicado y puede recibir ofertas.';
-      case 'offered':
+      case ShipmentStatusValue.offered:
         return 'Ya hay propuestas activas esperando decisión.';
-      case 'assigned':
+      case ShipmentStatusValue.assigned:
         return 'El envío ya tiene viajero asignado.';
-      case 'picked_up':
+      case ShipmentStatusValue.pickedUp:
         return 'El paquete fue recogido y sigue en operación.';
-      case 'in_transit':
+      case ShipmentStatusValue.inTransit:
         return 'El envío va en ruta hacia el destino.';
-      case 'in_delivery':
+      case ShipmentStatusValue.inDelivery:
         return 'Está en la fase final antes de entregarse.';
-      case 'delivered':
+      case ShipmentStatusValue.delivered:
         return 'La entrega fue cerrada operativamente.';
-      case 'disputed':
+      case ShipmentStatusValue.disputed:
         return 'Hay una incidencia abierta y soporte debe revisarla.';
-      case 'cancelled':
-        return 'Este envío fue cancelado y ya no sigue operativo.';
-      default:
+      case null:
         return 'Estado operativo actualizado.';
     }
   }
 
   static Color tone(String status) {
-    switch (status) {
-      case 'delivered':
+    switch (parseShipmentStatus(status)) {
+      case ShipmentStatusValue.delivered:
         return Colors.greenAccent;
-      case 'in_delivery':
+      case ShipmentStatusValue.inDelivery:
         return const Color(0xFFFFD27A);
-      case 'disputed':
+      case ShipmentStatusValue.disputed:
         return const Color(0xFFFF9A8B);
-      case 'cancelled':
-        return AppTheme.muted;
-      default:
+      case ShipmentStatusValue.published:
+      case ShipmentStatusValue.offered:
+      case ShipmentStatusValue.assigned:
+      case ShipmentStatusValue.pickedUp:
+      case ShipmentStatusValue.inTransit:
+      case null:
         return AppTheme.primary;
     }
   }

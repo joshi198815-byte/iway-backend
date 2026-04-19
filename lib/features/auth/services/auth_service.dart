@@ -2,6 +2,7 @@ import 'package:iway_app/features/auth/models/traveler_type.dart';
 import 'package:iway_app/features/auth/models/user_model.dart';
 import 'package:iway_app/features/notifications/services/push_notification_service.dart';
 import 'package:iway_app/services/api_client.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 
 class AuthService {
@@ -26,6 +27,7 @@ class AuthService {
       accessToken: data['accessToken']?.toString(),
     );
     await PushNotificationService.syncTokenIfPossible();
+    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 
@@ -61,6 +63,7 @@ class AuthService {
       accessToken: data['accessToken']?.toString(),
     );
     await PushNotificationService.syncTokenIfPossible();
+    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 
@@ -110,6 +113,7 @@ class AuthService {
       accessToken: data['accessToken']?.toString(),
     );
     await PushNotificationService.syncTokenIfPossible();
+    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 

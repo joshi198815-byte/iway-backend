@@ -31,8 +31,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   List<ShipmentModel> shipments = [];
   bool loading = true;
   StreamSubscription<dynamic>? notificationSubscription;
-  StreamSubscription<dynamic>? offerSubscription;
-  StreamSubscription<dynamic>? shipmentStatusSubscription;
+  StreamSubscription<dynamic>? globalSyncSubscription;
 
   @override
   void initState() {
@@ -46,8 +45,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   Future<void> _bindRealtime() async {
     await realtime.ensureConnected();
     notificationSubscription = realtime.notificationUpdated.listen((_) => loadShipments());
-    offerSubscription = realtime.offerUpdated.listen((_) => loadShipments());
-    shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((_) => loadShipments());
+    globalSyncSubscription = realtime.globalEntitySync.listen((_) => loadShipments());
   }
 
   Future<void> _loadCurrentPosition() async {
@@ -59,9 +57,6 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   Future<void> loadShipments() async {
     try {
       final data = await shipmentService.getAvailableShipments();
-      await Future.wait(
-        data.map((shipment) => realtime.joinOffers(shipment.id)),
-      );
       if (!mounted) return;
       setState(() {
         shipments = data;
@@ -86,8 +81,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     notificationSubscription?.cancel();
-    offerSubscription?.cancel();
-    shipmentStatusSubscription?.cancel();
+    globalSyncSubscription?.cancel();
     super.dispose();
   }
 

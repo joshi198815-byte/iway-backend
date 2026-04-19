@@ -31,8 +31,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.surface,
-        title: const Text('¿Salir de la app?'),
-        content: const Text('Si sales ahora, se cerrará iWay en este dispositivo.'),
+        title: const Text('¿Quieres salir de i-way?'),
+        content: const Text('Si sales ahora, se cerrará i-way en este dispositivo.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),

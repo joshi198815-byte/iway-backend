@@ -1,3 +1,5 @@
+import 'package:iway_app/shared/models/shipment_status.dart';
+
 class ShipmentModel {
   final String id;
   final String userId;
@@ -29,6 +31,8 @@ class ShipmentModel {
   final int offerCount;
   final List<String> marketplaceInsights;
   String estado;
+
+  ShipmentStatusValue? get statusValue => parseShipmentStatus(estado);
 
   ShipmentModel({
     required this.id,
