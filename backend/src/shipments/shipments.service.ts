@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ShipmentStatus, TravelerStatus } from '@prisma/client';
+import { OfferStatus, ShipmentStatus, TravelerStatus } from '@prisma/client';
 import { CommissionsService } from '../commissions/commissions.service';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { GeoService } from '../geo/geo.service';
@@ -231,7 +231,7 @@ export class ShipmentsService {
         offers: {
           none: {
             travelerId,
-            status: { in: ['pending', 'accepted'] },
+            status: { in: [OfferStatus.pending, OfferStatus.accepted] },
           },
         },
       },

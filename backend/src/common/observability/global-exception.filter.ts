@@ -25,12 +25,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       : HttpStatus.INTERNAL_SERVER_ERROR;
     const response = isHttpException ? exception.getResponse() : null;
 
+    const isDebug = (process.env.NODE_ENV ?? 'development') !== 'production';
+    const prismaDebugMessage =
+      !isHttpException &&
+      isDebug &&
+      exception instanceof Error &&
+      exception.name.startsWith('Prisma')
+        ? exception.message
+        : null;
+
     const payload =
       typeof response === 'object' && response !== null
         ? response
         : {
             statusCode: status,
-            message: isHttpException ? response : 'Error interno del servidor',
+            message: isHttpException
+              ? response
+              : prismaDebugMessage ?? 'Error interno del servidor',
           };
 
     const errorMessage =

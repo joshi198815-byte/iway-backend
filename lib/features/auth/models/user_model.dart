@@ -9,11 +9,15 @@ class UserModel {
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
 
     final base = AppEnv.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
-    if (value.startsWith('/')) {
-      return '$base$value';
+    final normalizedPath = value.startsWith('/api/')
+        ? value.substring(4)
+        : value;
+
+    if (normalizedPath.startsWith('/')) {
+      return '$base$normalizedPath';
     }
 
-    return '$base/$value';
+    return '$base/$normalizedPath';
   }
 
   final String id;

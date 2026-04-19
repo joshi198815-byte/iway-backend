@@ -100,7 +100,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _resolveImageUrl(String value) {
     if (value.startsWith('http://') || value.startsWith('https://')) return value;
-    return '${ApiClient.baseUrl}$value';
+
+    final base = ApiClient.baseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    final normalizedPath = value.startsWith('/api/') ? value.substring(4) : value;
+    return normalizedPath.startsWith('/') ? '$base$normalizedPath' : '$base/$normalizedPath';
   }
 
   Future<void> _pickProfilePhoto(ImageSource source) async {
@@ -233,7 +236,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         radius: 44,
                         backgroundColor: AppTheme.surfaceSoft,
                         backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-                            ? NetworkImage(_resolveImageUrl(photoUrl))
+                            ? NetworkImage(
+                                _resolveImageUrl(photoUrl),
+                                headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
+                                    ? null
+                                    : {'Authorization': 'Bearer ${SessionService.currentAccessToken!}'},
+                              )
                             : null,
                         child: photoUrl == null || photoUrl.isEmpty
                             ? const Icon(Icons.person_outline_rounded, size: 40, color: AppTheme.accent)
