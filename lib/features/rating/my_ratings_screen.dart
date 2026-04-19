@@ -91,8 +91,8 @@ class _MyRatingsScreenState extends State<MyRatingsScreen> {
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
                       const AppPageIntro(
-                        title: 'Calificaciones recibidas',
-                        subtitle: 'Aquí puedes ver quién te calificó y qué comentó.',
+                        title: 'Mis calificaciones',
+                        subtitle: 'Mira quién te calificó, cuántas estrellas te dio y qué comentó sobre el paquete.',
                       ),
                       const SizedBox(height: 18),
                       Expanded(

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { TravelersService } from './travelers.service';
 import { RegisterTravelerDto } from './dto/register-traveler.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -17,6 +17,21 @@ export class TravelersController {
   @Get('allowed-routes/:travelerType')
   getAllowedRoutes(@Param('travelerType') travelerType: 'avion_ida_vuelta' | 'avion_tierra' | 'solo_tierra') {
     return this.travelersService.getAllowedDirectionsByType(travelerType);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/workspace')
+  getMyWorkspace(@Req() req: any) {
+    return this.travelersService.getWorkspace(req.user.sub, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/workspace')
+  updateMyWorkspace(
+    @Body() body: { isOnline?: boolean; routes?: string[] },
+    @Req() req: any,
+  ) {
+    return this.travelersService.updateWorkspace(req.user.sub, body, req.user);
   }
 
   @UseGuards(JwtAuthGuard)

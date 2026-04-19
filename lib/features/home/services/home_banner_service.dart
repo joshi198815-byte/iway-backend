@@ -28,8 +28,8 @@ class HomeBannerService {
 
   final ApiClient _apiClient;
 
-  Future<List<HomeBannerItem>> getHomeBanners() async {
-    final data = await _apiClient.get('/content/home-banners');
+  Future<List<HomeBannerItem>> getHomeBanners({bool traveler = false}) async {
+    final data = await _apiClient.get(traveler ? '/content/traveler-banners' : '/content/home-banners');
     if (data is! List) return const [];
     return data.whereType<Map<String, dynamic>>().map(HomeBannerItem.fromJson).toList();
   }

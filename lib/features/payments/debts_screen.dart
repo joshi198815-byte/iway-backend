@@ -402,9 +402,92 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
     return '\$${calculationBase.toStringAsFixed(2)} × ${(appliedRate * 100).toStringAsFixed(2)}%';
   }
 
+  void _showDebtBreakdown() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            const Text('Detalle de deuda pendiente', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 8),
+            const Text('Aquí ves exactamente de qué paquetes sale tu deuda con i-Way.', style: TextStyle(color: AppTheme.muted)),
+            const SizedBox(height: 16),
+            if (commissions.isEmpty)
+              const Text('No tienes deuda pendiente.', style: TextStyle(color: AppTheme.muted))
+            else
+              ...commissions.map((item) {
+                final amount = _toAmount(item['commissionAmount']);
+                final shipmentId = item['shipmentId']?.toString() ?? 'Sin envío';
+                final status = item['status']?.toString() ?? 'pending';
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceSoft,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Paquete $shipmentId', style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(_formatStatus(status), style: const TextStyle(color: AppTheme.muted)),
+                          ],
+                        ),
+                      ),
+                      Text('\$${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isBlocked = SessionService.currentUser?.bloqueado == true;
+    final now = DateTime.now();
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final monthStart = DateTime(now.year, now.month, 1);
+    final yearStart = DateTime(now.year, 1, 1);
+    final weekEarnings = _ledgerCreditsSince(weekStart);
+    final monthEarnings = _ledgerCreditsSince(monthStart);
+    final yearEarnings = _ledgerCreditsSince(yearStart);
+
+    Widget metric({required String label, required String value, VoidCallback? onTap}) {
+      final card = Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+          ],
+        ),
+      );
+
+      return Expanded(
+        child: onTap == null ? card : InkWell(onTap: onTap, borderRadius: BorderRadius.circular(22), child: card),
+      );
+    }
 
     return Scaffold(
       body: Container(
@@ -412,11 +495,7 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF101116),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
           ),
         ),
         child: SafeArea(
@@ -430,353 +509,92 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
                       const AppPageIntro(
-                        title: 'Wallet y comisiones',
-                        subtitle: 'Consulta tus ganancias, tus pendientes con i-Way y el estado de tus pagos.',
+                        title: 'Wallet',
+                        subtitle: 'Tus ingresos y tu deuda pendiente, sin ruido visual.',
                       ),
                       const SizedBox(height: 20),
                       if (isBlocked || total > 0) ...[
                         AppOperationalBanner(
                           icon: isBlocked ? Icons.lock_outline_rounded : Icons.account_balance_wallet_outlined,
-                          title: isBlocked ? 'Cuenta restringida por deuda' : 'Saldo pendiente activo',
-                          message: isBlocked
-                              ? 'Tu cuenta tiene restricciones operativas hasta regularizar el saldo pendiente.'
-                              : 'Todavía tienes comisiones pendientes. Tu operación puede quedar limitada al llegar al corte.',
+                          title: isBlocked ? 'Cuenta restringida por deuda' : 'Deuda pendiente con i-Way',
+                          message: total > 0
+                              ? 'Toca el bloque de deuda para ver exactamente qué paquetes la componen.'
+                              : 'Tu cuenta tiene una restricción operativa activa.',
                           tone: isBlocked ? const Color(0xFFFF8A7A) : const Color(0xFFFFD27A),
                         ),
                         const SizedBox(height: 16),
                       ],
-                      Builder(
-                        builder: (context) {
-                          final now = DateTime.now();
-                          final weekStart = now.subtract(Duration(days: now.weekday - 1));
-                          final monthStart = DateTime(now.year, now.month, 1);
-                          final yearStart = DateTime(now.year, 1, 1);
-                          final weekEarnings = _ledgerCreditsSince(weekStart);
-                          final monthEarnings = _ledgerCreditsSince(monthStart);
-                          final yearEarnings = _ledgerCreditsSince(yearStart);
-
-                          Widget metric(String label, String value) {
-                            return Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.surface,
-                                  borderRadius: BorderRadius.circular(22),
-                                  border: Border.all(color: AppTheme.border),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(label, style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700)),
-                                    const SizedBox(height: 8),
-                                    Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }
-
-                          return Column(
-                            children: [
-                              Row(
-                                children: [
-                                  metric('Semana', '\$${weekEarnings.toStringAsFixed(2)}'),
-                                  const SizedBox(width: 10),
-                                  metric('Mes', '\$${monthEarnings.toStringAsFixed(2)}'),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Row(
-                                children: [
-                                  metric('Año', '\$${yearEarnings.toStringAsFixed(2)}'),
-                                  const SizedBox(width: 10),
-                                  metric('Pendiente i-Way', '\$${total.toStringAsFixed(2)}'),
-                                ],
-                              ),
-                            ],
-                          );
-                        },
+                      Row(
+                        children: [
+                          metric(label: 'Semana', value: '\$${weekEarnings.toStringAsFixed(2)}'),
+                          const SizedBox(width: 10),
+                          metric(label: 'Mes', value: '\$${monthEarnings.toStringAsFixed(2)}'),
+                        ],
                       ),
-                      const SizedBox(height: 16),
-                      if (total > 0) ...[
-                        AppGlassSection(
-                          title: 'Reportar pago',
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Sube tu comprobante y registra la referencia bancaria para acelerar la conciliación manual.',
-                                style: TextStyle(color: AppTheme.muted, height: 1.35),
-                              ),
-                              const SizedBox(height: 14),
-                              ElevatedButton(
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          metric(label: 'Año', value: '\$${yearEarnings.toStringAsFixed(2)}'),
+                          const SizedBox(width: 10),
+                          metric(
+                            label: 'Deuda Pendiente i-Way',
+                            value: '\$${total.toStringAsFixed(2)}',
+                            onTap: _showDebtBreakdown,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      AppGlassSection(
+                        title: 'Reportar pago',
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Sube tu comprobante. El reporte viaja al Admin Web para validación manual.',
+                              style: TextStyle(color: AppTheme.muted, height: 1.35),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
                                 onPressed: submittingTransfer ? null : submitTransfer,
                                 child: submittingTransfer
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Text('Subir y reportar pago'),
+                                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                    : const Text('Subir comprobante'),
                               ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      AppGlassSection(
-                        title: 'Día de corte',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            DropdownButtonFormField<int>(
-                              initialValue: selectedCutoffDay,
-                              decoration: const InputDecoration(labelText: 'Corte semanal'),
-                              items: List.generate(7, (index) {
-                                final day = index + 1;
-                                return DropdownMenuItem(value: day, child: Text(_cutoffLabel(day)));
-                              }),
-                              onChanged: savingCutoff ? null : updateCutoffDay,
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              savingCutoff
-                                  ? 'Actualizando tu preferencia de corte...'
-                                  : 'Tu deuda semanal se agrupa y vence según este día.',
-                              style: const TextStyle(color: AppTheme.muted),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      AppGlassSection(
-                        title: 'Tarifa activa',
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Por libra: \$${commissionPerLb.toStringAsFixed(2)} por lb',
-                              style: const TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Por tierra/carga: ${(groundCommissionPercent * 100).toStringAsFixed(2)}% sobre valor declarado en USD',
-                              style: const TextStyle(color: AppTheme.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      if (payoutPolicy != null) ...[
-                        AppGlassSection(
-                          title: 'Estado de pagos',
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Revisión: ${payoutPolicy!['policy'] == 'manual_review' ? 'manual' : 'automática'} • Nivel de verificación: ${payoutPolicy!['kycTier'] == 'premium' ? 'alto' : payoutPolicy!['kycTier'] == 'enhanced' ? 'medio' : 'básico'} • Confianza: ${(payoutPolicy!['trustScore'] ?? 0)} / 100',
-                                style: const TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Tiempo estimado de pago: ${(payoutPolicy!['payoutDelayHours'] ?? 0)}h • Monto máximo con aprobación automática: \$${((payoutPolicy!['maxAutoApprovalAmount'] as num?)?.toDouble() ?? 0).toStringAsFixed(2)}',
-                                style: const TextStyle(color: AppTheme.muted),
-                              ),
-                              if (payoutPolicy!['reasons'] is List && (payoutPolicy!['reasons'] as List).isNotEmpty) ...[
-                                const SizedBox(height: 8),
-                                ...((payoutPolicy!['reasons'] as List).take(2)).map(
-                                  (reason) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 4),
-                                    child: Text(
-                                      '• ${reason.toString()}',
-                                      style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
                       if (transfers.isNotEmpty) ...[
+                        const SizedBox(height: 16),
                         AppGlassSection(
-                          title: 'Transferencias recientes',
+                          title: 'Últimos reportes',
                           child: Column(
                             children: transfers.take(3).map((item) {
-                              final amount = (item['transferredAmount'] as num?)?.toDouble() ?? 0;
+                              final amount = _toAmount(item['transferredAmount']);
                               final status = item['status']?.toString() ?? 'submitted';
-                              final statusLabel = _formatTransferStatus(status);
-                              final statusColor = _transferStatusColor(status);
-                              final reason = item['reviewReason']?.toString();
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Estado: $statusLabel',
-                                            style: TextStyle(fontWeight: FontWeight.w700, color: statusColor),
-                                          ),
-                                          if (reason != null && reason.isNotEmpty) ...[
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              reason,
-                                              style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                            ),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '\$${amount.toStringAsFixed(2)}',
-                                      style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (ledger.isNotEmpty) ...[
-                        AppGlassSection(
-                          title: 'Movimientos recientes',
-                          child: Column(
-                            children: ledger.take(4).map((item) {
-                              final amount = (item['amount'] as num?)?.toDouble() ?? 0;
-                              final balance = (item['balanceAfter'] as num?)?.toDouble() ?? 0;
-                              final direction = item['direction']?.toString() ?? 'debit';
-                              final description = item['description']?.toString() ?? 'Movimiento';
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            description,
-                                            style: const TextStyle(fontWeight: FontWeight.w700),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Balance: \$${balance.toStringAsFixed(2)}',
-                                            style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      '${direction == 'credit' ? '+' : '-'}\$${amount.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        color: direction == 'credit' ? const Color(0xFF59D38C) : const Color(0xFFFFD27A),
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                      if (settlements.isNotEmpty) ...[
-                        AppGlassSection(
-                          title: 'Cortes recientes',
-                          child: Column(
-                            children: settlements.take(3).map((item) {
-                              final pending = (item['totalPending'] as num?)?.toDouble() ?? 0;
-                              final weekEnd = item['weekEnd']?.toString() ?? '';
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 10),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: Text(
-                                        weekEnd.isEmpty ? 'Corte semanal' : 'Corte ${weekEnd.substring(0, 10)}',
-                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                        _formatTransferStatus(status),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: _transferStatusColor(status),
+                                        ),
                                       ),
                                     ),
-                                    Text(
-                                      '\$${pending.toStringAsFixed(2)}',
-                                      style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700),
-                                    ),
+                                    Text('\$${amount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                                   ],
                                 ),
                               );
                             }).toList(),
                           ),
                         ),
-                        const SizedBox(height: 16),
                       ],
-                      commissions.isEmpty
-                          ? const Padding(
-                              padding: EdgeInsets.only(top: 8, bottom: 8),
-                              child: Center(child: Text('No hay comisiones pendientes.')),
-                            )
-                          : ListView.separated(
-                              itemCount: commissions.length,
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              separatorBuilder: (_, __) => const SizedBox(height: 12),
-                              itemBuilder: (context, index) {
-                                final item = commissions[index];
-                                final amount = (item['commissionAmount'] as num?)?.toDouble() ?? 0;
-                                final shipmentId = item['shipmentId']?.toString() ?? 'Sin envío';
-                                final status = item['status']?.toString() ?? 'pending';
-
-                                return Container(
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.surface,
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(color: AppTheme.border),
-                                  ),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Container(
-                                        width: 42,
-                                        height: 42,
-                                        decoration: BoxDecoration(
-                                          color: AppTheme.surfaceSoft,
-                                          borderRadius: BorderRadius.circular(14),
-                                        ),
-                                        child: const Icon(Icons.account_balance_wallet_outlined, color: AppTheme.accent),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text('Pedido $shipmentId', style: const TextStyle(fontWeight: FontWeight.w700)),
-                                            const SizedBox(height: 6),
-                                            Text('Estado: ${_formatStatus(status)}', style: const TextStyle(color: AppTheme.muted)),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              'Cálculo: ${_formatRule(item)}',
-                                              style: const TextStyle(color: AppTheme.muted),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        '\$${amount.toStringAsFixed(2)}',
-                                        style: const TextStyle(fontWeight: FontWeight.w700),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
                     ],
                   ),
                 ),

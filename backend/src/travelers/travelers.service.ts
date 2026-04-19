@@ -20,6 +20,9 @@ export class TravelersService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  private readonly workspaceEntityType = 'traveler_workspace';
+  private readonly workspaceAction = 'traveler_workspace_updated';
+
   private normalizeDecimal(value: unknown) {
     const parsed = Number(value ?? 0);
     return Number.isFinite(parsed) ? parsed : 0;
@@ -34,6 +37,80 @@ export class TravelersService {
       case TravelerType.solo_tierra:
         return [ShipmentDirection.us_to_gt];
     }
+  }
+
+  private normalizeRoutes(routes: unknown): string[] {
+    if (!Array.isArray(routes)) {
+      return [];
+    }
+
+    return [...new Set(
+      routes
+        .map((item) => item?.toString().trim())
+        .filter((item): item is string => Boolean(item && item.length > 0)),
+    )];
+  }
+
+  async getWorkspace(userId: string, requester: { sub: string; role: string }) {
+    if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
+      throw new ForbiddenException('No tienes acceso a esta configuración de trabajo.');
+    }
+
+    const traveler = await this.prisma.travelerProfile.findUnique({
+      where: { userId },
+      select: { userId: true },
+    });
+
+    if (!traveler) {
+      throw new NotFoundException('Perfil de viajero no encontrado.');
+    }
+
+    const latestWorkspace = await this.prisma.auditLog.findFirst({
+      where: {
+        entityType: this.workspaceEntityType,
+        entityId: userId,
+        action: this.workspaceAction,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const payload = latestWorkspace?.payload as Record<string, unknown> | null | undefined;
+    return {
+      isOnline: payload?.isOnline !== false,
+      routes: this.normalizeRoutes(payload?.routes),
+      updatedAt: latestWorkspace?.createdAt ?? null,
+    };
+  }
+
+  async updateWorkspace(
+    userId: string,
+    payload: { isOnline?: boolean; routes?: string[] },
+    requester: { sub: string; role: string },
+  ) {
+    if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
+      throw new ForbiddenException('No tienes acceso a esta configuración de trabajo.');
+    }
+
+    const current = await this.getWorkspace(userId, requester);
+    const next: { isOnline: boolean; routes: string[] } = {
+      isOnline: payload.isOnline ?? current.isOnline,
+      routes: payload.routes != null ? this.normalizeRoutes(payload.routes) : current.routes,
+    };
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: requester.sub,
+        entityType: this.workspaceEntityType,
+        entityId: userId,
+        action: this.workspaceAction,
+        payload: next,
+      },
+    });
+
+    return {
+      ...next,
+      updatedAt: new Date(),
+    };
   }
 
   async createTravelerProfile(payload: CreateTravelerProfileDto) {

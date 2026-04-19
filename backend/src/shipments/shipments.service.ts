@@ -23,6 +23,29 @@ export class ShipmentsService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  private async getTravelerWorkspace(userId: string) {
+    const latestWorkspace = await this.prisma.auditLog.findFirst({
+      where: {
+        entityType: 'traveler_workspace',
+        entityId: userId,
+        action: 'traveler_workspace_updated',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const payload = latestWorkspace?.payload as Record<string, unknown> | null | undefined;
+    const routes = Array.isArray(payload?.routes)
+      ? [...new Set(payload!.routes
+          .map((item) => item?.toString().trim().toLowerCase())
+          .filter((item): item is string => Boolean(item && item.length > 0)))]
+      : [];
+
+    return {
+      isOnline: payload?.isOnline !== false,
+      routes,
+    };
+  }
+
   private buildStatusLabel(status: ShipmentStatus) {
     switch (status) {
       case ShipmentStatus.assigned:
@@ -210,6 +233,11 @@ export class ShipmentsService {
       return [];
     }
 
+    const workspace = await this.getTravelerWorkspace(travelerId);
+    if (!workspace.isOnline) {
+      return [];
+    }
+
     const activeDirections = [...new Set(travelerProfile.routes.map((route) => route.direction))] as ShipmentDirection[];
 
     const shipments = await this.prisma.shipment.findMany({
@@ -249,6 +277,21 @@ export class ShipmentsService {
     });
 
     return shipments
+      .filter((shipment) => {
+        if (workspace.routes.length === 0) {
+          return true;
+        }
+
+        const haystack = [
+          shipment.receiverAddress,
+          shipment.senderStateRegion,
+          shipment.destinationCountryCode,
+        ]
+          .map((item) => (item ?? '').toString().trim().toLowerCase())
+          .join(' ');
+
+        return workspace.routes.some((route: string) => haystack.includes(route));
+      })
       .map((shipment) => {
         const offerCount = shipment.offers.length;
         const minOfferPrice = offerCount > 0

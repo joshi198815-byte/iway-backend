@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/home/services/home_banner_service.dart';
@@ -10,6 +9,7 @@ import 'package:iway_app/features/notifications/models/notification_model.dart';
 import 'package:iway_app/features/notifications/services/notification_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
+import 'package:iway_app/features/traveler/services/traveler_workspace_service.dart';
 import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
@@ -22,11 +22,10 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
-  static const _travelerOnlineKey = 'traveler_online';
-
   final _shipmentService = ShipmentService();
   final _notificationService = NotificationService();
   final _bannerService = HomeBannerService();
+  final _travelerWorkspaceService = TravelerWorkspaceService();
   final _realtime = RealtimeService.instance;
 
   late Future<List<ShipmentModel>> _myShipmentsFuture;
@@ -34,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   List<NotificationModel> _notifications = [];
   StreamSubscription<dynamic>? _globalSyncSubscription;
   bool _travelerOnline = true;
+  bool _updatingTravelerOnline = false;
 
   bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
 
@@ -42,23 +42,48 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _myShipmentsFuture = _shipmentService.getMyShipments();
-    _bannersFuture = _bannerService.getHomeBanners();
-    _loadPreferences();
+    _bannersFuture = _bannerService.getHomeBanners(traveler: _isTraveler);
+    _loadTravelerWorkspace();
     _loadNotifications();
     _bindRealtime();
   }
 
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _travelerOnline = prefs.getBool(_travelerOnlineKey) ?? true);
+  Future<void> _loadTravelerWorkspace() async {
+    if (!_isTraveler) return;
+    try {
+      final workspace = await _travelerWorkspaceService.getWorkspace();
+      if (!mounted) return;
+      setState(() => _travelerOnline = workspace.isOnline);
+    } catch (_) {}
   }
 
   Future<void> _setTravelerOnline(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_travelerOnlineKey, value);
-    if (!mounted) return;
-    setState(() => _travelerOnline = value);
+    if (!_isTraveler || _updatingTravelerOnline) return;
+    setState(() => _updatingTravelerOnline = true);
+    try {
+      final workspace = await _travelerWorkspaceService.updateWorkspace(isOnline: value);
+      if (!mounted) return;
+      setState(() => _travelerOnline = workspace.isOnline);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            workspace.isOnline
+                ? 'Modo En línea activado. Ya puedes recibir oportunidades.'
+                : 'Modo Desconectado activado. Dejaste de recibir oportunidades.',
+          ),
+        ),
+      );
+      await _refreshShipments();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo actualizar tu estado de trabajo.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _updatingTravelerOnline = false);
+      }
+    }
   }
 
   Future<void> _loadNotifications() async {
@@ -81,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!mounted) return;
     setState(() {
       _myShipmentsFuture = _shipmentService.getMyShipments();
-      _bannersFuture = _bannerService.getHomeBanners();
+      _bannersFuture = _bannerService.getHomeBanners(traveler: _isTraveler);
     });
   }
 
@@ -150,24 +175,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               accountName: Text(user?.nombre ?? 'Usuario'),
               accountEmail: Text(user?.email ?? ''),
             ),
-            if (_isTraveler)
-              SwitchListTile(
-                value: _travelerOnline,
-                onChanged: _setTravelerOnline,
-                title: const Text('En línea'),
-                subtitle: Text(_travelerOnline ? 'Recibiendo pedidos compatibles' : 'Desconectado'),
-              ),
             tile(icon: Icons.person_outline, title: 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
-            tile(icon: Icons.history_rounded, title: 'Historial', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            if (_isTraveler)
+              tile(icon: Icons.route_outlined, title: 'Mis rutas', onTap: () => Navigator.pushNamed(context, '/traveler_routes')),
+            if (_isTraveler)
+              tile(icon: Icons.account_balance_wallet_outlined, title: 'Wallet', onTap: () => Navigator.pushNamed(context, '/debts')),
+            tile(icon: Icons.history_rounded, title: 'Mis pedidos', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            tile(icon: Icons.support_agent_outlined, title: 'Soporte técnico', onTap: () => Navigator.pushNamed(context, '/support')),
+            tile(icon: Icons.settings_outlined, title: 'Ajustes', onTap: () => Navigator.pushNamed(context, '/settings')),
+            if (_isTraveler)
+              tile(icon: Icons.star_outline_rounded, title: 'Mis calificaciones', onTap: () => Navigator.pushNamed(context, '/my_ratings')),
             if (!_isTraveler)
               tile(icon: Icons.group_outlined, title: 'Gestión de destinatarios', onTap: () => Navigator.pushNamed(context, '/recipients')),
-            if (_isTraveler)
-              tile(icon: Icons.account_balance_wallet_outlined, title: 'Ingresos y comisiones', onTap: () => Navigator.pushNamed(context, '/debts')),
-            tile(icon: Icons.notifications_outlined, title: 'Notificaciones', onTap: () => Navigator.pushNamed(context, '/notifications')),
-            tile(icon: Icons.settings_outlined, title: 'Ajustes', onTap: () => Navigator.pushNamed(context, '/settings')),
-            tile(icon: Icons.support_agent_outlined, title: 'Soporte', onTap: () => Navigator.pushNamed(context, '/support')),
             const Spacer(),
+            const Divider(height: 1),
             tile(icon: Icons.logout_rounded, title: 'Cerrar sesión', color: Colors.redAccent, onTap: _logout),
+            tile(icon: Icons.person_remove_outlined, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/support')),
           ],
         ),
       ),
@@ -241,7 +264,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 8),
           if (_notifications.isEmpty)
-            const Text('La campana mostrará aquí eventos reales como ofertas, cambios de estado y entregas.', style: TextStyle(color: AppTheme.muted, height: 1.4))
+            Text(
+              _isTraveler
+                  ? 'La campana mostrará aquí eventos reales como nueva oportunidad en tu ruta, oferta aceptada y pago recibido.'
+                  : 'La campana mostrará aquí eventos reales como ofertas, cambios de estado y entregas.',
+              style: const TextStyle(color: AppTheme.muted, height: 1.4),
+            )
           else
             ..._notifications.map((item) {
               return Padding(
@@ -272,31 +300,58 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildHero() {
     if (_isTraveler) {
+      final onlineColor = _travelerOnline ? const Color(0xFF32FF84) : const Color(0xFFFF8A7A);
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: AppTheme.surface,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: AppTheme.border),
+          border: Border.all(color: onlineColor.withValues(alpha: 0.55)),
+          boxShadow: [
+            BoxShadow(
+              color: onlineColor.withValues(alpha: 0.14),
+              blurRadius: 24,
+              offset: const Offset(0, 14),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Panel del viajero', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+            const Text('Modo trabajo', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
             const SizedBox(height: 8),
             Text(
-              _travelerOnline ? 'Estás disponible para recibir pedidos compatibles con tus rutas.' : 'Estás desconectado para nuevas coincidencias.',
+              _travelerOnline
+                  ? 'Estás en línea. El backend ya te toma en cuenta para oportunidades compatibles.'
+                  : 'Estás desconectado. No recibirás nuevas oportunidades hasta volver a activarte.',
               style: const TextStyle(color: AppTheme.muted, height: 1.4),
             ),
             const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: onlineColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                ),
+                onPressed: _updatingTravelerOnline ? null : () => _setTravelerOnline(!_travelerOnline),
+                icon: _updatingTravelerOnline
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                    : Icon(_travelerOnline ? Icons.wifi_tethering_rounded : Icons.wifi_off_rounded),
+                label: Text(_travelerOnline ? 'EN LÍNEA' : 'DESCONECTADO'),
+              ),
+            ),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/traveler_opportunities'),
+                    onPressed: _travelerOnline ? () => Navigator.pushNamed(context, '/traveler_opportunities') : null,
                     icon: const Icon(Icons.local_offer_outlined),
-                    label: const Text('Ver ofertas'),
+                    label: const Text('Ver oportunidades'),
                   ),
                 ),
                 const SizedBox(width: 12),

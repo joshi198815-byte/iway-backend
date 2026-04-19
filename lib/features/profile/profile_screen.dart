@@ -34,8 +34,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _selectedRegion;
   String? _selectedCity;
   String? _selectedZone;
-  List<String> _routes = [];
-
   bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
   bool get _showZoneSelector => _selectedCountry == 'Guatemala' && _selectedRegion == 'Guatemala';
 
@@ -47,7 +45,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _phoneController.text = user?.telefono ?? '';
     _addressController.text = user?.direccion ?? '';
     _photoUrl = user?.selfiePath;
-    _routes = [...?user?.rutas];
     _hydrateLocation(user?.pais ?? 'GT', user?.estado ?? 'Guatemala');
     _loadRatings();
   }
@@ -115,70 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }
-  }
-
-  Future<void> _pickRoutes() async {
-    final picked = await showModalBottomSheet<List<String>>(
-      context: context,
-      backgroundColor: AppTheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        final temp = [..._routes];
-        final options = availableRegionsForCountry('Estados Unidos');
-        return StatefulBuilder(
-          builder: (context, setModalState) => SafeArea(
-            child: SizedBox(
-              height: 540,
-              child: Column(
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
-                    child: Text('Estados donde operas', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                  ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: options.map((option) {
-                        final selected = temp.contains(option);
-                        return CheckboxListTile(
-                          value: selected,
-                          title: Text(option),
-                          onChanged: (value) {
-                            setModalState(() {
-                              if (value == true) {
-                                temp.add(option);
-                              } else {
-                                temp.remove(option);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pop(context, temp),
-                        child: const Text('Guardar rutas'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-
-    if (picked == null) return;
-    setState(() => _routes = picked);
   }
 
   Future<void> _saveProfile() async {
@@ -286,6 +219,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: const Icon(Icons.photo_camera_outlined),
                             label: const Text('Cámara'),
                           ),
+                          if (_isTraveler)
+                            OutlinedButton.icon(
+                              onPressed: () => Navigator.pushNamed(context, '/my_ratings'),
+                              icon: const Icon(Icons.star_outline_rounded),
+                              label: const Text('Mis calificaciones'),
+                            ),
                         ],
                       ),
                       if (_uploadingPhoto) ...[
@@ -369,33 +308,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ],
                   ),
                 ),
-                if (_isTraveler) ...[
-                  const SizedBox(height: 16),
-                  _SectionCard(
-                    title: 'Rutas activas en USA',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _pickRoutes,
-                            icon: const Icon(Icons.map_outlined),
-                            label: const Text('Editar rutas'),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _routes.isEmpty
-                              ? [const Chip(label: Text('Sin rutas configuradas'))]
-                              : _routes.map((item) => Chip(label: Text(item))).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
                 const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Estado de cuenta',

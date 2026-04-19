@@ -24,6 +24,20 @@ export class OffersService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  private async isTravelerOnline(userId: string) {
+    const latestWorkspace = await this.prisma.auditLog.findFirst({
+      where: {
+        entityType: 'traveler_workspace',
+        entityId: userId,
+        action: 'traveler_workspace_updated',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const payload = latestWorkspace?.payload as Record<string, unknown> | null | undefined;
+    return payload?.isOnline !== false;
+  }
+
   private scoreOffer(params: {
     price: number;
     minPrice: number;
@@ -136,6 +150,10 @@ export class OffersService {
 
     if (traveler.status !== TravelerStatus.verified && (traveler.verificationScore ?? 0) < 65) {
       throw new BadRequestException('Tu perfil necesita una validación KYC más sólida antes de ofertar.');
+    }
+
+    if (!(await this.isTravelerOnline(payload.travelerId))) {
+      throw new BadRequestException('Activa tu modo En línea para poder recibir y enviar ofertas.');
     }
 
     const offer = await this.prisma.offer.create({

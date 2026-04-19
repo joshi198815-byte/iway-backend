@@ -27,11 +27,14 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
   final direccionController = TextEditingController();
   final documentoController = TextEditingController();
   final passwordController = TextEditingController();
-  final cityController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+
 
   TravelerType? selectedType;
   String selectedCountry = supportedCountries.first;
   String? selectedRegion;
+  String? selectedCity;
+  String? selectedZone;
 
   final authService = AuthService();
   final imageService = ImageService();
@@ -54,19 +57,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
   void initState() {
     super.initState();
     selectedRegion = availableRegions.isNotEmpty ? availableRegions.first : null;
-
-    if (SessionService.isLoggedIn) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final currentUser = SessionService.currentUser;
-        final nextRoute = currentUser != null &&
-                !currentUser.emailVerificado &&
-                !currentUser.telefonoVerificado
-            ? '/verify_contact'
-            : '/home';
-        Navigator.pushReplacementNamed(context, nextRoute);
-      });
-    }
+    selectedCity = municipalitiesForDepartment(selectedRegion ?? '').firstOrNull;
   }
 
   @override
@@ -77,7 +68,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
     direccionController.dispose();
     documentoController.dispose();
     passwordController.dispose();
-    cityController.dispose();
+    confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -100,6 +91,8 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
   }
 
   String get countryCode => selectedCountry == 'Guatemala' ? 'GT' : 'US';
+
+  bool get showZoneSelector => selectedCountry == 'Guatemala' && selectedRegion == 'Guatemala';
 
   Future<void> pickRegion() async {
     final picked = await showModalBottomSheet<String>(
@@ -165,7 +158,13 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
     );
 
     if (picked == null) return;
-    setState(() => selectedRegion = picked);
+    setState(() {
+      selectedRegion = picked;
+      selectedCity = selectedCountry == 'Guatemala'
+          ? municipalitiesForDepartment(picked).firstOrNull
+          : citiesForUsState(picked).firstOrNull;
+      selectedZone = null;
+    });
   }
 
   Future<void> register() async {
@@ -175,7 +174,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
     final direccion = direccionController.text.trim();
     final documento = documentoController.text.trim();
     final password = passwordController.text.trim();
-    final city = cityController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
 
     if (nombre.isEmpty) {
       showMessage('Ingresa tu nombre.');
@@ -197,6 +196,11 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
       return;
     }
 
+    if (password != confirmPassword) {
+      showMessage('Las contraseñas no coinciden.');
+      return;
+    }
+
     if (direccion.isEmpty) {
       showMessage('Ingresa tu dirección.');
       return;
@@ -204,6 +208,11 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
 
     if (selectedRegion == null || selectedRegion!.isEmpty) {
       showMessage('Selecciona tu departamento o estado.');
+      return;
+    }
+
+    if (selectedCity == null || selectedCity!.isEmpty) {
+      showMessage(selectedCountry == 'Guatemala' ? 'Selecciona tu municipio.' : 'Selecciona tu ciudad.');
       return;
     }
 
@@ -242,8 +251,10 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
         documentNumber: documento,
         countryCode: countryCode,
         detectedCountryCode: countryCode,
-        stateRegion: selectedRegion,
-        city: city.isEmpty ? null : city,
+        stateRegion: [selectedRegion, selectedCity, if (showZoneSelector && (selectedZone ?? '').isNotEmpty) selectedZone]
+            .whereType<String>()
+            .join(' | '),
+        city: selectedCity,
         address: direccion,
         documentBase64: documentBase64,
         selfieBase64: selfieBase64,
@@ -258,9 +269,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
         return;
       }
 
-      await authService.requestVerificationCode('email');
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/verify_contact');
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -268,7 +277,7 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => loading = false);
-      showMessage('No se pudo completar el registro del viajero.');
+      showMessage('No pudimos completar tu registro. Inténtalo de nuevo.');
     }
   }
 
@@ -333,6 +342,13 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                         decoration: const InputDecoration(labelText: 'Contraseña'),
                         obscureText: true,
                         autofillHints: const [AutofillHints.newPassword],
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: confirmPasswordController,
+                        decoration: const InputDecoration(labelText: 'Confirmar contraseña'),
+                        obscureText: true,
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => register(),
                       ),
@@ -355,6 +371,10 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                           setState(() {
                             selectedCountry = value;
                             selectedRegion = availableRegionsForCountry(selectedCountry).firstOrNull;
+                            selectedCity = selectedCountry == 'Guatemala'
+                                ? municipalitiesForDepartment(selectedRegion ?? '').firstOrNull
+                                : citiesForUsState(selectedRegion ?? '').firstOrNull;
+                            selectedZone = null;
                           });
                         },
                       ),
@@ -371,11 +391,38 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      TextField(
-                        controller: cityController,
-                        decoration: const InputDecoration(labelText: 'Ciudad'),
-                        textInputAction: TextInputAction.next,
+                      DropdownButtonFormField<String>(
+                        value: selectedCity,
+                        decoration: InputDecoration(labelText: selectedCountry == 'Guatemala' ? 'Municipio' : 'Ciudad'),
+                        items: (selectedCountry == 'Guatemala'
+                                ? municipalitiesForDepartment(selectedRegion ?? '')
+                                : citiesForUsState(selectedRegion ?? ''))
+                            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                            .toList(),
+                        onChanged: (value) => setState(() => selectedCity = value),
                       ),
+                      if (showZoneSelector) ...[
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          value: selectedZone,
+                          decoration: const InputDecoration(labelText: 'Zona'),
+                          items: zonesForDepartment('Guatemala')
+                              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+                              .toList(),
+                          onChanged: (value) => setState(() => selectedZone = value),
+                        ),
+                      ],
+                       const SizedBox(height: 14),
+                       TextField(
+                         controller: direccionController,
+                         decoration: const InputDecoration(labelText: 'Dirección'),
+                         textInputAction: TextInputAction.done,
+@@
+                          selectedType == null
+                              ? 'Selecciona tu tipo de viajero para mostrar qué rutas cubres.'
+                              : selectedType == TravelerType.soloTierra
+                                  ? 'Cubres la ruta USA → Guatemala. Después podrás definir tus estados y ciudades desde Mis Rutas.'
+                                  : 'Cubres Guatemala ↔ USA. Después podrás definir tus estados y ciudades desde Mis Rutas.',
                       const SizedBox(height: 14),
                       TextField(
                         controller: direccionController,

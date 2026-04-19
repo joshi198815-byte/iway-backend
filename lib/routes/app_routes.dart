@@ -22,6 +22,7 @@ import '../features/rating/rating_screen.dart';
 import '../features/rating/my_ratings_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/traveler/traveler_routes_screen.dart';
 
 class AppRoutes {
   static const String initial = '/';
@@ -47,6 +48,7 @@ class AppRoutes {
     '/my_orders': (context) => const MyOrdersScreen(),
     '/recipients': (context) => const RecipientManagementScreen(),
     '/settings': (context) => const SettingsScreen(),
+    '/traveler_routes': (context) => const TravelerRoutesScreen(),
     '/support': (context) => const SupportCenterScreen(),
     '/debts': (context) => const DebtsScreen(),
     '/map': (context) {

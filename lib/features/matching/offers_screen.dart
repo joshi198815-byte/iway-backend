@@ -167,17 +167,24 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
         price: price,
       );
 
+      if (!mounted) return;
       priceController.clear();
-      await loadOffers();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Oferta enviada con éxito.')),
+      );
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
+      final message = e.message.contains('Internal Server Error')
+          ? 'No se pudo enviar la oferta. Revisa tu estado en línea y vuelve a intentarlo.'
+          : e.message;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
+        SnackBar(content: Text(message)),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo crear la oferta.')),
+        const SnackBar(content: Text('No se pudo enviar la oferta.')),
       );
     } finally {
       if (mounted) {
