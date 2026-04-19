@@ -23,8 +23,10 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { FinanceModule } from './finance/finance.module';
 import { ContentModule } from './content/content.module';
+import { AppController } from './app.controller';
 
 @Module({
+  controllers: [AppController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     HealthModule,
