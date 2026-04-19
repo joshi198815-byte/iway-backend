@@ -14,6 +14,7 @@ class SessionService {
   static String? currentAccessToken;
 
   static bool get isLoggedIn => currentUser != null;
+  static bool get isPhoneVerified => currentUser?.telefonoVerificado == true;
 
   static String? get currentUserId => currentUser?.id;
 
@@ -39,7 +40,11 @@ class SessionService {
         return;
       }
 
-      currentUser = UserModel.fromStorageJson(decoded);
+      final restoredUser = UserModel.fromStorageJson(decoded);
+      final verifiedUsers = prefs.getStringList(_locallyVerifiedUsersKey) ?? const [];
+      currentUser = verifiedUsers.contains(restoredUser.id)
+          ? restoredUser.copyWith(telefonoVerificado: true)
+          : restoredUser;
     } catch (_) {
       currentUser = null;
       currentAccessToken = null;
