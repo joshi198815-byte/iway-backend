@@ -109,6 +109,44 @@ class UserModel {
     );
   }
 
+  UserModel copyWith({
+    String? id,
+    String? nombre,
+    String? email,
+    String? telefono,
+    String? pais,
+    String? estado,
+    String? direccion,
+    String? tipo,
+    TravelerType? travelerType,
+    String? documento,
+    String? selfiePath,
+    List<String>? rutas,
+    bool? verificado,
+    bool? bloqueado,
+    bool? telefonoVerificado,
+    bool? emailVerificado,
+  }) {
+    return UserModel(
+      id: id ?? this.id,
+      nombre: nombre ?? this.nombre,
+      email: email ?? this.email,
+      telefono: telefono ?? this.telefono,
+      pais: pais ?? this.pais,
+      estado: estado ?? this.estado,
+      direccion: direccion ?? this.direccion,
+      tipo: tipo ?? this.tipo,
+      travelerType: travelerType ?? this.travelerType,
+      documento: documento ?? this.documento,
+      selfiePath: selfiePath ?? this.selfiePath,
+      rutas: rutas ?? this.rutas,
+      verificado: verificado ?? this.verificado,
+      bloqueado: bloqueado ?? this.bloqueado,
+      telefonoVerificado: telefonoVerificado ?? this.telefonoVerificado,
+      emailVerificado: emailVerificado ?? this.emailVerificado,
+    );
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,

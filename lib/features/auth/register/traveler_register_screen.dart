@@ -269,7 +269,12 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
         return;
       }
 
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/verify_contact',
+        (_) => false,
+        arguments: const {'returnRoute': '/register_traveler'},
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);

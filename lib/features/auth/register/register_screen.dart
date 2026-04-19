@@ -51,7 +51,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
+        Navigator.pushReplacementNamed(
+          context,
+          SessionService.currentUser?.telefonoVerificado == true ? '/home' : '/verify_contact',
+          arguments: const {'returnRoute': '/register'},
+        );
       });
     }
   }
@@ -155,7 +159,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       setState(() => loading = false);
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        '/verify_contact',
+        (_) => false,
+        arguments: const {'returnRoute': '/register'},
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);

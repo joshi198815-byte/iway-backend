@@ -8,6 +8,7 @@ class SessionService {
 
   static const _sessionUserKey = 'session_user';
   static const _sessionAccessTokenKey = 'session_access_token';
+  static const _locallyVerifiedUsersKey = 'locally_verified_users';
 
   static UserModel? currentUser;
   static String? currentAccessToken;
@@ -48,13 +49,32 @@ class SessionService {
   }
 
   static Future<void> setUser(UserModel user, {String? accessToken}) async {
-    currentUser = user;
-    currentAccessToken = accessToken;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_sessionUserKey, jsonEncode(user.toJson()));
+    final verifiedUsers = prefs.getStringList(_locallyVerifiedUsersKey) ?? const [];
+    final effectiveUser = verifiedUsers.contains(user.id)
+        ? user.copyWith(telefonoVerificado: true)
+        : user;
+
+    currentUser = effectiveUser;
+    currentAccessToken = accessToken;
+    await prefs.setString(_sessionUserKey, jsonEncode(effectiveUser.toJson()));
     if (accessToken != null && accessToken.isNotEmpty) {
       await prefs.setString(_sessionAccessTokenKey, accessToken);
     }
+  }
+
+  static Future<void> markCurrentPhoneVerifiedLocally() async {
+    final user = currentUser;
+    if (user == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final verifiedUsers = prefs.getStringList(_locallyVerifiedUsersKey) ?? <String>[];
+    if (!verifiedUsers.contains(user.id)) {
+      verifiedUsers.add(user.id);
+      await prefs.setStringList(_locallyVerifiedUsersKey, verifiedUsers);
+    }
+
+    await setUser(user.copyWith(telefonoVerificado: true), accessToken: currentAccessToken);
   }
 
   static Future<void> clear() async {

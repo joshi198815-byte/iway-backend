@@ -51,13 +51,6 @@ class PushNotificationService {
     if (_initialized) return;
     _initialized = true;
 
-    final firebaseReady = await ensureFirebaseInitialized();
-    if (!firebaseReady) {
-      return;
-    }
-
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
 
@@ -71,6 +64,13 @@ class PushNotificationService {
     await _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_channel);
+
+    final firebaseReady = await ensureFirebaseInitialized();
+    if (!firebaseReady) {
+      return;
+    }
+
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
     final messaging = FirebaseMessaging.instance;
     await messaging.requestPermission(
@@ -189,6 +189,25 @@ class PushNotificationService {
     _pushRoute(
       route?.isNotEmpty == true ? route! : '/notifications',
       shipmentId: shipmentId,
+    );
+  }
+
+  static Future<void> showLocalVerificationCode(String code) async {
+    await _localNotifications.show(
+      code.hashCode,
+      'i-Way',
+      'Tu código es $code',
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          _channel.id,
+          _channel.name,
+          channelDescription: _channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+        ),
+        iOS: const DarwinNotificationDetails(),
+      ),
+      payload: '/verify_contact|',
     );
   }
 
