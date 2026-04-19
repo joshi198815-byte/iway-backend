@@ -167,11 +167,15 @@ export class OffersService {
       );
     }
 
-    this.realtimeGateway.emitOfferUpdated(payload.shipmentId, {
-      shipmentId: payload.shipmentId,
-      action: 'created',
-      offer,
-    });
+    this.realtimeGateway.emitOfferUpdated(
+      payload.shipmentId,
+      {
+        shipmentId: payload.shipmentId,
+        action: 'created',
+        offer,
+      },
+      [shipment.customerId, payload.travelerId],
+    );
 
     runtimeObservability.recordBusinessEvent({
       type: 'offer_created',
@@ -410,12 +414,16 @@ export class OffersService {
       include: { shipment: true },
     });
 
-    this.realtimeGateway.emitOfferUpdated(offer.shipmentId, {
-      shipmentId: offer.shipmentId,
-      action: 'accepted',
-      offerId,
-      travelerId: offer.travelerId,
-    });
+    this.realtimeGateway.emitOfferUpdated(
+      offer.shipmentId,
+      {
+        shipmentId: offer.shipmentId,
+        action: 'accepted',
+        offerId,
+        travelerId: offer.travelerId,
+      },
+      [offer.shipment.customerId, offer.travelerId],
+    );
     this.realtimeGateway.emitShipmentStatusChanged(
       offer.shipmentId,
       {
@@ -487,12 +495,16 @@ export class OffersService {
       );
     }
 
-    this.realtimeGateway.emitOfferUpdated(offer.shipmentId, {
-      shipmentId: offer.shipmentId,
-      action: 'rejected',
-      offerId,
-      travelerId: offer.travelerId,
-    });
+    this.realtimeGateway.emitOfferUpdated(
+      offer.shipmentId,
+      {
+        shipmentId: offer.shipmentId,
+        action: 'rejected',
+        offerId,
+        travelerId: offer.travelerId,
+      },
+      [offer.shipment.customerId, offer.travelerId],
+    );
 
     runtimeObservability.recordBusinessEvent({
       type: 'offer_rejected',
