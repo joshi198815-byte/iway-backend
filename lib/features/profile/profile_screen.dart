@@ -72,14 +72,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _addRoute() {
-    final value = _routeController.text.trim();
-    if (value.isEmpty) return;
-    if (_routes.any((route) => route.toLowerCase() == value.toLowerCase())) {
-      _routeController.clear();
-      return;
+    final raw = _routeController.text.trim();
+    if (raw.isEmpty) return;
+
+    final parts = raw
+        .split(RegExp(r'[\n,;/|]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+
+    if (parts.isEmpty) return;
+
+    final next = [..._routes];
+    for (final part in parts) {
+      if (!next.any((route) => route.toLowerCase() == part.toLowerCase())) {
+        next.add(part);
+      }
     }
+
     setState(() {
-      _routes = [..._routes, value];
+      _routes = next;
       _routeController.clear();
     });
   }
@@ -105,6 +117,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         address: _addressController.text,
         selfieUrl: _photoUrl,
       );
+      await _authService.refreshCurrentUser();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Perfil actualizado.')),
@@ -273,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 8),
                               const Text(
-                                'Agrega uno o varios estados para que quede claro por dónde operas.',
+                                'Agrega uno o varios estados o ciudades separados por coma para mantener tus rutas al día.',
                                 style: TextStyle(color: AppTheme.muted, height: 1.4),
                               ),
                               const SizedBox(height: 12),
@@ -283,7 +296,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: TextField(
                                       controller: _routeController,
                                       decoration: const InputDecoration(
-                                        labelText: 'Ejemplo: Florida, Texas, New York',
+                                        labelText: 'Ejemplo: California, Nashville, Houston',
                                       ),
                                       onSubmitted: (_) => _addRoute(),
                                     ),

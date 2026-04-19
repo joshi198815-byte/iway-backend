@@ -9,6 +9,7 @@ import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/address_search_service.dart';
 import 'package:iway_app/features/shipment/services/insurance_service.dart';
+import 'package:iway_app/features/shipment/services/saved_recipient_service.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
@@ -78,6 +79,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final insuranceService = InsuranceService();
   final addressSearchService = AddressSearchService();
   final locationService = LocationService();
+  final savedRecipientService = SavedRecipientService();
+
+  List<SavedRecipient> savedRecipients = [];
 
   final List<File> images = [];
   final List<AddressSuggestion> addressSuggestions = [];
@@ -112,6 +116,64 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedRecipients();
+  }
+
+  Future<void> _loadSavedRecipients() async {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    final data = await savedRecipientService.getAll(userId);
+    if (!mounted) return;
+    setState(() => savedRecipients = data);
+  }
+
+  void _applySavedRecipient(SavedRecipient recipient) {
+    setState(() {
+      receiverCountry = recipient.country;
+      receiverRegion = recipient.region;
+      receptorNombreController.text = recipient.name;
+      receptorTelefonoController.text = recipient.phone;
+      receptorDireccionController.text = recipient.address;
+      geocodedAddressLabel = null;
+      addressSuggestions.clear();
+    });
+  }
+
+  Future<void> _saveCurrentRecipient({bool notify = true}) async {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+
+    final recipient = SavedRecipient(
+      name: receptorNombreController.text.trim(),
+      phone: receptorTelefonoController.text.trim(),
+      address: receptorDireccionController.text.trim(),
+      country: receiverCountry,
+      region: receiverRegion,
+    );
+
+    if (recipient.name.isEmpty || recipient.phone.length < 8 || recipient.address.isEmpty || recipient.region.isEmpty) {
+      if (notify) {
+        showMessage('Completa nombre, teléfono, dirección y estado antes de guardar el destinatario.');
+      }
+      return;
+    }
+
+    await savedRecipientService.save(userId, recipient);
+    await _loadSavedRecipients();
+    if (!mounted || !notify) return;
+    showMessage('Destinatario guardado para próximos envíos.');
+  }
+
+  Future<void> _removeSavedRecipient(SavedRecipient recipient) async {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) return;
+    await savedRecipientService.remove(userId, recipient);
+    await _loadSavedRecipients();
   }
 
   @override
@@ -410,6 +472,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
           ? '$descripcion\nVIN: $vin'
           : descripcion;
 
+      await _saveCurrentRecipient(notify: false);
+
       final shipment = ShipmentModel(
         id: '',
         userId: currentUserId,
@@ -676,6 +740,83 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                   title: 'Datos del receptor',
                   child: Column(
                     children: [
+                      if (savedRecipients.isNotEmpty) ...[
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Destinatarios guardados',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 112,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: savedRecipients.length,
+                            separatorBuilder: (_, __) => const SizedBox(width: 10),
+                            itemBuilder: (context, index) {
+                              final recipient = savedRecipients[index];
+                              return SizedBox(
+                                width: 230,
+                                child: InkWell(
+                                  onTap: () => _applySavedRecipient(recipient),
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surfaceSoft,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: AppTheme.border),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                recipient.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                            GestureDetector(
+                                              onTap: () => _removeSavedRecipient(recipient),
+                                              child: const Icon(Icons.close_rounded, size: 16, color: AppTheme.muted),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${recipient.region}, ${recipient.country}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          recipient.phone,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                                        ),
+                                        const Spacer(),
+                                        const Text(
+                                          'Tocar para autollenar',
+                                          style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.w700),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       TextField(
                         controller: receptorNombreController,
                         decoration: const InputDecoration(labelText: 'Nombre receptor'),
@@ -779,6 +920,15 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
                           ),
                         ),
                       ],
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: OutlinedButton.icon(
+                          onPressed: _saveCurrentRecipient,
+                          icon: const Icon(Icons.bookmark_add_outlined),
+                          label: const Text('Guardar destinatario'),
+                        ),
+                      ),
                     ],
                   ),
                 ),
