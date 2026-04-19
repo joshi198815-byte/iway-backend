@@ -237,7 +237,11 @@ export class ShipmentsService {
         customer: {
           select: {
             fullName: true,
-            ratingAvg: true,
+            receivedRatings: {
+              select: {
+                stars: true,
+              },
+            },
           },
         },
       },
@@ -276,10 +280,15 @@ export class ShipmentsService {
           shipment.insuranceEnabled ? 'Incluye seguro declarado' : 'Sin seguro adicional',
         ];
 
+        const customerScores = shipment.customer?.receivedRatings?.map((rating) => this.normalizeDecimal(rating.stars)) ?? [];
+        const customerRatingAvg = customerScores.length > 0
+          ? customerScores.reduce((sum, score) => sum + score, 0) / customerScores.length
+          : 0;
+
         return {
           ...shipment,
           customerName: shipment.customer?.fullName ?? 'Cliente i-Way',
-          customerRatingAvg: this.normalizeDecimal(shipment.customer?.ratingAvg),
+          customerRatingAvg,
           offerCount,
           marketplaceScore: score,
           marketplaceTier: score >= 80 ? 'prime' : score >= 65 ? 'strong' : 'watch',
