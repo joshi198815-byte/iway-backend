@@ -1,0 +1,46 @@
+services:
+  - type: web
+    name: iway-backend
+    runtime: node
+    rootDir: backend
+    plan: starter
+    autoDeploy: true
+    buildCommand: npm install --no-fund --no-audit && npm run build
+    startCommand: chmod +x scripts/docker-entrypoint.sh && ./scripts/docker-entrypoint.sh
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: MAPS_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: FIREBASE_CLIENT_EMAIL
+        sync: false
+      - key: FIREBASE_PRIVATE_KEY
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+
+  - type: web
+    name: iway-admin-web
+    runtime: node
+    rootDir: admin-web
+    plan: starter
+    autoDeploy: true
+    buildCommand: npm install --no-fund --no-audit && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false

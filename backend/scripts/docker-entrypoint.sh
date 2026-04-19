@@ -26,8 +26,8 @@ if [ "${CORS_ORIGIN:-}" = "*" ]; then
   echo "[entrypoint] warning: CORS_ORIGIN is wildcard in production"
 fi
 
-echo "[entrypoint] applying Prisma schema: ${SCHEMA}"
-npx prisma db push --schema "$SCHEMA"
+echo "[entrypoint] applying Prisma migrations with schema: ${SCHEMA}"
+npx prisma migrate deploy --schema "$SCHEMA"
 
 echo "[entrypoint] starting backend"
 exec node dist/src/main.js
