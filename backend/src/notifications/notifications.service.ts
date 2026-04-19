@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { createHash, createSign } from 'node:crypto';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
@@ -8,6 +8,8 @@ import { JobsService } from '../jobs/jobs.service';
 
 @Injectable()
 export class NotificationsService implements OnModuleInit {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtimeGateway: RealtimeGateway,
@@ -161,6 +163,8 @@ export class NotificationsService implements OnModuleInit {
         return shipmentId ? '/tracking' : '/notifications';
       case 'traveler_verification':
         return '/profile';
+      case 'rating':
+        return '/my_ratings';
       case 'transfer_review':
         return '/debts';
       default:
@@ -476,6 +480,10 @@ export class NotificationsService implements OnModuleInit {
     const providerConfigured = this.firebaseConfigured();
     let pushResults: Array<{ sent: boolean; status?: number }> = [];
 
+    this.logger.log(
+      `sendPush start userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} providerConfigured=${providerConfigured}`,
+    );
+
     if (providerConfigured && activeDevices.length > 0) {
       const accessToken = await this.getFirebaseAccessToken();
       if (accessToken) {
@@ -491,7 +499,24 @@ export class NotificationsService implements OnModuleInit {
             }),
           ),
         );
+      } else {
+        this.logger.warn(
+          `sendPush access token unavailable userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'}`,
+        );
       }
+    }
+
+    const sentCount = pushResults.filter((result) => result.sent).length;
+    const failedCount = pushResults.length - sentCount;
+
+    this.logger.log(
+      `sendPush result userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} sentCount=${sentCount} failedCount=${failedCount} providerConfigured=${providerConfigured}`,
+    );
+
+    if (failedCount > 0) {
+      this.logger.warn(
+        `sendPush partial failure userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} statuses=${pushResults.map((result) => result.status ?? 0).join(',')}`,
+      );
     }
 
     return {
@@ -499,7 +524,7 @@ export class NotificationsService implements OnModuleInit {
       queued: false,
       providerConfigured,
       deviceCount: activeDevices.length,
-      sentCount: pushResults.filter((result) => result.sent).length,
+      sentCount,
       jobId: null,
       devices: activeDevices.map((device, index) => ({
         id: device.id,

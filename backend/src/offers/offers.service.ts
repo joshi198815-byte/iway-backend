@@ -342,11 +342,15 @@ export class OffersService {
       offerId,
       travelerId: offer.travelerId,
     });
-    this.realtimeGateway.emitShipmentStatusChanged(offer.shipmentId, {
-      shipmentId: offer.shipmentId,
-      previousStatus: offer.shipment.status,
-      nextStatus: 'assigned',
-    });
+    this.realtimeGateway.emitShipmentStatusChanged(
+      offer.shipmentId,
+      {
+        shipmentId: offer.shipmentId,
+        previousStatus: offer.shipment.status,
+        nextStatus: 'assigned',
+      },
+      [offer.shipment.customerId, offer.travelerId],
+    );
 
     runtimeObservability.recordBusinessEvent({
       type: 'offer_accepted',
@@ -408,11 +412,15 @@ export class OffersService {
       travelerId: offer.travelerId,
     });
 
-    this.realtimeGateway.emitShipmentStatusChanged(offer.shipmentId, {
-      shipmentId: offer.shipmentId,
-      previousStatus: offer.shipment.status,
-      nextStatus: remainingPending > 0 ? 'offered' : 'published',
-    });
+    this.realtimeGateway.emitShipmentStatusChanged(
+      offer.shipmentId,
+      {
+        shipmentId: offer.shipmentId,
+        previousStatus: offer.shipment.status,
+        nextStatus: remainingPending > 0 ? 'offered' : 'published',
+      },
+      [offer.shipment.customerId, offer.travelerId],
+    );
 
     runtimeObservability.recordBusinessEvent({
       type: 'offer_rejected',

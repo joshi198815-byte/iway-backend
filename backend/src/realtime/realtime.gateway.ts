@@ -50,9 +50,14 @@ export class RealtimeGateway implements OnGatewayConnection {
     this.server.to(`offers:${shipmentId}`).emit('offer_updated', payload);
   }
 
-  emitShipmentStatusChanged(shipmentId: string, payload: unknown) {
+  emitShipmentStatusChanged(shipmentId: string, payload: unknown, userIds: Array<string | null | undefined> = []) {
     this.server.to(`tracking:${shipmentId}`).emit('shipment_status_changed', payload);
     this.server.to(`offers:${shipmentId}`).emit('shipment_status_changed', payload);
+
+    [...new Set(userIds.filter((userId): userId is string => Boolean(userId && userId.trim().length > 0)))]
+      .forEach((userId) => {
+        this.server.to(`user:${userId}`).emit('shipment_status_changed', payload);
+      });
   }
 
   emitNotificationUpdated(userId: string, payload: unknown) {

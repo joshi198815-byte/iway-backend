@@ -59,6 +59,9 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   Future<void> loadShipments() async {
     try {
       final data = await shipmentService.getAvailableShipments();
+      await Future.wait(
+        data.map((shipment) => realtime.joinOffers(shipment.id)),
+      );
       if (!mounted) return;
       setState(() {
         shipments = data;
