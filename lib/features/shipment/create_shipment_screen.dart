@@ -671,6 +671,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
       await _saveCurrentRecipient(notify: false);
 
+      final activeSender = selectedSender;
+
       final shipment = ShipmentModel(
         id: '',
         userId: currentUserId,
@@ -680,6 +682,10 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         valor: valor,
         origen: origen,
         destino: destino,
+        remitenteNombre: activeSender?.name ?? '',
+        remitenteTelefono: activeSender?.phone ?? '',
+        remitenteDireccion: activeSender?.address ?? '',
+        remitenteRegion: activeSender?.stateRegion ?? '',
         receptorNombre: receptorNombre,
         receptorTelefono: receptorTelefono,
         receptorDireccion: resolvedAddress,

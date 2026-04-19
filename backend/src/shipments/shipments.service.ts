@@ -60,6 +60,10 @@ export class ShipmentsService {
         description: payload.description,
         declaredValue: payload.declaredValue,
         weightLb: payload.weightLb,
+        senderName: payload.senderName,
+        senderPhone: payload.senderPhone,
+        senderAddress: payload.senderAddress,
+        senderStateRegion: payload.senderStateRegion,
         receiverName: payload.receiverName,
         receiverPhone: payload.receiverPhone,
         receiverAddress: payload.receiverAddress,
@@ -173,8 +177,10 @@ export class ShipmentsService {
 
         score = Math.max(1, Math.min(100, Math.round(score)));
 
+        const pickupRegion = shipment.senderStateRegion?.trim() || 'sin departamento confirmado';
         const insights = [
           activeDirections.includes(shipment.direction) ? 'Coincide con tu ruta activa' : 'Revisa si esta ruta encaja con tu operación',
+          `Recogida en ${pickupRegion}`,
           offerCount === 0 ? 'Sin competencia todavía' : `${offerCount} oferta${offerCount === 1 ? '' : 's'} activa${offerCount === 1 ? '' : 's'}`,
           minOfferPrice > 0 ? `Oferta más baja actual: $${minOfferPrice.toFixed(2)}` : 'Aún no hay ofertas registradas',
           shipment.insuranceEnabled ? 'Incluye seguro declarado' : 'Sin seguro adicional',

@@ -195,7 +195,40 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                             style: const TextStyle(color: AppTheme.muted),
                                           ),
                                         ],
-                                        const SizedBox(height: 6),
+                                        const SizedBox(height: 10),
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.surfaceSoft,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(color: AppTheme.border),
+                                          ),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Recogida / cercanía',
+                                                style: TextStyle(fontWeight: FontWeight.w700),
+                                              ),
+                                              const SizedBox(height: 6),
+                                              Text(
+                                                shipment.remitenteRegion.isNotEmpty
+                                                    ? 'Departamento o estado de recogida: ${shipment.remitenteRegion}'
+                                                    : 'Todavía no hay departamento confirmado para la recogida.',
+                                                style: const TextStyle(color: AppTheme.muted),
+                                              ),
+                                              if (shipment.remitenteDireccion.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  'Punto aproximado: ${shipment.remitenteDireccion}',
+                                                  style: const TextStyle(color: AppTheme.muted),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
                                         Text(
                                           'Entrega para: ${shipment.receptorNombre.isEmpty ? 'No indicado' : shipment.receptorNombre}',
                                           style: const TextStyle(color: AppTheme.muted),

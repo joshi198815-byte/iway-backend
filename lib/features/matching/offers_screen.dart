@@ -328,6 +328,30 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       style: const TextStyle(color: AppTheme.muted),
                                     ),
                                   const SizedBox(height: 8),
+                                  if (shipment!.remitenteRegion.isNotEmpty || shipment!.remitenteDireccion.isNotEmpty) ...[
+                                    Text(
+                                      shipment!.remitenteRegion.isNotEmpty
+                                          ? 'Recogida en: ${shipment!.remitenteRegion}'
+                                          : 'Recogida pendiente de región exacta',
+                                      style: const TextStyle(color: AppTheme.muted),
+                                    ),
+                                    if (shipment!.remitenteDireccion.isNotEmpty)
+                                      Text(
+                                        'Punto de encuentro / recogida: ${shipment!.remitenteDireccion}',
+                                        style: const TextStyle(color: AppTheme.muted),
+                                      ),
+                                    if (shipment!.remitenteNombre.isNotEmpty)
+                                      Text(
+                                        'Remitente: ${shipment!.remitenteNombre}',
+                                        style: const TextStyle(color: AppTheme.muted),
+                                      ),
+                                    if (shipment!.remitenteTelefono.isNotEmpty)
+                                      Text(
+                                        'Contacto de recogida: ${shipment!.remitenteTelefono}',
+                                        style: const TextStyle(color: AppTheme.muted),
+                                      ),
+                                    const SizedBox(height: 8),
+                                  ],
                                   Text(
                                     'Entrega para: ${shipment!.receptorNombre.isEmpty ? 'No indicado' : shipment!.receptorNombre}',
                                     style: const TextStyle(color: AppTheme.muted),

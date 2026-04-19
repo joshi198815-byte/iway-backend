@@ -643,6 +643,48 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if ((shipment?.remitenteRegion ?? '').isNotEmpty || (shipment?.remitenteDireccion ?? '').isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surfaceSoft,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppTheme.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Punto de recogida',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 6),
+                              if ((shipment?.remitenteRegion ?? '').isNotEmpty)
+                                Text(
+                                  'Departamento/estado: ${shipment!.remitenteRegion}',
+                                  style: const TextStyle(color: AppTheme.muted),
+                                ),
+                              if ((shipment?.remitenteDireccion ?? '').isNotEmpty)
+                                Text(
+                                  'Dirección o punto de encuentro: ${shipment!.remitenteDireccion}',
+                                  style: const TextStyle(color: AppTheme.muted),
+                                ),
+                              if ((shipment?.remitenteNombre ?? '').isNotEmpty)
+                                Text(
+                                  'Entrega inicial con: ${shipment!.remitenteNombre}',
+                                  style: const TextStyle(color: AppTheme.muted),
+                                ),
+                              if ((shipment?.remitenteTelefono ?? '').isNotEmpty)
+                                Text(
+                                  'Contacto: ${shipment!.remitenteTelefono}',
+                                  style: const TextStyle(color: AppTheme.muted),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       Text(
                         routeSummary ?? 'Cargando contexto de ruta...',
                         style: const TextStyle(fontWeight: FontWeight.w600, height: 1.35),

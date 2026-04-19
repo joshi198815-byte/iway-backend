@@ -31,6 +31,22 @@ export class CreateShipmentDto {
   @Min(0)
   weightLb?: number;
 
+  @IsOptional()
+  @IsString()
+  senderName?: string;
+
+  @IsOptional()
+  @IsString()
+  senderPhone?: string;
+
+  @IsOptional()
+  @IsString()
+  senderAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  senderStateRegion?: string;
+
   @IsString()
   receiverName!: string;
 

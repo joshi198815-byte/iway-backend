@@ -8,6 +8,10 @@ class ShipmentModel {
   final double valor;
   final String origen;
   final String destino;
+  final String remitenteNombre;
+  final String remitenteTelefono;
+  final String remitenteDireccion;
+  final String remitenteRegion;
   final String receptorNombre;
   final String receptorTelefono;
   final String receptorDireccion;
@@ -36,6 +40,10 @@ class ShipmentModel {
     required this.valor,
     required this.origen,
     required this.destino,
+    this.remitenteNombre = '',
+    this.remitenteTelefono = '',
+    this.remitenteDireccion = '',
+    this.remitenteRegion = '',
     required this.receptorNombre,
     required this.receptorTelefono,
     required this.receptorDireccion,
@@ -81,6 +89,10 @@ class ShipmentModel {
       valor: _toDouble(json['declaredValue'] ?? json['valor']) ?? 0,
       origen: (json['originCountryCode'] ?? json['origen'] ?? '').toString(),
       destino: (json['destinationCountryCode'] ?? json['destino'] ?? '').toString(),
+      remitenteNombre: (json['senderName'] ?? json['remitenteNombre'] ?? '').toString(),
+      remitenteTelefono: (json['senderPhone'] ?? json['remitenteTelefono'] ?? '').toString(),
+      remitenteDireccion: (json['senderAddress'] ?? json['remitenteDireccion'] ?? '').toString(),
+      remitenteRegion: (json['senderStateRegion'] ?? json['remitenteRegion'] ?? '').toString(),
       receptorNombre: (json['receiverName'] ?? json['receptorNombre'] ?? '').toString(),
       receptorTelefono: (json['receiverPhone'] ?? json['receptorTelefono'] ?? '').toString(),
       receptorDireccion: (json['receiverAddress'] ?? json['receptorDireccion'] ?? '').toString(),
