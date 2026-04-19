@@ -207,7 +207,6 @@ class PushNotificationService {
         ),
         iOS: const DarwinNotificationDetails(),
       ),
-      payload: '/verify_contact|',
     );
   }
 
