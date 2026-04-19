@@ -103,14 +103,8 @@ const List<UsStateCatalog> usStatesCatalog = [
 ];
 
 Map<String, List<String>> get supportedRegionsByCountry => {
-  'Guatemala': guatemalaDepartments.map((item) => MapEntry(item.name, item.municipalities)).fold<Map<String, List<String>>>({}, (acc, entry) {
-    acc[entry.key] = entry.value;
-    return acc;
-  }),
-  'Estados Unidos': usStatesCatalog.map((item) => MapEntry(item.name, item.cities)).fold<Map<String, List<String>>>({}, (acc, entry) {
-    acc[entry.key] = entry.value;
-    return acc;
-  }),
+  'Guatemala': guatemalaDepartments.map((item) => item.name).toList(),
+  'Estados Unidos': usStatesCatalog.map((item) => item.name).toList(),
 };
 
 List<String> availableRegionsForCountry(String country) {

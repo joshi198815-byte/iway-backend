@@ -412,17 +412,6 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
                           onChanged: (value) => setState(() => selectedZone = value),
                         ),
                       ],
-                       const SizedBox(height: 14),
-                       TextField(
-                         controller: direccionController,
-                         decoration: const InputDecoration(labelText: 'Dirección'),
-                         textInputAction: TextInputAction.done,
-@@
-                          selectedType == null
-                              ? 'Selecciona tu tipo de viajero para mostrar qué rutas cubres.'
-                              : selectedType == TravelerType.soloTierra
-                                  ? 'Cubres la ruta USA → Guatemala. Después podrás definir tus estados y ciudades desde Mis Rutas.'
-                                  : 'Cubres Guatemala ↔ USA. Después podrás definir tus estados y ciudades desde Mis Rutas.',
                       const SizedBox(height: 14),
                       TextField(
                         controller: direccionController,

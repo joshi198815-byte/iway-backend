@@ -84,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? 0
           : ratings.map((e) => e.estrellas).reduce((a, b) => a + b) / ratings.length;
       setState(() {
-        _ratingAvg = avg;
+        _ratingAvg = avg.toDouble();
         _ratingCount = ratings.length;
       });
     } catch (_) {}
