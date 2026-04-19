@@ -325,6 +325,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   }
 
   void _showMessage(String message) {
+    if (message.trim() == 'Debes validar tu número de teléfono antes de crear un envío.') {
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
