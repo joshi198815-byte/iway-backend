@@ -250,7 +250,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     }
   }
 
-  Future<void> _submit() async {
+  Future<void> _handlePublish() async {
     if (!_validateCurrentStep()) return;
     final user = SessionService.currentUser;
     final userId = SessionService.currentUserId;
@@ -315,7 +315,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
 
   Future<void> _handlePrimaryAction(int totalSteps) async {
     if (_step == totalSteps - 1) {
-      await _submit();
+      await _handlePublish();
       return;
     }
 
@@ -722,7 +722,15 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             if (_step > 0) const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton(
-                onPressed: _submitting ? null : () => _handlePrimaryAction(steps.length),
+                onPressed: _submitting
+                    ? null
+                    : () {
+                        if (_step == steps.length - 1) {
+                          _handlePublish();
+                          return;
+                        }
+                        _handlePrimaryAction(steps.length);
+                      },
                 child: _submitting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
                     : Text(_step == steps.length - 1 ? 'Publicar envío' : 'Continuar'),
