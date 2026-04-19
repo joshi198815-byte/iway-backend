@@ -181,6 +181,7 @@ class AuthService {
     String? stateRegion,
     String? address,
     String? selfieUrl,
+    bool? phoneVerified,
   }) async {
     final data = await _apiClient.patch('/auth/me', {
       'fullName': fullName.trim(),
@@ -189,6 +190,7 @@ class AuthService {
       'stateRegion': stateRegion,
       'address': address,
       'selfieUrl': selfieUrl,
+      if (phoneVerified != null) 'phoneVerified': phoneVerified,
     });
 
     final user = data['user'];
@@ -200,5 +202,20 @@ class AuthService {
       accessToken: SessionService.currentAccessToken,
     );
     return parsedUser;
+  }
+
+  Future<UserModel?> markPhoneVerified() async {
+    final currentUser = SessionService.currentUser;
+    if (currentUser == null) return null;
+
+    return updateProfile(
+      fullName: currentUser.nombre,
+      phone: currentUser.telefono,
+      countryCode: currentUser.pais,
+      stateRegion: currentUser.estado,
+      address: currentUser.direccion,
+      selfieUrl: currentUser.selfieUrl,
+      phoneVerified: true,
+    );
   }
 }

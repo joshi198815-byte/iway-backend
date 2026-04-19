@@ -287,6 +287,7 @@ export class UsersService {
       stateRegion?: string;
       address?: string;
       selfieUrl?: string;
+      phoneVerified?: boolean;
     },
   ) {
     const existing = await this.prisma.user.findUnique({
@@ -304,6 +305,7 @@ export class UsersService {
         countryCode: payload.countryCode?.trim() || existing.countryCode,
         stateRegion: payload.stateRegion?.trim() || null,
         address: payload.address?.trim() || null,
+        ...(payload.phoneVerified == null ? {} : { phoneVerified: payload.phoneVerified }),
       },
     });
 

@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/models/user_model.dart';
+import 'package:iway_app/features/auth/services/auth_service.dart';
 import 'package:iway_app/features/notifications/services/push_notification_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
@@ -16,6 +17,7 @@ class ContactVerificationScreen extends StatefulWidget {
 }
 
 class _ContactVerificationScreenState extends State<ContactVerificationScreen> {
+  final _authService = AuthService();
   final codeController = TextEditingController();
   final phoneController = TextEditingController();
   final _random = Random();
@@ -100,6 +102,11 @@ class _ContactVerificationScreenState extends State<ContactVerificationScreen> {
     }
 
     await SessionService.markCurrentPhoneVerifiedLocally();
+    try {
+      await _authService.markPhoneVerified();
+    } catch (_) {
+      // Mantener la validación local aunque la sincronización remota falle temporalmente.
+    }
     if (!mounted) return;
     setState(() => verifyingCode = false);
     showMessage('Tu cuenta quedó validada.');

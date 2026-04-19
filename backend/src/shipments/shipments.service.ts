@@ -142,15 +142,11 @@ export class ShipmentsService {
 
     const customer = await this.prisma.user.findUnique({
       where: { id: payload.customerId },
-      select: { id: true, role: true, phoneVerified: true },
+      select: { id: true, role: true },
     });
 
     if (!customer || customer.role !== 'customer') {
       throw new BadRequestException('No se pudo identificar al cliente autenticado.');
-    }
-
-    if (!customer.phoneVerified) {
-      throw new ForbiddenException('Debes validar tu número de teléfono antes de crear un envío.');
     }
 
     const shipment = await this.prisma.shipment.create({

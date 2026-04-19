@@ -1,4 +1,4 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class UpdateMeDto {
   @IsOptional()
@@ -24,4 +24,8 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   selfieUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  phoneVerified?: boolean;
 }
