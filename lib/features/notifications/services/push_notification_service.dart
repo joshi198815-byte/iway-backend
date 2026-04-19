@@ -17,6 +17,8 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 class PushNotificationService {
   PushNotificationService._();
 
+  static const Duration _firebaseOperationTimeout = Duration(seconds: 8);
+
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'iway_high_importance',
     'iWay Alerts',
@@ -96,10 +98,16 @@ class PushNotificationService {
   }
 
   static Future<void> syncTokenIfPossible() async {
-    if (!await ensureFirebaseInitialized()) {
+    try {
+      final firebaseReady = await ensureFirebaseInitialized()
+          .timeout(_firebaseOperationTimeout, onTimeout: () => false);
+      if (!firebaseReady) {
+        return;
+      }
+      await _syncCurrentToken();
+    } catch (_) {
       return;
     }
-    await _syncCurrentToken();
   }
 
   static Future<void> deactivateCurrentToken() async {
@@ -118,9 +126,13 @@ class PushNotificationService {
     if (!SessionService.isLoggedIn) return;
 
     try {
-      final token = await FirebaseMessaging.instance.getToken();
+      final token = await FirebaseMessaging.instance
+          .getToken()
+          .timeout(_firebaseOperationTimeout, onTimeout: () => null);
       if (token == null || token.isEmpty) return;
-      await DeviceTokenService().registerToken(token);
+      await DeviceTokenService()
+          .registerToken(token)
+          .timeout(_firebaseOperationTimeout, onTimeout: () => <String, dynamic>{});
     } catch (_) {}
   }
 
