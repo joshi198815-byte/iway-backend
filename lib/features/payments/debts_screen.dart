@@ -4,6 +4,7 @@ import 'package:iway_app/features/auth/services/auth_service.dart';
 import 'package:iway_app/features/payments/services/payment_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/services/storage_upload_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
@@ -20,6 +21,7 @@ class DebtsScreen extends StatefulWidget {
 
 class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
   final service = PaymentService();
+  final _realtime = RealtimeService.instance;
   final authService = AuthService();
   final storageUploadService = StorageUploadService();
   final amountController = TextEditingController();
@@ -33,6 +35,7 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
   int selectedCutoffDay = 4;
   bool savingCutoff = false;
   bool submittingTransfer = false;
+  StreamSubscription<dynamic>? _syncSubscription;
   List<Map<String, dynamic>> commissions = [];
   List<Map<String, dynamic>> settlements = [];
   List<Map<String, dynamic>> transfers = [];
@@ -64,12 +67,21 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _realtime.ensureConnected();
+    _syncSubscription = _realtime.globalEntitySync.listen((event) {
+      if (!mounted) return;
+      final payload = event is Map ? event['payload'] : null;
+      if (payload is Map && payload['type']?.toString() == 'transfer_review') {
+        loadDebtSummary();
+      }
+    });
     loadDebtSummary();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _syncSubscription?.cancel();
     amountController.dispose();
     bankReferenceController.dispose();
     proofUrlController.dispose();

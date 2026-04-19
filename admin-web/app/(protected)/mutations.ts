@@ -10,7 +10,9 @@ import {
   reviewTransfer,
   reviewTraveler,
   runTravelerKyc,
+  updateBannerFeed,
   updateCollaborator,
+  updatePricingSettings,
   updateShipmentStatus,
   updateTravelerPayoutHold,
 } from '@/lib/api';
@@ -183,4 +185,33 @@ export async function createAntiFraudFlagAction(formData: FormData) {
     revalidatePath('/antifraud');
     revalidatePath(path);
   }
+}
+
+export async function updatePricingSettingsAction(formData: FormData) {
+  const token = await getToken();
+  const commissionPerLb = Number(queryValue(formData, 'commissionPerLb'));
+  const groundCommissionPercent = Number(queryValue(formData, 'groundCommissionPercent')) / 100;
+  const path = queryValue(formData, 'path') || '/finance-dashboard';
+
+  if (!Number.isNaN(commissionPerLb) && !Number.isNaN(groundCommissionPercent)) {
+    await updatePricingSettings(token, { commissionPerLb, groundCommissionPercent });
+    revalidatePath('/finance-dashboard');
+    revalidatePath(path);
+  }
+}
+
+export async function updateBannerFeedAction(formData: FormData) {
+  const token = await getToken();
+  const feedKey = queryValue(formData, 'feedKey') as 'home' | 'traveler';
+  const path = queryValue(formData, 'path') || '/banner-feeds';
+  const raw = queryValue(formData, 'itemsJson');
+
+  if (!feedKey || !raw) {
+    return;
+  }
+
+  const items = JSON.parse(raw) as Array<Record<string, unknown>>;
+  await updateBannerFeed(token, feedKey, items);
+  revalidatePath('/banner-feeds');
+  revalidatePath(path);
 }

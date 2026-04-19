@@ -247,20 +247,35 @@ export class TransfersService {
       })),
     );
 
-    return transfers.map((item) => ({
-      ...item,
-      transferredAmount: Number(item.transferredAmount),
-      travelerId: item.travelerId,
-      weeklySettlement: item.weeklySettlement
-        ? {
-            ...item.weeklySettlement,
-            totalCommission: Number(item.weeklySettlement.totalCommission),
-            totalPaid: Number(item.weeklySettlement.totalPaid),
-            totalPending: Number(item.weeklySettlement.totalPending),
-          }
-        : null,
-      payoutPolicy: policyEntries.find((entry) => entry.transferId === item.id)?.payoutPolicy ?? null,
-    }));
+    const submissionLogs = await this.prisma.auditLog.findMany({
+      where: {
+        entityType: 'transfer_payment',
+        entityId: { in: transfers.map((item) => item.id) },
+        action: 'transfer_submitted',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return transfers.map((item) => {
+      const submissionLog = submissionLogs.find((log) => log.entityId === item.id);
+      const submissionPayload = submissionLog?.payload as Record<string, unknown> | null | undefined;
+
+      return {
+        ...item,
+        transferredAmount: Number(item.transferredAmount),
+        travelerId: item.travelerId,
+        relatedShipments: Array.isArray(submissionPayload?.relatedShipments) ? submissionPayload.relatedShipments : [],
+        weeklySettlement: item.weeklySettlement
+          ? {
+              ...item.weeklySettlement,
+              totalCommission: Number(item.weeklySettlement.totalCommission),
+              totalPaid: Number(item.weeklySettlement.totalPaid),
+              totalPending: Number(item.weeklySettlement.totalPending),
+            }
+          : null,
+        payoutPolicy: policyEntries.find((entry) => entry.transferId === item.id)?.payoutPolicy ?? null,
+      };
+    });
   }
 
   async reviewTransfer(transferId: string, payload: ReviewTransferDto, requester: { sub: string; role: string }) {

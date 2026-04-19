@@ -26,8 +26,8 @@ export class TransfersController {
 
   @Get('traveler/:travelerId/payout-policy')
   getTravelerPayoutPolicy(@Param('travelerId') travelerId: string, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede consultar esta política.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede consultar esta política.');
     }
 
     return this.transfersService.getPayoutPolicy(travelerId, req.user);
@@ -35,8 +35,8 @@ export class TransfersController {
 
   @Get('review-queue')
   getReviewQueue(@Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede revisar transferencias.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede revisar transferencias.');
     }
 
     return this.transfersService.getReviewQueue(req.user);
@@ -44,8 +44,8 @@ export class TransfersController {
 
   @Put(':transferId/review')
   reviewTransfer(@Param('transferId') transferId: string, @Body() body: ReviewTransferDto, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede revisar transferencias.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede revisar transferencias.');
     }
 
     return this.transfersService.reviewTransfer(transferId, body, req.user);

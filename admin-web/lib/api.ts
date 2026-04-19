@@ -134,7 +134,7 @@ export async function getTravelersReviewQueue(token: string) {
 export async function reviewTraveler(token: string, userId: string, action: string, reason?: string) {
   return apiRequest(`/travelers/${userId}/review`, {
     token,
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify({ status: action, reason }),
   });
 }
@@ -298,6 +298,37 @@ export async function resetCollaboratorPassword(
     token,
     method: 'POST',
     body: JSON.stringify({ password }),
+  });
+}
+
+export async function getPricingSettings(token: string) {
+  return apiRequest<unknown>('/commissions/settings', { token });
+}
+
+export async function updatePricingSettings(
+  token: string,
+  payload: { commissionPerLb: number; groundCommissionPercent: number },
+) {
+  return apiRequest<unknown>('/commissions/settings', {
+    token,
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getBannerFeed(feedKey: 'home' | 'traveler') {
+  return apiRequest<unknown>(feedKey === 'traveler' ? '/content/traveler-banners' : '/content/home-banners');
+}
+
+export async function updateBannerFeed(
+  token: string,
+  feedKey: 'home' | 'traveler',
+  items: Array<Record<string, unknown>>,
+) {
+  return apiRequest<unknown>(`/content/${feedKey}`, {
+    token,
+    method: 'PUT',
+    body: JSON.stringify({ items }),
   });
 }
 

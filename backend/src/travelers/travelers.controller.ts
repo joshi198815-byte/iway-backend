@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { TravelersService } from './travelers.service';
 import { RegisterTravelerDto } from './dto/register-traveler.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -43,24 +43,36 @@ export class TravelersController {
   @UseGuards(JwtAuthGuard)
   @Get('review-queue')
   getReviewQueue(@Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede revisar viajeros.');
+    }
     return this.travelersService.listReviewQueue(req.user);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':userId/run-kyc-analysis')
   runKycAnalysis(@Param('userId') userId: string, @Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede ejecutar KYC.');
+    }
     return this.travelersService.runKycAnalysis(userId, req.user);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':userId/payout-hold')
   updatePayoutHold(@Param('userId') userId: string, @Body() body: UpdatePayoutHoldDto, @Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede gestionar payout hold.');
+    }
     return this.travelersService.updatePayoutHold(userId, body, req.user);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post(':userId/review')
   reviewTraveler(@Param('userId') userId: string, @Body() body: ReviewTravelerDto, @Req() req: any) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede revisar viajeros.');
+    }
     return this.travelersService.reviewTraveler(userId, body, req.user);
   }
 }

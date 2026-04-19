@@ -33,8 +33,8 @@ export class CommissionsController {
 
   @Post('weekly-cutoff')
   runWeeklyCutoff(@Body() body: RunWeeklyCutoffDto, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede ejecutar el corte semanal.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede ejecutar el corte semanal.');
     }
 
     return this.commissionsService.runWeeklyCutoff(body.runDateIso);
@@ -75,8 +75,8 @@ export class CommissionsController {
 
   @Post('traveler/:travelerId/ledger-adjustments')
   createLedgerAdjustment(@Param('travelerId') travelerId: string, @Body() body: CreateLedgerAdjustmentDto, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede registrar ajustes manuales.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede registrar ajustes manuales.');
     }
 
     return this.commissionsService.createManualAdjustment(travelerId, body, req.user);
@@ -84,8 +84,8 @@ export class CommissionsController {
 
   @Get('settings')
   getPricingSettings(@Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede ver esta configuración.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede ver esta configuración.');
     }
 
     return this.commissionsService.getPricingSettings();
@@ -93,8 +93,8 @@ export class CommissionsController {
 
   @Put('settings')
   updatePricingSettings(@Body() body: UpdatePricingSettingsDto, @Req() req: any) {
-    if (!['admin', 'support'].includes(req.user.role)) {
-      throw new ForbiddenException('Solo admin o soporte puede editar esta configuración.');
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede editar esta configuración.');
     }
 
     return this.commissionsService.updatePricingSettings(

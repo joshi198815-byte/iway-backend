@@ -7,12 +7,13 @@ type SidebarProps = {
 export function Sidebar({ role }: SidebarProps) {
   const links = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/travelers-review', label: 'Travelers Review' },
-    { href: '/transfers-review', label: 'Transfers Review' },
+    { href: '/finance-dashboard', label: 'Tarifas y Wallet' },
+    { href: '/transfers-review', label: 'Pagos viajeros' },
+    { href: '/travelers-review', label: 'KYC viajeros' },
+    { href: '/banner-feeds', label: 'Banners' },
     { href: '/shipments', label: 'Shipments' },
     { href: '/disputes', label: 'Disputes' },
     { href: '/antifraud', label: 'Anti-Fraud' },
-    { href: '/finance-dashboard', label: 'Finance Dashboard' },
     ...(role === 'admin' ? [{ href: '/admin-collaborators', label: 'Admin Collaborators' }] : []),
   ];
 

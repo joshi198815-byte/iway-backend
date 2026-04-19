@@ -1,6 +1,7 @@
 import { DataTable } from '@/components/data-table';
 import { StatCard } from '@/components/stat-card';
 import {
+  formatDate,
   formatMoney,
   getCollection,
   getFinanceCountries,
@@ -10,8 +11,10 @@ import {
   getFinanceRevenueSeries,
   getFinanceSettlements,
   getObject,
+  getPricingSettings,
 } from '@/lib/api';
-import { requireSession } from '@/lib/auth';
+import { requireAdminSession } from '@/lib/auth';
+import { updatePricingSettingsAction } from '@/app/(protected)/mutations';
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -30,7 +33,7 @@ function buildQuery(params: Record<string, string>) {
 }
 
 export default async function FinanceDashboardPage({ searchParams }: { searchParams: SearchParams }) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
   const token = session.token as string;
   const params = await searchParams;
 
@@ -45,7 +48,7 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
   const revenueQuery = buildQuery({ range, granularity: 'day', country, direction });
   const debtAgingQuery = buildQuery({ country });
 
-  const [overviewPayload, debtorsPayload, settlementsPayload, countriesPayload, revenuePayload, debtAgingPayload] =
+  const [overviewPayload, debtorsPayload, settlementsPayload, countriesPayload, revenuePayload, debtAgingPayload, pricingPayload] =
     await Promise.all([
       getFinanceOverview(token, overviewQuery),
       getFinanceDebtors(token, debtorsQuery),
@@ -53,6 +56,7 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
       getFinanceCountries(token, countriesQuery),
       getFinanceRevenueSeries(token, revenueQuery),
       getFinanceDebtAging(token, debtAgingQuery),
+      getPricingSettings(token),
     ]);
 
   const overview = getObject<Record<string, any>>(overviewPayload) || {};
@@ -66,6 +70,7 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
   const debtAgingRoot = getObject<Record<string, any>>(debtAgingPayload) || {};
   const debtBuckets = getCollection<Record<string, any>>(debtAgingRoot.buckets || debtAgingPayload);
   const settlementsSummary = getObject<Record<string, any>>(settlementsRoot.summary) || {};
+  const pricing = getObject<Record<string, any>>(pricingPayload) || {};
 
   return (
     <div className="stack">
@@ -94,6 +99,41 @@ export default async function FinanceDashboardPage({ searchParams }: { searchPar
           <button className="button secondary" type="submit">Actualizar</button>
         </form>
       </div>
+
+      <section className="grid cols-2">
+        <div className="card panel">
+          <h3>Configuración de negocio</h3>
+          <form action={updatePricingSettingsAction} className="stack">
+            <input type="hidden" name="path" value="/finance-dashboard" />
+            <label>
+              Comisión por libra (aéreo)
+              <input name="commissionPerLb" type="number" step="0.01" min="0" defaultValue={String(pricing.commissionPerLb ?? 0)} />
+            </label>
+            <label>
+              Comisión por tierra (%)
+              <input name="groundCommissionPercent" type="number" step="0.01" min="0" defaultValue={String(Number(pricing.groundCommissionPercent ?? 0) * 100)} />
+            </label>
+            <button className="button primary" type="submit">Guardar tarifas</button>
+          </form>
+          <div className="muted" style={{ marginTop: 12 }}>
+            La App toma estos valores directamente del backend para calcular comisión y neto en tiempo real.
+          </div>
+        </div>
+
+        <div className="card panel">
+          <h3>Historial reciente de tarifas</h3>
+          <DataTable
+            rows={Array.isArray(pricing.history) ? pricing.history : []}
+            empty="Sin cambios recientes"
+            columns={[
+              { key: 'createdAt', header: 'Fecha', render: (row) => formatDate(row.createdAt) },
+              { key: 'actorName', header: 'Admin', render: (row) => row.actorName || row.actorEmail || '-' },
+              { key: 'commissionPerLb', header: 'Por libra', render: (row) => formatMoney(row.payload?.next?.commissionPerLb) },
+              { key: 'groundCommissionPercent', header: 'Tierra %', render: (row) => `${Number(row.payload?.next?.groundCommissionPercent ?? 0) * 100}%` },
+            ]}
+          />
+        </div>
+      </section>
 
       <section className="grid cols-4">
         <StatCard label="Gross Commission" value={formatMoney(overview.grossCommission)} />

@@ -101,7 +101,13 @@ class RealtimeService {
         'payload': data,
       });
     });
-    _socket!.on('notification_updated', (data) => _notificationUpdatedController.add(data));
+    _socket!.on('notification_updated', (data) {
+      _notificationUpdatedController.add(data);
+      _globalEntitySyncController.add({
+        'event': 'notification_updated',
+        'payload': data,
+      });
+    });
   }
 
   void _resubscribeRooms() {

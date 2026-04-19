@@ -1,10 +1,10 @@
 import { ReactNode } from 'react';
-import { requireSession } from '@/lib/auth';
+import { requireAdminSession } from '@/lib/auth';
 import { Sidebar } from '@/components/sidebar';
 import { LogoutButton } from '@/components/logout-button';
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
-  const session = await requireSession();
+  const session = await requireAdminSession();
 
   return (
     <div className="layout">

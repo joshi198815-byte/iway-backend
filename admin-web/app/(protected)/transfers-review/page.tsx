@@ -69,6 +69,8 @@ export default async function TransfersReviewPage({ searchParams }: { searchPara
             {selected ? (
               <KeyValueList
                 items={[
+                  { label: 'Transfer ID', value: selected.id || '-' },
+                  { label: 'Traveler ID', value: selected.travelerId || '-' },
                   { label: 'Traveler', value: selected.traveler?.fullName || '-' },
                   { label: 'Correo', value: selected.traveler?.email || '-' },
                   { label: 'Teléfono', value: selected.traveler?.phone || '-' },
@@ -102,8 +104,8 @@ export default async function TransfersReviewPage({ searchParams }: { searchPara
                 <input type="hidden" name="transferId" value={selectedTransferId} />
                 <input type="hidden" name="path" value={`/transfers-review?transferId=${selectedTransferId}${query ? `&q=${encodeURIComponent(query)}` : ''}`} />
                 <select name="action" defaultValue="approved">
-                  <option value="approved">Aprobar</option>
-                  <option value="rejected">Rechazar</option>
+                  <option value="approved">Aprobar pago</option>
+                  <option value="rejected">Rechazar pago</option>
                 </select>
                 <textarea name="reason" placeholder="Nota interna o motivo del rechazo" />
                 <button className="button primary" type="submit">Guardar decisión</button>
@@ -114,8 +116,12 @@ export default async function TransfersReviewPage({ searchParams }: { searchPara
           </div>
 
           <div className="card panel">
-            <h3>Payload</h3>
-            <pre className="code">{selected ? JSON.stringify(selected, null, 2) : 'Sin selección'}</pre>
+            <h3>Paquetes cubiertos por la deuda</h3>
+            {selected && Array.isArray(selected.relatedShipments) && selected.relatedShipments.length > 0 ? (
+              <pre className="code">{JSON.stringify(selected.relatedShipments, null, 2)}</pre>
+            ) : (
+              <pre className="code">{selected ? JSON.stringify(selected, null, 2) : 'Sin selección'}</pre>
+            )}
           </div>
         </section>
       </div>

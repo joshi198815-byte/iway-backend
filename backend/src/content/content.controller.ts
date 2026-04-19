@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Put, Req, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../database/prisma/prisma.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('content')
 export class ContentController {
@@ -91,5 +92,46 @@ export class ContentController {
         'mediaType': 'image',
       },
     ]);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':feedKey')
+  async updateBannerFeed(
+    @Param('feedKey') feedKey: 'home' | 'traveler',
+    @Body() body: { items?: Array<Record<string, unknown>> },
+    @Req() req: any,
+  ) {
+    if (req.user.role !== 'admin') {
+      throw new ForbiddenException('Solo admin puede editar banners.');
+    }
+
+    if (!['home', 'traveler'].includes(feedKey)) {
+      throw new ForbiddenException('Feed inválido.');
+    }
+
+    const items = Array.isArray(body?.items)
+      ? body.items
+          .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
+          .map((item, index) => ({
+            id: item.id?.toString() ?? `${feedKey}-${index + 1}`,
+            title: item.title?.toString() ?? '',
+            subtitle: item.subtitle?.toString() ?? '',
+            accent: item.accent?.toString() ?? '#59D38C',
+            mediaUrl: item.mediaUrl?.toString() ?? null,
+            mediaType: item.mediaType?.toString() === 'video' ? 'video' : 'image',
+          }))
+      : [];
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: req.user.sub,
+        entityType: 'content_banner_feed',
+        entityId: feedKey,
+        action: 'content_banner_feed_updated',
+        payload: { items },
+      },
+    });
+
+    return this.resolveBannerFeed(feedKey, []);
   }
 }
