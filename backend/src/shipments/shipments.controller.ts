@@ -3,10 +3,13 @@ import {
   Controller,
   ForbiddenException,
   Get,
+  InternalServerErrorException,
+  Logger,
   Param,
   Patch,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { ShipmentsService } from './shipments.service';
@@ -20,6 +23,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class ShipmentsController {
   constructor(private readonly shipmentsService: ShipmentsService) {}
 
+  private readonly logger = new Logger(ShipmentsController.name);
+
   @Post()
   create(@Body() body: CreateShipmentDto, @Req() req: any) {
     return this.shipmentsService.create({
@@ -30,7 +35,33 @@ export class ShipmentsController {
 
   @Get('available')
   findAvailable(@Req() req: any) {
-    return this.shipmentsService.findAvailableForTraveler(req.user.sub, req.user.role);
+    return this.handleFindAvailable(req);
+  }
+
+  @Get('opportunities')
+  findAvailableAlias(@Req() req: any) {
+    return this.handleFindAvailable(req);
+  }
+
+  private async handleFindAvailable(req: any) {
+    try {
+      const userId = req.user?.sub?.toString().trim();
+      const role = req.user?.role?.toString().trim();
+
+      if (!userId || !role) {
+        throw new UnauthorizedException('No se pudo validar la sesión del viajero. Inicia sesión de nuevo.');
+      }
+
+      return await this.shipmentsService.findAvailableForTraveler(userId, role);
+    } catch (error) {
+      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
+        throw error;
+      }
+
+      const message = error instanceof Error ? error.message : 'Error desconocido';
+      this.logger.error(`Error al cargar oportunidades para ${req.user?.sub ?? 'sin_usuario'}: ${message}`);
+      throw new InternalServerErrorException('No se pudieron cargar las oportunidades del viajero. Revisa la sesión o los filtros operativos.');
+    }
   }
 
   @Get()

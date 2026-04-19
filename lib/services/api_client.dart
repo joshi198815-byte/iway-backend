@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:iway_app/config/app_env.dart';
+import 'package:iway_app/features/notifications/services/push_notification_service.dart';
 import 'package:iway_app/services/session_service.dart';
 
 class ApiException implements Exception {
@@ -17,6 +18,8 @@ class ApiException implements Exception {
 
 class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
+
+  static bool _handlingUnauthorized = false;
 
   final http.Client _client;
 
@@ -151,12 +154,29 @@ class ApiClient {
     return {'data': decoded};
   }
 
+  Future<void> _handleUnauthorized() async {
+    if (_handlingUnauthorized) return;
+    _handlingUnauthorized = true;
+
+    try {
+      await SessionService.clear();
+      final navigator = PushNotificationService.navigatorKey.currentState;
+      navigator?.pushNamedAndRemoveUntil('/login', (_) => false);
+    } finally {
+      _handlingUnauthorized = false;
+    }
+  }
+
   dynamic _decodeResponse(http.Response response) {
     final raw = response.body;
     final decoded = raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;
+    }
+
+    if (response.statusCode == 401) {
+      unawaited(_handleUnauthorized());
     }
 
     String message = 'Ocurrió un error con el servidor.';

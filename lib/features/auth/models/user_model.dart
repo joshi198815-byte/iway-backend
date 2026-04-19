@@ -1,6 +1,21 @@
+import 'package:iway_app/config/app_env.dart';
+
 import 'traveler_type.dart';
 
 class UserModel {
+  static String? _normalizeMediaUrl(dynamic rawValue) {
+    final value = rawValue?.toString().trim();
+    if (value == null || value.isEmpty) return null;
+    if (value.startsWith('http://') || value.startsWith('https://')) return value;
+
+    final base = AppEnv.apiBaseUrl.replaceFirst(RegExp(r'/api/?$'), '');
+    if (value.startsWith('/')) {
+      return '$base$value';
+    }
+
+    return '$base/$value';
+  }
+
   final String id;
   final String nombre;
   final String email;
@@ -70,12 +85,14 @@ class UserModel {
           ? travelerProfile['documentNumber']?.toString()
           : json['documento']?.toString(),
       selfieUrl: travelerProfile is Map<String, dynamic>
-          ? travelerProfile['selfieUrl']?.toString() ??
-              json['selfieUrl']?.toString() ??
-              json['fotoPerfil']?.toString()
-          : json['selfieUrl']?.toString() ??
-              json['fotoPerfil']?.toString() ??
-              json['selfiePath']?.toString(),
+          ? _normalizeMediaUrl(
+              travelerProfile['selfieUrl'] ??
+                  json['selfieUrl'] ??
+                  json['fotoPerfil'],
+            )
+          : _normalizeMediaUrl(
+              json['selfieUrl'] ?? json['fotoPerfil'] ?? json['selfiePath'],
+            ),
       rutas: derivedRoutes.isNotEmpty
           ? derivedRoutes
           : travelerProfile is Map<String, dynamic>
@@ -110,7 +127,9 @@ class UserModel {
         json['travelerType']?.toString(),
       ),
       documento: json['documento']?.toString(),
-      selfieUrl: json['selfieUrl']?.toString() ?? json['selfiePath']?.toString(),
+      selfieUrl: _normalizeMediaUrl(
+        json['selfieUrl'] ?? json['fotoPerfil'] ?? json['selfiePath'],
+      ),
       rutas: (json['rutas'] as List?)?.map((e) => e.toString()).toList(),
       verificado: json['verificado'] == true,
       bloqueado: json['bloqueado'] == true,

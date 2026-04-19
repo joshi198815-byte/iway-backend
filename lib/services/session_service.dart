@@ -9,6 +9,8 @@ class SessionService {
   static const _sessionUserKey = 'session_user';
   static const _sessionAccessTokenKey = 'session_access_token';
   static const _locallyVerifiedUsersKey = 'locally_verified_users';
+  static const _sessionSchemaVersionKey = 'session_schema_version';
+  static const _sessionSchemaVersion = 2;
 
   static UserModel? currentUser;
   static String? currentAccessToken;
@@ -20,6 +22,18 @@ class SessionService {
 
   static Future<void> restoreSession() async {
     final prefs = await SharedPreferences.getInstance();
+    final storedVersion = prefs.getInt(_sessionSchemaVersionKey);
+
+    if (storedVersion != _sessionSchemaVersion) {
+      await prefs.remove(_sessionUserKey);
+      await prefs.remove(_sessionAccessTokenKey);
+      await prefs.remove(_locallyVerifiedUsersKey);
+      await prefs.setInt(_sessionSchemaVersionKey, _sessionSchemaVersion);
+      currentUser = null;
+      currentAccessToken = null;
+      return;
+    }
+
     final raw = prefs.getString(_sessionUserKey);
     currentAccessToken = prefs.getString(_sessionAccessTokenKey);
 
@@ -62,6 +76,7 @@ class SessionService {
 
     currentUser = effectiveUser;
     currentAccessToken = accessToken;
+    await prefs.setInt(_sessionSchemaVersionKey, _sessionSchemaVersion);
     await prefs.setString(_sessionUserKey, jsonEncode(effectiveUser.toJson()));
     if (accessToken != null && accessToken.isNotEmpty) {
       await prefs.setString(_sessionAccessTokenKey, accessToken);
