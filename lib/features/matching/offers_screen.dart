@@ -6,6 +6,7 @@ import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/matching/models/offer_model.dart';
 import 'package:iway_app/features/matching/services/matching_service.dart';
+import 'package:iway_app/features/payments/services/payment_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/services/api_client.dart';
@@ -33,6 +34,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   final priceController = TextEditingController();
   final realtime = RealtimeService.instance;
   final locationService = LocationService();
+  final paymentService = PaymentService();
 
   Position? currentPosition;
 
@@ -40,6 +42,8 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   List<OfferModel> offers = [];
   bool loading = true;
   bool creatingOffer = false;
+  double commissionPerLb = 0;
+  double groundCommissionPercent = 0;
   StreamSubscription<dynamic>? globalSyncSubscription;
   StreamSubscription<dynamic>? notificationSubscription;
 
@@ -51,7 +55,21 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     WidgetsBinding.instance.addObserver(this);
     _loadCurrentPosition();
     loadOffers();
+    _loadPricing();
     bindRealtime();
+  }
+
+  Future<void> _loadPricing() async {
+    if (!isTraveler) return;
+    try {
+      final summary = await paymentService.getDebtSummary();
+      final pricing = summary['pricingSettings'];
+      if (!mounted || pricing is! Map<String, dynamic>) return;
+      setState(() {
+        commissionPerLb = (pricing['commissionPerLb'] as num?)?.toDouble() ?? 0;
+        groundCommissionPercent = (pricing['groundCommissionPercent'] as num?)?.toDouble() ?? 0;
+      });
+    } catch (_) {}
   }
 
   Future<void> bindRealtime() async {
@@ -119,6 +137,17 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
         const SnackBar(content: Text('No se pudieron cargar las ofertas.')),
       );
     }
+  }
+
+  double _estimatedCommission(double offerPrice) {
+    if (shipment == null) return 0;
+    if ((shipment!.peso ?? 0) > 0 && commissionPerLb > 0) {
+      return shipment!.peso! * commissionPerLb;
+    }
+    if (groundCommissionPercent > 0) {
+      return offerPrice * groundCommissionPercent;
+    }
+    return 0;
   }
 
   Future<void> createOffer() async {
@@ -500,6 +529,34 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                     decoration: InputDecoration(
                                       labelText: 'Tu oferta (${shipment == null ? 'USD' : CurrencyPresenter.symbolForShipment(shipment!)})',
                                     ),
+                                    onChanged: (_) => setState(() {}),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Builder(
+                                    builder: (context) {
+                                      final offerPrice = double.tryParse(priceController.text.trim());
+                                      final estimatedCommission = offerPrice == null ? 0 : _estimatedCommission(offerPrice);
+                                      final estimatedNet = offerPrice == null ? 0 : (offerPrice - estimatedCommission);
+                                      return Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceSoft,
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(color: AppTheme.border),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text('Desglose estimado', style: TextStyle(fontWeight: FontWeight.w700)),
+                                            const SizedBox(height: 8),
+                                            Text('Precio ofertado: US\$${(offerPrice ?? 0).toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.muted)),
+                                            Text('Comisión app: US\$${estimatedCommission.toStringAsFixed(2)}', style: const TextStyle(color: AppTheme.muted)),
+                                            Text('Recibes aprox.: US\$${estimatedNet.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   ),
                                   const SizedBox(height: 14),
                                   ElevatedButton(

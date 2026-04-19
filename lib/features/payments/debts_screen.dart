@@ -39,6 +39,27 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
   List<Map<String, dynamic>> ledger = [];
   Map<String, dynamic>? payoutPolicy;
 
+  double _toAmount(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  DateTime? _toDate(dynamic value) {
+    if (value == null) return null;
+    return DateTime.tryParse(value.toString())?.toLocal();
+  }
+
+  double _ledgerCreditsSince(DateTime from) {
+    return ledger.fold<double>(0, (sum, item) {
+      final occurredAt = _toDate(item['occurredAt'] ?? item['createdAt']);
+      final direction = item['direction']?.toString();
+      if (occurredAt == null || occurredAt.isBefore(from) || direction != 'credit') {
+        return sum;
+      }
+      return sum + _toAmount(item['amount']);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -409,8 +430,8 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                       AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                       const SizedBox(height: 24),
                       const AppPageIntro(
-                        title: 'Pagos y comisiones',
-                        subtitle: 'Revisa lo que debes, cuánto te toca pagar y el estado de tus pagos.',
+                        title: 'Wallet y comisiones',
+                        subtitle: 'Consulta tus ganancias, tus pendientes con i-Way y el estado de tus pagos.',
                       ),
                       const SizedBox(height: 20),
                       if (isBlocked || total > 0) ...[
@@ -424,28 +445,57 @@ class _DebtsScreenState extends State<DebtsScreen> with WidgetsBindingObserver {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: AppTheme.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Total pendiente',
-                              style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              '\$${total.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8),
-                            ),
-                          ],
-                        ),
+                      Builder(
+                        builder: (context) {
+                          final now = DateTime.now();
+                          final weekStart = now.subtract(Duration(days: now.weekday - 1));
+                          final monthStart = DateTime(now.year, now.month, 1);
+                          final yearStart = DateTime(now.year, 1, 1);
+                          final weekEarnings = _ledgerCreditsSince(weekStart);
+                          final monthEarnings = _ledgerCreditsSince(monthStart);
+                          final yearEarnings = _ledgerCreditsSince(yearStart);
+
+                          Widget metric(String label, String value) {
+                            return Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surface,
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(color: AppTheme.border),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(label, style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.w700)),
+                                    const SizedBox(height: 8),
+                                    Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              Row(
+                                children: [
+                                  metric('Semana', '\$${weekEarnings.toStringAsFixed(2)}'),
+                                  const SizedBox(width: 10),
+                                  metric('Mes', '\$${monthEarnings.toStringAsFixed(2)}'),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  metric('Año', '\$${yearEarnings.toStringAsFixed(2)}'),
+                                  const SizedBox(width: 10),
+                                  metric('Pendiente i-Way', '\$${total.toStringAsFixed(2)}'),
+                                ],
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                       if (total > 0) ...[
