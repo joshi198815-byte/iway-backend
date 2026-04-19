@@ -21,8 +21,13 @@ import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class TrackingScreen extends StatefulWidget {
   final String shipmentId;
+  final ShipmentModel? initialShipment;
 
-  const TrackingScreen({super.key, required this.shipmentId});
+  const TrackingScreen({
+    super.key,
+    required this.shipmentId,
+    this.initialShipment,
+  });
 
   @override
   State<TrackingScreen> createState() => _TrackingScreenState();
@@ -51,6 +56,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   int? routeDurationMinutes;
   StreamSubscription<dynamic>? trackingSubscription;
   StreamSubscription<dynamic>? shipmentStatusSubscription;
+  StreamSubscription<dynamic>? globalSyncSubscription;
 
   bool get _isPrivilegedOperator {
     final role = SessionService.currentUser?.tipo;
@@ -67,11 +73,14 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    shipment = widget.initialShipment;
+    loading = widget.initialShipment == null;
     loadTrackingData();
     bindRealtime();
   }
 
   Future<void> bindRealtime() async {
+    await realtime.ensureConnected();
     await realtime.joinTracking(widget.shipmentId);
     trackingSubscription = realtime.trackingUpdated.listen((data) {
       if (data is Map && data['shipmentId']?.toString() == widget.shipmentId) {
@@ -80,6 +89,13 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     });
     shipmentStatusSubscription = realtime.shipmentStatusChanged.listen((data) {
       if (data is Map && data['shipmentId']?.toString() == widget.shipmentId) {
+        loadTrackingData();
+      }
+    });
+    globalSyncSubscription = realtime.globalEntitySync.listen((event) {
+      if (event is! Map) return;
+      final payload = event['payload'];
+      if (payload is Map && payload['shipmentId']?.toString() == widget.shipmentId) {
         loadTrackingData();
       }
     });
@@ -509,6 +525,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     WidgetsBinding.instance.removeObserver(this);
     trackingSubscription?.cancel();
     shipmentStatusSubscription?.cancel();
+    globalSyncSubscription?.cancel();
     super.dispose();
   }
 
@@ -973,7 +990,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                 buildRemoteGallery('Evidencias de entrega guardadas', shipment!.evidenciasEntrega),
                 const SizedBox(height: 16),
                 AppGlassSection(
-                  title: 'Timeline',
+                  title: 'Historial del envío',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

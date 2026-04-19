@@ -16,6 +16,7 @@ import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/ui/app_empty_state.dart';
 import 'package:iway_app/shared/ui/app_skeleton.dart';
+import 'package:iway_app/shared/utils/currency_presenter.dart';
 
 class OffersScreen extends StatefulWidget {
   final String shipmentId;
@@ -162,10 +163,18 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
 
       if (!mounted) return;
 
-      Navigator.pushNamed(
+      final initialShipment = shipment?.copyWith(
+        assignedTravelerId: offer.travelerId,
+        estado: 'assigned',
+      );
+
+      Navigator.pushReplacementNamed(
         context,
         '/tracking',
-        arguments: offer.shipmentId,
+        arguments: {
+          'shipmentId': offer.shipmentId,
+          'initialShipment': initialShipment,
+        },
       );
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -435,7 +444,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                     ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Valor declarado: US\$${shipment!.valor.toStringAsFixed(2)}',
+                                    'Valor declarado: ${CurrencyPresenter.formatForShipment(shipment!, shipment!.valor)}',
                                     style: const TextStyle(color: AppTheme.muted),
                                   ),
                                   if (shipment!.peso != null)
@@ -488,8 +497,8 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                   TextField(
                                     controller: priceController,
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Tu oferta (USD)',
+                                    decoration: InputDecoration(
+                                      labelText: 'Tu oferta (${shipment == null ? 'USD' : CurrencyPresenter.symbolForShipment(shipment!)})',
                                     ),
                                   ),
                                   const SizedBox(height: 14),
@@ -551,7 +560,9 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         children: [
                                           Expanded(
                                             child: Text(
-                                              'US\$${offer.precio.toStringAsFixed(2)}',
+                                              shipment == null
+                                                  ? 'US\$${offer.precio.toStringAsFixed(2)}'
+                                                  : CurrencyPresenter.formatForShipment(shipment!, offer.precio),
                                               style: const TextStyle(
                                                 fontSize: 28,
                                                 fontWeight: FontWeight.w800,

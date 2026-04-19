@@ -34,6 +34,45 @@ class ShipmentModel {
 
   ShipmentStatusValue? get statusValue => parseShipmentStatus(estado);
 
+  ShipmentModel copyWith({
+    String? assignedTravelerId,
+    String? estado,
+    int? offerCount,
+  }) {
+    return ShipmentModel(
+      id: id,
+      userId: userId,
+      assignedTravelerId: assignedTravelerId ?? this.assignedTravelerId,
+      tipo: tipo,
+      peso: peso,
+      descripcion: descripcion,
+      valor: valor,
+      origen: origen,
+      destino: destino,
+      remitenteNombre: remitenteNombre,
+      remitenteTelefono: remitenteTelefono,
+      remitenteDireccion: remitenteDireccion,
+      remitenteRegion: remitenteRegion,
+      receptorNombre: receptorNombre,
+      receptorTelefono: receptorTelefono,
+      receptorDireccion: receptorDireccion,
+      imagenes: imagenes,
+      imagenesReferencia: imagenesReferencia,
+      evidenciasEntrega: evidenciasEntrega,
+      seguro: seguro,
+      costoSeguro: costoSeguro,
+      pickupLat: pickupLat,
+      pickupLng: pickupLng,
+      deliveryLat: deliveryLat,
+      deliveryLng: deliveryLng,
+      marketplaceScore: marketplaceScore,
+      marketplaceTier: marketplaceTier,
+      offerCount: offerCount ?? this.offerCount,
+      marketplaceInsights: marketplaceInsights,
+      estado: estado ?? this.estado,
+    );
+  }
+
   ShipmentModel({
     required this.id,
     required this.userId,

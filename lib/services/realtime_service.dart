@@ -45,6 +45,9 @@ class RealtimeService {
           .setTransports(['websocket'])
           .disableAutoConnect()
           .enableReconnection()
+          .setReconnectionAttempts(1000000)
+          .setReconnectionDelay(1000)
+          .setReconnectionDelayMax(5000)
           .setAuth({'token': 'Bearer $token'})
           .setExtraHeaders({'Authorization': 'Bearer $token'})
           .build(),

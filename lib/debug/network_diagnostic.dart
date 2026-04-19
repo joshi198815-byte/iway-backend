@@ -1,12 +1,18 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:iway_app/config/app_env.dart';
 import 'package:iway_app/services/api_client.dart';
 
 class NetworkDiagnostic {
   static Uri _uri(String path) => Uri.parse('${AppEnv.apiBaseUrl}$path');
+
+  static void _log(Object? message) {
+    if (!kDebugMode) return;
+    debugPrint(message?.toString());
+  }
 
   static Future<void> postJson(String path, Map<String, dynamic> body) async {
     final uri = _uri(path);
@@ -25,42 +31,42 @@ class NetworkDiagnostic {
           .timeout(ApiClient.requestTimeout);
 
       final elapsed = DateTime.now().difference(started).inMilliseconds;
-      print('');
-      print('========== DIAGNOSTIC POST $path ==========');
-      print('URL: $uri');
-      print('STATUS: ${response.statusCode}');
-      print('TIME_MS: $elapsed');
-      print('HEADERS: ${response.headers}');
-      print('BODY: ${response.body}');
+      _log('');
+      _log('========== DIAGNOSTIC POST $path ==========');
+      _log('URL: $uri');
+      _log('STATUS: ${response.statusCode}');
+      _log('TIME_MS: $elapsed');
+      _log('HEADERS: ${response.headers}');
+      _log('BODY: ${response.body}');
 
       try {
         final decoded = jsonDecode(response.body);
-        print('BODY_JSON: $decoded');
+        _log('BODY_JSON: $decoded');
       } catch (_) {
-        print('BODY_JSON: <not-json>');
+        _log('BODY_JSON: <not-json>');
       }
-      print('===========================================');
+      _log('===========================================');
     } on SocketException catch (e) {
-      print('');
-      print('========== DIAGNOSTIC POST $path ==========');
-      print('URL: $uri');
-      print('NETWORK_ERROR(SocketException): $e');
-      print('TIP: si aquí sale handshake/certificate, el problema es SSL/TLS.');
-      print('===========================================');
+      _log('');
+      _log('========== DIAGNOSTIC POST $path ==========');
+      _log('URL: $uri');
+      _log('NETWORK_ERROR(SocketException): $e');
+      _log('TIP: si aquí sale handshake/certificate, el problema es SSL/TLS.');
+      _log('===========================================');
     } on HandshakeException catch (e) {
-      print('');
-      print('========== DIAGNOSTIC POST $path ==========');
-      print('URL: $uri');
-      print('TLS_ERROR(HandshakeException): $e');
-      print('TIP: Android no está confiando en el certificado del dominio.');
-      print('===========================================');
+      _log('');
+      _log('========== DIAGNOSTIC POST $path ==========');
+      _log('URL: $uri');
+      _log('TLS_ERROR(HandshakeException): $e');
+      _log('TIP: Android no está confiando en el certificado del dominio.');
+      _log('===========================================');
     } catch (e, st) {
-      print('');
-      print('========== DIAGNOSTIC POST $path ==========');
-      print('URL: $uri');
-      print('UNEXPECTED_ERROR: $e');
-      print(st);
-      print('===========================================');
+      _log('');
+      _log('========== DIAGNOSTIC POST $path ==========');
+      _log('URL: $uri');
+      _log('UNEXPECTED_ERROR: $e');
+      _log(st);
+      _log('===========================================');
     }
   }
 
@@ -97,10 +103,10 @@ class NetworkDiagnostic {
     final documentBase64 = 'data:image/jpeg;base64,${base64Encode(documentBytes)}';
     final selfieBase64 = 'data:image/jpeg;base64,${base64Encode(selfieBytes)}';
 
-    print('DOCUMENT_PATH: ${documentFile.path}');
-    print('DOCUMENT_SIZE_BYTES: ${documentBytes.length}');
-    print('SELFIE_PATH: ${selfieFile.path}');
-    print('SELFIE_SIZE_BYTES: ${selfieBytes.length}');
+    _log('DOCUMENT_PATH: ${documentFile.path}');
+    _log('DOCUMENT_SIZE_BYTES: ${documentBytes.length}');
+    _log('SELFIE_PATH: ${selfieFile.path}');
+    _log('SELFIE_SIZE_BYTES: ${selfieBytes.length}');
 
     await postJson('/auth/register/traveler', {
       'fullName': 'Diag Traveler',

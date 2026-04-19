@@ -11,6 +11,7 @@ import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/shipment/my_orders_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/matching/offers_screen.dart';
+import '../features/shipment/models/shipment_model.dart';
 import '../features/shipment/tracking_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/chat/chat_screen.dart';
@@ -64,11 +65,23 @@ class AppRoutes {
       return OffersScreen(shipmentId: id);
     },
     '/tracking': (context) {
-      final id = ModalRoute.of(context)?.settings.arguments;
-      if (id is! String || id.isEmpty) {
-        return _invalidArgumentsScreen('Tracking');
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String && args.isNotEmpty) {
+        return TrackingScreen(shipmentId: args);
       }
-      return TrackingScreen(shipmentId: id);
+      if (args is Map) {
+        final shipmentId = args['shipmentId']?.toString() ?? '';
+        final initialShipment = args['initialShipment'] is ShipmentModel
+            ? args['initialShipment'] as ShipmentModel
+            : null;
+        if (shipmentId.isNotEmpty) {
+          return TrackingScreen(
+            shipmentId: shipmentId,
+            initialShipment: initialShipment,
+          );
+        }
+      }
+      return _invalidArgumentsScreen('Tracking');
     },
     '/notifications': (context) => const NotificationsScreen(),
     '/chat': (context) {

@@ -12,6 +12,7 @@ import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
+import 'package:iway_app/shared/utils/currency_presenter.dart';
 import 'package:iway_app/shared/ui/app_operational_banner.dart';
 
 class TravelerOpportunitiesScreen extends StatefulWidget {
@@ -218,7 +219,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                         ),
                                         const SizedBox(height: 8),
                                         Text(
-                                          'Valor: \$${shipment.valor.toStringAsFixed(2)} • Tipo: ${shipment.tipo}',
+                                          'Valor: ${CurrencyPresenter.formatForShipment(shipment, shipment.valor)} • Tipo: ${shipment.tipo}',
                                           style: const TextStyle(color: AppTheme.muted),
                                         ),
                                         const SizedBox(height: 8),
