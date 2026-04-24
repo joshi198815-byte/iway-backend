@@ -207,18 +207,21 @@ export class NotificationsService implements OnModuleInit {
               type: params.type ?? 'push',
               shipmentId: params.shipmentId ?? '',
               route: this.routeForType(params.type, params.shipmentId),
-              priority: params.highPriority ? 'high' : 'default',
+              priority: 'high',
             },
             android: {
-              priority: params.highPriority ? 'high' : 'normal',
+              priority: 'high',
               notification: {
                 channelId: 'iway_high_importance',
-                priority: params.highPriority ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
+                priority: 'PRIORITY_MAX',
+                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                sound: 'default',
               },
             },
             apns: {
               headers: {
-                'apns-priority': params.highPriority ? '10' : '5',
+                'apns-priority': '10',
+                'apns-push-type': 'alert',
               },
               payload: {
                 aps: {

@@ -24,6 +24,13 @@ class StorageUploadService {
       'bucket': 'documents',
       'fileName': 'profile-selfie-${DateTime.now().millisecondsSinceEpoch}',
       'base64': base64,
+    }).then((result) {
+      final publicUrl = result['publicUrl']?.toString();
+      final url = result['url']?.toString();
+      return {
+        ...result,
+        'url': (publicUrl != null && publicUrl.isNotEmpty) ? publicUrl : url,
+      };
     });
   }
 

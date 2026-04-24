@@ -113,7 +113,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final result = await _storageUploadService.pickAndUploadProfilePhoto(source: source);
       if (!mounted) return;
-      setState(() => _photoUrl = result?['url']?.toString());
+      final uploadedUrl = result?['publicUrl']?.toString().trim();
+      final fallbackUrl = result?['url']?.toString().trim();
+      setState(() => _photoUrl = (uploadedUrl?.isNotEmpty == true ? uploadedUrl : fallbackUrl));
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }

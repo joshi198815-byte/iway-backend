@@ -9,11 +9,6 @@ import 'package:iway_app/services/session_service.dart';
 final FlutterLocalNotificationsPlugin _localNotifications =
     FlutterLocalNotificationsPlugin();
 
-@pragma('vm:entry-point')
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await PushNotificationService.ensureFirebaseInitialized();
-}
-
 class PushNotificationService {
   PushNotificationService._();
 
@@ -70,8 +65,6 @@ class PushNotificationService {
         debugPrint('PushNotificationService.initialize: Firebase no disponible.');
         return;
       }
-
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
       final messaging = FirebaseMessaging.instance;
       final permission = await messaging.requestPermission(
@@ -167,8 +160,10 @@ class PushNotificationService {
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
-          importance: highPriority ? Importance.max : Importance.high,
-          priority: highPriority ? Priority.max : Priority.high,
+          importance: highPriority ? Importance.max : Importance.max,
+          priority: highPriority ? Priority.max : Priority.max,
+          playSound: true,
+          enableVibration: true,
           ticker: highPriority ? 'Prioridad alta' : 'iWay',
         ),
         iOS: DarwinNotificationDetails(

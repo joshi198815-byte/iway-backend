@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:iway_app/config/app_env.dart';
@@ -208,12 +209,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppTheme.surfaceSoft,
-                    backgroundImage: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
-                        ? NetworkImage(AppEnv.resolveMediaUrl(user.selfiePath!))
-                        : null,
-                    child: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
-                        ? null
-                        : Text((user?.nombre.isNotEmpty == true ? user!.nombre[0] : 'I').toUpperCase()),
+                    child: ClipOval(
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
+                            ? CachedNetworkImage(
+                                imageUrl: AppEnv.resolveMediaUrl(user.selfiePath!),
+                                fit: BoxFit.cover,
+                                errorWidget: (_, __, ___) => const Icon(Icons.person_rounded, color: AppTheme.muted, size: 28),
+                                placeholder: (_, __) => const Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              )
+                            : const Icon(Icons.person_rounded, color: AppTheme.muted, size: 28),
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
