@@ -13,9 +13,12 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
+  final _codeController = TextEditingController();
+  final _newPasswordController = TextEditingController();
   final _apiClient = ApiClient();
 
-  bool _submitting = false;
+  bool _requestingCode = false;
+  bool _resettingPassword = false;
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -23,7 +26,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 
-  Future<void> _submit() async {
+  Future<void> _requestCode() async {
     final email = _emailController.text.trim();
 
     if (email.isEmpty || !email.contains('@')) {
@@ -31,7 +34,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       return;
     }
 
-    setState(() => _submitting = true);
+    setState(() => _requestingCode = true);
 
     try {
       await _apiClient.post('/auth/forgot-password', {
@@ -39,22 +42,61 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       if (!mounted) return;
-      _showMessage('Si el correo existe, recibirás instrucciones para recuperar tu contraseña.');
-      Navigator.maybePop(context);
+      _showMessage('Si la cuenta existe, enviamos un código de recuperación.');
     } on ApiException catch (e) {
       if (!mounted) return;
-      final normalized = e.message.toLowerCase();
-      if (e.statusCode == 404 || normalized.contains('not found')) {
-        _showMessage('La recuperación de contraseña aún no está habilitada en este servidor.');
-      } else {
-        _showMessage(e.message);
-      }
+      _showMessage(e.message);
     } catch (e) {
       if (!mounted) return;
-      _showMessage('No se pudo procesar la solicitud. ${e.toString()}');
+      _showMessage('No se pudo solicitar el código. ${e.toString()}');
     } finally {
       if (mounted) {
-        setState(() => _submitting = false);
+        setState(() => _requestingCode = false);
+      }
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    final email = _emailController.text.trim();
+    final code = _codeController.text.trim();
+    final newPassword = _newPasswordController.text.trim();
+
+    if (email.isEmpty || !email.contains('@')) {
+      _showMessage('Ingresa un correo válido.');
+      return;
+    }
+
+    if (code.length != 6) {
+      _showMessage('Ingresa el código de 6 dígitos.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      _showMessage('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setState(() => _resettingPassword = true);
+
+    try {
+      await _apiClient.post('/auth/reset-password', {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      });
+
+      if (!mounted) return;
+      _showMessage('Contraseña actualizada. Ya puedes iniciar sesión.');
+      Navigator.pushReplacementNamed(context, '/login');
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      _showMessage(e.message);
+    } catch (e) {
+      if (!mounted) return;
+      _showMessage('No se pudo restablecer la contraseña. ${e.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() => _resettingPassword = false);
       }
     }
   }
@@ -62,7 +104,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   void dispose() {
     _emailController.dispose();
+    _codeController.dispose();
+    _newPasswordController.dispose();
     super.dispose();
+  }
+
+  InputDecoration _inputDecoration(String label) {
+    return const InputDecoration().copyWith(
+      labelText: label,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    );
   }
 
   @override
@@ -90,7 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 28),
                 const AppPageIntro(
                   title: 'Recuperar contraseña',
-                  subtitle: 'Ingresa tu correo para solicitar el reinicio de acceso.',
+                  subtitle: 'Solicita tu código y cambia tu contraseña desde aquí.',
                 ),
                 const SizedBox(height: 28),
                 Container(
@@ -105,25 +156,50 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     children: [
                       TextField(
                         controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
+                        decoration: _inputDecoration('Correo'),
                         keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
-                        onSubmitted: (_) => _submit(),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _requestingCode ? null : _requestCode,
+                          child: _requestingCode
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Enviar código'),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      TextField(
+                        controller: _codeController,
+                        decoration: _inputDecoration('Código de recuperación'),
+                        keyboardType: TextInputType.number,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: _newPasswordController,
+                        decoration: _inputDecoration('Nueva contraseña'),
+                        obscureText: true,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _resetPassword(),
                       ),
                       const SizedBox(height: 18),
                       ElevatedButton(
-                        onPressed: _submitting ? null : _submit,
-                        child: _submitting
+                        onPressed: _resettingPassword ? null : _resetPassword,
+                        child: _resettingPassword
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               )
-                            : const Text('Solicitar recuperación'),
+                            : const Text('Restablecer contraseña'),
                       ),
                     ],
                   ),

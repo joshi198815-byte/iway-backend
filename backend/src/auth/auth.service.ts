@@ -197,6 +197,101 @@ export class AuthService implements OnModuleInit {
     return { channel, sent: true, expiresInMinutes: 10 };
   }
 
+  async requestPasswordReset(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+
+    if (!user || user.status === UserStatus.deleted) {
+      return { sent: true, expiresInMinutes: 10 };
+    }
+
+    await this.prisma.verificationCode.updateMany({
+      where: { userId: user.id, channel: VerificationChannel.email, consumedAt: null },
+      data: { consumedAt: new Date() },
+    });
+
+    const code = randomInt(100000, 1000000).toString();
+    await this.prisma.verificationCode.create({
+      data: {
+        userId: user.id,
+        channel: VerificationChannel.email,
+        codeHash: this.hashVerificationCode(code),
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      },
+    });
+
+    await this.notificationsService.sendPush(
+      user.id,
+      'Recuperación de contraseña',
+      `Tu código de recuperación iWay es ${code}. Vence en 10 minutos.`,
+      'contact_verification',
+    );
+
+    return { sent: true, expiresInMinutes: 10 };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCode = code.trim();
+    const normalizedPassword = newPassword.trim();
+
+    if (normalizedPassword.length < 6) {
+      throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres.');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true, status: true },
+    });
+
+    if (!user || user.status === UserStatus.deleted) {
+      throw new BadRequestException('No se pudo validar la recuperación de esta cuenta.');
+    }
+
+    const verification = await this.prisma.verificationCode.findFirst({
+      where: {
+        userId: user.id,
+        channel: VerificationChannel.email,
+        consumedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!verification || verification.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('El código ya venció o no existe.');
+    }
+
+    if (verification.codeHash !== this.hashVerificationCode(normalizedCode)) {
+      await this.prisma.verificationCode.update({
+        where: { id: verification.id },
+        data: { attempts: verification.attempts + 1 },
+      });
+      throw new BadRequestException('Código inválido.');
+    }
+
+    const passwordHash = await hashPassword(normalizedPassword);
+
+    await this.prisma.$transaction([
+      this.prisma.verificationCode.update({
+        where: { id: verification.id },
+        data: { consumedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+    ]);
+
+    return { reset: true };
+  }
+
   async updatePendingPhone(userId: string, phone: string) {
     const user = await this.usersService.findByIdForSession(userId);
 

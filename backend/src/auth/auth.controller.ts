@@ -8,6 +8,8 @@ import { RequestVerificationCodeDto } from './dto/request-verification-code.dto'
 import { VerifyContactCodeDto } from './dto/verify-contact-code.dto';
 import { UpdatePendingPhoneDto } from './dto/update-pending-phone.dto';
 import { UpdateMeDto } from './dto/update-me.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -26,6 +28,16 @@ export class AuthController {
   @Post('login')
   login(@Body() body: LoginDto) {
     return this.authService.login(body);
+  }
+
+  @Post('forgot-password')
+  forgotPassword(@Body() body: ForgotPasswordDto) {
+    return this.authService.requestPasswordReset(body.email);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() body: ResetPasswordDto) {
+    return this.authService.resetPassword(body.email, body.code, body.newPassword);
   }
 
   @UseGuards(JwtAuthGuard)
