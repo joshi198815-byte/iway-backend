@@ -243,6 +243,51 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  String _shipmentDisplayTitle(ShipmentModel shipment) {
+    final productName = (shipment.descripcion ?? '').trim().isNotEmpty
+        ? shipment.descripcion!.trim()
+        : shipment.tipo.trim();
+    return 'Envío de: $productName';
+  }
+
+  String _maskedIdSuffix(String rawId) {
+    final trimmed = rawId.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.length <= 5) return trimmed;
+    return trimmed.substring(trimmed.length - 5);
+  }
+
+  String _sanitizeActivityText(String message) {
+    final trimmed = message.trim();
+    if (trimmed.isEmpty) return trimmed;
+
+    return trimmed.replaceAllMapped(
+      RegExp(r'\b[a-zA-Z0-9_-]{12,}\b'),
+      (match) => '…${_maskedIdSuffix(match.group(0) ?? '')}',
+    );
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'pending':
+      case 'offered':
+        return Icons.access_time_rounded;
+      case 'picked_up':
+        return Icons.inventory_2_rounded;
+      case 'assigned':
+        return Icons.person_pin_circle_outlined;
+      case 'in_transit':
+      case 'in_delivery':
+        return Icons.local_shipping_outlined;
+      case 'arrived':
+        return Icons.location_on_outlined;
+      case 'delivered':
+        return Icons.check_circle_outline_rounded;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
   Widget _buildNotificationsPreview() {
     return Container(
       width: double.infinity,
@@ -266,8 +311,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (_notifications.isEmpty)
             Text(
               _isTraveler
-                  ? 'La campana mostrará aquí eventos reales como nueva oportunidad en tu ruta, oferta aceptada y pago recibido.'
-                  : 'La campana mostrará aquí eventos reales como ofertas, cambios de estado y entregas.',
+                  ? 'Aquí verás eventos reales como nuevas oportunidades, ofertas aceptadas y pagos.'
+                  : 'Aquí verás eventos reales como ofertas, cambios de estado y entregas.',
               style: const TextStyle(color: AppTheme.muted, height: 1.4),
             )
           else
@@ -285,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         children: [
                           Text(item.titulo.isNotEmpty ? item.titulo : 'Nuevo evento', style: const TextStyle(fontWeight: FontWeight.w700)),
                           const SizedBox(height: 2),
-                          Text(item.mensaje, style: const TextStyle(color: AppTheme.muted, height: 1.3)),
+                          Text(_sanitizeActivityText(item.mensaje), style: const TextStyle(color: AppTheme.muted, height: 1.3)),
                         ],
                       ),
                     ),
@@ -369,32 +414,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       );
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Envía con claridad y seguimiento real', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 8),
-          const Text('Publica tu envío, recibe ofertas y sigue todo el proceso sin ruido técnico.', style: TextStyle(color: AppTheme.muted, height: 1.4)),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/create_shipment'),
-              icon: const Icon(Icons.add_box_outlined),
-              label: const Text('Crear envío'),
-            ),
-          ),
-        ],
-      ),
-    );
+    return const SizedBox.shrink();
   }
 
   Widget _buildShipmentList(List<ShipmentModel> shipments) {
@@ -413,35 +433,70 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Column(
       children: shipments.take(4).map((shipment) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Card(
+            elevation: 0,
             color: AppTheme.surface,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(ShipmentStatusPresenter.label(shipment.estado), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text('${shipment.origen} → ${shipment.destino}', style: const TextStyle(color: AppTheme.muted)),
-              const SizedBox(height: 4),
-              Text(shipment.receptorNombre.isNotEmpty ? shipment.receptorNombre : shipment.tipo, style: const TextStyle(color: AppTheme.muted)),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () => Navigator.pushNamed(
-                    context,
-                    shipment.estado == 'offered' && !_isTraveler ? '/offers' : '/tracking',
-                    arguments: shipment.id,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: AppTheme.border, width: 0.5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceSoft,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(_statusIcon(shipment.estado), color: AppTheme.accent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(_shipmentDisplayTitle(shipment), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(
+                              ShipmentStatusPresenter.label(shipment.estado),
+                              style: const TextStyle(color: AppTheme.muted),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  child: Text(shipment.estado == 'offered' && !_isTraveler ? 'Ver ofertas' : 'Abrir detalle'),
-                ),
+                  const SizedBox(height: 12),
+                  Text('${shipment.origen} → ${shipment.destino}', style: const TextStyle(color: AppTheme.muted)),
+                  const SizedBox(height: 4),
+                  Text(
+                    shipment.receptorNombre.isNotEmpty ? shipment.receptorNombre : 'Ref: …${_maskedIdSuffix(shipment.id)}',
+                    style: const TextStyle(color: AppTheme.muted),
+                  ),
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: () => Navigator.pushNamed(
+                        context,
+                        shipment.estado == 'offered' && !_isTraveler ? '/offers' : '/tracking',
+                        arguments: shipment.id,
+                      ),
+                      child: Text(shipment.estado == 'offered' && !_isTraveler ? 'Ver ofertas' : 'Abrir detalle'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       }).toList(),
@@ -469,6 +524,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
       child: Scaffold(
         drawer: _buildDrawer(),
+        floatingActionButton: _isTraveler
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => Navigator.pushNamed(context, '/create_shipment'),
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Nuevo Envío'),
+              ),
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -477,72 +539,85 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
             ),
           ),
-          child: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await _refreshShipments();
-                await _loadNotifications();
-              },
-              child: FutureBuilder<List<ShipmentModel>>(
-                future: _myShipmentsFuture,
-                builder: (context, snapshot) {
-                  final shipments = snapshot.data ?? const <ShipmentModel>[];
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                    children: [
-                      Row(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await _refreshShipments();
+              await _loadNotifications();
+            },
+            child: FutureBuilder<List<ShipmentModel>>(
+              future: _myShipmentsFuture,
+              builder: (context, snapshot) {
+                final shipments = snapshot.data ?? const <ShipmentModel>[];
+                return CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      pinned: true,
+                      floating: false,
+                      backgroundColor: AppTheme.background,
+                      elevation: 0,
+                      leading: Builder(
+                        builder: (context) => IconButton(
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                          icon: const Icon(Icons.menu_rounded),
+                        ),
+                      ),
+                      titleSpacing: 0,
+                      title: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Builder(
-                            builder: (context) => IconButton(
-                              onPressed: () => Scaffold.of(context).openDrawer(),
-                              icon: const Icon(Icons.menu_rounded),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Hola, ${user?.nombre.split(' ').first ?? 'i-WAY'}', style: Theme.of(context).textTheme.headlineMedium),
-                                const SizedBox(height: 4),
-                                Text(_isTraveler ? 'Tu centro operativo' : 'Tu panel de envíos', style: const TextStyle(color: AppTheme.muted)),
-                              ],
-                            ),
-                          ),
-                          Stack(
-                            children: [
-                              IconButton(
-                                onPressed: () => Navigator.pushNamed(context, '/notifications'),
-                                icon: const Icon(Icons.notifications_none_rounded),
-                              ),
-                              if (unreadCount > 0)
-                                Positioned(
-                                  right: 10,
-                                  top: 8,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(999)),
-                                    child: Text('$unreadCount', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                                  ),
-                                ),
-                            ],
+                          Text('Hola, ${user?.nombre.split(' ').first ?? 'i-WAY'}'),
+                          Text(
+                            _isTraveler ? 'Tu centro operativo' : 'Tus envíos',
+                            style: const TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
-                      _buildHero(),
-                      const SizedBox(height: 18),
-                      _buildBannerCarousel(),
-                      const SizedBox(height: 18),
-                      _buildNotificationsPreview(),
-                      const SizedBox(height: 18),
-                      Text(_isTraveler ? 'Actividad reciente' : 'Tus envíos recientes', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 12),
-                      _buildShipmentList(shipments),
-                    ],
-                  );
-                },
-              ),
+                      actions: [
+                        Stack(
+                          children: [
+                            IconButton(
+                              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                              icon: const Icon(Icons.notifications_none_rounded),
+                            ),
+                            if (unreadCount > 0)
+                              Positioned(
+                                right: 10,
+                                top: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(999)),
+                                  child: Text('$unreadCount', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_isTraveler) ...[
+                              _buildHero(),
+                              const SizedBox(height: 18),
+                            ],
+                            _buildBannerCarousel(),
+                            if (!_isTraveler) const SizedBox(height: 18),
+                            const SizedBox(height: 18),
+                            _buildNotificationsPreview(),
+                            const SizedBox(height: 18),
+                            Text(_isTraveler ? 'Actividad reciente' : 'Tus envíos recientes', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 12),
+                            _buildShipmentList(shipments),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),
