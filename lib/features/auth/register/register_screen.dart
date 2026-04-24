@@ -169,10 +169,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       setState(() => loading = false);
       showMessage(e.message);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showMessage('No se pudo completar el registro.');
+      showMessage('No se pudo completar el registro. ${e.toString()}');
     }
   }
 

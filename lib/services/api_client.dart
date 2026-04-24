@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:iway_app/config/app_env.dart';
@@ -68,14 +69,22 @@ class ApiClient {
     final candidates = _candidateUris(path);
     http.Response? lastResponse;
 
-    for (var index = 0; index < candidates.length; index++) {
-      final response = await sender(candidates[index]).timeout(requestTimeout);
-      lastResponse = response;
+    try {
+      for (var index = 0; index < candidates.length; index++) {
+        final response = await sender(candidates[index]).timeout(requestTimeout);
+        lastResponse = response;
 
-      final shouldRetryWithFallback = response.statusCode == 404 && index < candidates.length - 1;
-      if (!shouldRetryWithFallback) {
-        return response;
+        final shouldRetryWithFallback = response.statusCode == 404 && index < candidates.length - 1;
+        if (!shouldRetryWithFallback) {
+          return response;
+        }
       }
+    } on TimeoutException {
+      throw ApiException('La solicitud tardó demasiado. Intenta de nuevo.');
+    } on SocketException {
+      throw ApiException('No se pudo conectar al servidor. Verifica tu conexión.');
+    } on HttpException {
+      throw ApiException('La conexión con el servidor falló. Intenta de nuevo.');
     }
 
     return lastResponse!;
@@ -169,7 +178,13 @@ class ApiClient {
 
   dynamic _decodeResponse(http.Response response) {
     final raw = response.body;
-    final decoded = raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+    dynamic decoded;
+
+    try {
+      decoded = raw.isEmpty ? <String, dynamic>{} : jsonDecode(raw);
+    } on FormatException {
+      throw ApiException('El servidor respondió con un formato inválido.', statusCode: response.statusCode);
+    }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return decoded;

@@ -83,10 +83,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() => loading = false);
       showMessage(e.message);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showMessage('No se pudo iniciar sesión. Revisa tu conexión.');
+      showMessage('No se pudo iniciar sesión. ${e.toString()}');
     }
   }
 

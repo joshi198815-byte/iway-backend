@@ -279,10 +279,10 @@ class _TravelerRegisterScreenState extends State<TravelerRegisterScreen> {
       if (!mounted) return;
       setState(() => loading = false);
       showMessage(e.message);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      showMessage('No pudimos completar tu registro. Inténtalo de nuevo.');
+      showMessage('No pudimos completar tu registro. ${e.toString()}');
     }
   }
 
