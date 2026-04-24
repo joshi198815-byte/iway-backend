@@ -26,6 +26,28 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   final _workspaceService = TravelerWorkspaceService();
   final _realtime = RealtimeService.instance;
 
+  String _maskedShipmentId(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '----';
+    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
+    return '#${suffix.toUpperCase()}';
+  }
+
+  String _cityCountry(String cityOrRegion, String countryCode) {
+    final city = cityOrRegion.trim();
+    final country = countryCode.trim().toUpperCase();
+    if (city.isEmpty && country.isEmpty) return 'Ubicación reservada';
+    if (city.isEmpty) return country;
+    if (country.isEmpty) return city;
+    return '$city, $country';
+  }
+
+  String _routeLabel(ShipmentModel shipment) {
+    final origin = _cityCountry(shipment.remitenteRegion, shipment.origen);
+    final destination = _cityCountry('', shipment.destino);
+    return '$origin ➔ $destination';
+  }
+
   static const _dismissedStoragePrefix = 'traveler_dismissed_opportunities';
 
   List<ShipmentModel> _shipments = [];
@@ -177,17 +199,38 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                 itemBuilder: (context, index) {
                                   final shipment = _shipments[index];
                                   return AppGlassSection(
-                                    title: 'Oportunidad disponible',
+                                    title: 'Disponible ${_maskedShipmentId(shipment.id)}',
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        _LineItem(label: 'Origen', value: shipment.remitenteRegion.isEmpty ? shipment.origen : shipment.remitenteRegion),
+                                        Text(
+                                          CurrencyPresenter.formatForShipment(shipment, shipment.valor),
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF34D399),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          shipment.descripcion?.trim().isNotEmpty == true ? 'Envío de: ${shipment.descripcion!.trim()}' : 'Envío de: ${shipment.tipo}',
+                                          style: const TextStyle(fontWeight: FontWeight.w800),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _StatusChip(label: 'Disponible', color: const Color(0xFF2563EB)),
+                                            _StatusChip(label: _maskedShipmentId(shipment.id), color: const Color(0xFF3F3F46)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _LineItem(label: 'Ruta', value: _routeLabel(shipment)),
                                         const SizedBox(height: 8),
-                                        _LineItem(label: 'Destino', value: shipment.receptorDireccion.isEmpty ? shipment.destino : shipment.receptorDireccion.split('•').first.trim()),
+                                        _LineItem(label: 'Peso', value: shipment.peso == null ? 'Pendiente' : '${shipment.peso!.toStringAsFixed(1)} lb'),
                                         const SizedBox(height: 8),
-                                        _LineItem(label: 'Libras', value: shipment.peso == null ? 'Pendiente' : '${shipment.peso!.toStringAsFixed(1)} lb'),
-                                        const SizedBox(height: 8),
-                                        _LineItem(label: 'Pago estimado', value: CurrencyPresenter.formatForShipment(shipment, shipment.valor)),
+                                        const _LineItem(label: 'Privacidad', value: 'Dirección exacta y teléfono se revelan al aceptar.'),
                                         const SizedBox(height: 14),
                                         Row(
                                           children: [
@@ -233,6 +276,7 @@ class _LineItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
           width: 110,
@@ -240,6 +284,33 @@ class _LineItem extends StatelessWidget {
         ),
         Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700))),
       ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
     );
   }
 }

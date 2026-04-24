@@ -12,7 +12,6 @@ import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/utils/currency_presenter.dart';
-import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
 class MyOrdersScreen extends StatefulWidget {
   const MyOrdersScreen({super.key});
@@ -26,6 +25,50 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
   final _disputeService = DisputeService();
   final _realtime = RealtimeService.instance;
   List<ShipmentModel> _shipments = [];
+
+  String _maskedShipmentId(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '----';
+    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
+    return '#${suffix.toUpperCase()}';
+  }
+
+  String _cityCountry(String cityOrRegion, String countryCode) {
+    final city = cityOrRegion.trim();
+    final country = countryCode.trim().toUpperCase();
+    if (city.isEmpty && country.isEmpty) return 'Ubicación reservada';
+    if (city.isEmpty) return country;
+    if (country.isEmpty) return city;
+    return '$city, $country';
+  }
+
+  String _routeLabel(ShipmentModel shipment) {
+    final origin = _cityCountry(shipment.remitenteRegion, shipment.origen);
+    final destination = _cityCountry('', shipment.destino);
+    return '$origin ➔ $destination';
+  }
+
+  bool _canRevealSensitiveData(ShipmentModel shipment) {
+    return shipment.estado == 'in_transit' || shipment.estado == 'in_delivery';
+  }
+
+  _StatusUi _statusUi(String status) {
+    switch (status) {
+      case 'pending':
+      case 'offered':
+      case 'assigned':
+        return const _StatusUi('Disponible', Color(0xFF2563EB));
+      case 'in_transit':
+      case 'in_delivery':
+      case 'picked_up':
+      case 'arrived':
+        return const _StatusUi('En viaje', Color(0xFFF59E0B));
+      case 'delivered':
+        return const _StatusUi('Completado', Color(0xFF10B981));
+      default:
+        return const _StatusUi('Activo', Color(0xFF71717A));
+    }
+  }
   bool _loading = true;
   String _tab = 'publicados';
   StreamSubscription<dynamic>? _notificationSubscription;
@@ -222,23 +265,46 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
                                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final shipment = _filteredShipments[index];
+                                  final statusUi = _statusUi(shipment.estado);
+                                  final revealSensitive = _canRevealSensitiveData(shipment);
                                   return AppGlassSection(
-                                    title: '${shipment.origen} → ${shipment.destino}',
+                                    title: '${shipment.descripcion?.trim().isNotEmpty == true ? shipment.descripcion!.trim() : shipment.tipo} ${_maskedShipmentId(shipment.id)}',
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          shipment.receptorNombre.isNotEmpty ? shipment.receptorNombre : 'Destinatario pendiente',
-                                          style: const TextStyle(fontWeight: FontWeight.w800),
+                                          CurrencyPresenter.usd(shipment.valor),
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF34D399),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _StatusChip(label: statusUi.label, color: statusUi.color),
+                                            _StatusChip(label: _maskedShipmentId(shipment.id), color: const Color(0xFF3F3F46)),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 12),
+                                        _TravelerLineItem(label: 'Ruta', value: _routeLabel(shipment)),
+                                        const SizedBox(height: 8),
+                                        _TravelerLineItem(
+                                          label: 'Contacto',
+                                          value: revealSensitive
+                                              ? (shipment.receptorTelefono.isNotEmpty ? shipment.receptorTelefono : 'Sin teléfono cargado')
+                                              : 'Se revela cuando el pedido está en viaje.',
                                         ),
                                         const SizedBox(height: 8),
-                                        Text('Estado: ${ShipmentStatusPresenter.label(shipment.estado)}', style: const TextStyle(color: AppTheme.muted)),
-                                        const SizedBox(height: 6),
-                                        Text('Valor: ${CurrencyPresenter.usd(shipment.valor)}', style: const TextStyle(color: AppTheme.muted)),
-                                        if (shipment.receptorDireccion.isNotEmpty) ...[
-                                          const SizedBox(height: 6),
-                                          Text(shipment.receptorDireccion, style: const TextStyle(color: AppTheme.muted)),
-                                        ],
+                                        _TravelerLineItem(
+                                          label: 'Dirección',
+                                          value: revealSensitive
+                                              ? (shipment.receptorDireccion.isNotEmpty ? shipment.receptorDireccion : 'Sin dirección cargada')
+                                              : 'Oculta hasta que el pedido esté en tránsito.',
+                                        ),
                                         const SizedBox(height: 12),
                                         Wrap(
                                           spacing: 10,
@@ -305,4 +371,61 @@ class _FilterButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _TravelerLineItem extends StatelessWidget {
+  const _TravelerLineItem({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 88,
+          child: Text(label, style: const TextStyle(color: AppTheme.muted)),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusUi {
+  final String label;
+  final Color color;
+
+  const _StatusUi(this.label, this.color);
 }
