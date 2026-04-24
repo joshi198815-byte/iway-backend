@@ -2,13 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:iway_app/config/app_env.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/features/shipment/services/shipment_ticket_service.dart';
-import 'package:iway_app/features/disputes/services/dispute_service.dart';
 import 'package:iway_app/features/tracking/models/tracking_timeline_item.dart';
 import 'package:iway_app/features/tracking/services/tracking_service.dart';
 import 'package:iway_app/services/api_client.dart';
@@ -40,31 +38,23 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   final imageService = ImageService();
   final uploadService = UploadService();
   final realtime = RealtimeService.instance;
-  final disputeService = DisputeService();
   final ticketService = const ShipmentTicketService();
-
-  List<File> deliveryProofImages = [];
 
   ShipmentModel? shipment;
   List<TrackingTimelineItem> timeline = [];
   Map<String, dynamic> eta = const {};
   bool loading = true;
   bool updatingStatus = false;
-  bool routeVisible = false;
-  String routeProvider = 'estimated-segments';
   bool _ratingPromptShown = false;
-  String? routeSummary;
-  String? routeFallbackDetail;
   double? routeDistanceKm;
   int? routeDurationMinutes;
+  List<File> deliveryProofImages = [];
   StreamSubscription<dynamic>? trackingSubscription;
   StreamSubscription<dynamic>? shipmentStatusSubscription;
   StreamSubscription<dynamic>? globalSyncSubscription;
 
-  bool get _isPrivilegedOperator {
-    final role = SessionService.currentUser?.tipo;
-    return role == 'admin' || role == 'support';
-  }
+  bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
+  bool get _isCustomer => !_isTraveler;
 
   bool get _isAssignedTraveler {
     final currentUserId = SessionService.currentUserId;
@@ -111,67 +101,26 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
       final etaData = await trackingService.getEta(widget.shipmentId);
       final routeData = await trackingService.getRoute(widget.shipmentId);
 
-      String? buildFallbackDetail(ShipmentModel shipment, Map<String, dynamic> route) {
-        final details = <String>[];
-        if (shipment.pickupLat == null || shipment.pickupLng == null) {
-          details.add('falta origen geolocalizado');
-        }
-        if (shipment.deliveryLat == null || shipment.deliveryLng == null) {
-          details.add('falta destino geolocalizado');
-        }
-        final reason = route['reason']?.toString();
-        if (reason != null && reason.trim().isNotEmpty) {
-          details.add(reason.trim());
-        }
-        if (details.isEmpty) {
-          return 'Mostrando contexto operativo mientras llega la ruta completa.';
-        }
-        return details.join(' · ');
-      }
-
-      final polyline = routeData['polyline'];
-      final routePoints = routeData['points'];
-      final distanceKm = routeData['distanceKm'];
-      final durationMinutes = routeData['durationMinutes'];
-      final provider = routeData['provider']?.toString() ?? 'estimated-segments';
-      final hasPolyline = polyline is List && polyline.length >= 2;
-      final hasPoints = routePoints is List && routePoints.isNotEmpty;
-      final hasFallbackCoordinates = shipmentData.pickupLat != null || shipmentData.deliveryLat != null;
-      final hasUsableRoute = hasPolyline || hasPoints || hasFallbackCoordinates;
-
       if (!mounted) return;
-
       setState(() {
         shipment = shipmentData;
         timeline = timelineData;
         eta = etaData;
+        routeDistanceKm = routeData['distanceKm'] is num ? (routeData['distanceKm'] as num).toDouble() : null;
+        routeDurationMinutes = routeData['durationMinutes'] is num ? (routeData['durationMinutes'] as num).round() : null;
         loading = false;
-        routeVisible = hasUsableRoute;
-        routeProvider = provider;
-        routeDistanceKm = distanceKm is num ? distanceKm.toDouble() : null;
-        routeDurationMinutes = durationMinutes is num ? durationMinutes.round() : null;
-        routeSummary = distanceKm is num
-            ? 'Recorrido ${distanceKm.toStringAsFixed(1)} km${durationMinutes is num ? ' · ${durationMinutes.round()} min' : ''}'
-            : hasUsableRoute
-                ? 'Mapa actualizado con el recorrido disponible.'
-                : 'El mapa se completará cuando el envío tenga más puntos confirmados.';
-        routeFallbackDetail = distanceKm is num && hasPolyline
-            ? null
-            : buildFallbackDetail(shipmentData, routeData);
       });
 
       _maybeOpenRating(shipmentData);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo cargar el tracking.')),
+        const SnackBar(content: Text('No se pudo cargar el envío.')),
       );
     }
   }
@@ -192,73 +141,81 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     });
   }
 
-  Future<void> openDispute() async {
-    final reasonController = TextEditingController();
-    final contextController = TextEditingController();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        title: const Text('Reportar incidente'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: reasonController,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Qué pasó'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contextController,
-                maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Contexto operativo adicional'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Abrir disputa')),
-        ],
-      ),
-    );
+  int _customerStepperIndex(String estado) {
+    switch (estado) {
+      case 'assigned':
+        return 0;
+      case 'picked_up':
+        return 1;
+      case 'in_transit':
+      case 'arrived':
+      case 'in_delivery':
+        return 2;
+      case 'delivered':
+        return 3;
+      default:
+        return -1;
+    }
+  }
 
-    if (confirmed != true || reasonController.text.trim().length < 8) return;
+  String _maskedShipmentId(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '----';
+    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
+  }
 
-    try {
-      await disputeService.createDispute(
-        shipmentId: widget.shipmentId,
-        reason: reasonController.text.trim(),
-        context: contextController.text.trim(),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Disputa abierta. El equipo operativo la revisará.')),
-      );
-      await loadTrackingData();
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/support');
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+  String _packageTitle() {
+    return shipment?.descripcion?.trim().isNotEmpty == true ? shipment!.descripcion!.trim() : shipment?.tipo ?? 'Paquete';
+  }
+
+  String _routeLabel() {
+    final current = shipment;
+    if (current == null) return 'Ruta pendiente';
+    final origin = current.remitenteRegion.trim().isNotEmpty ? current.remitenteRegion.trim() : current.origen;
+    final destination = current.receptorDireccion.trim().isNotEmpty ? current.receptorDireccion.trim() : current.destino;
+    return '$origin → $destination';
+  }
+
+  String _taskTitle(String estado) {
+    switch (estado) {
+      case 'assigned':
+        return 'Tarea actual: Recoger paquete #${_maskedShipmentId(widget.shipmentId)}';
+      case 'picked_up':
+      case 'in_transit':
+      case 'arrived':
+      case 'in_delivery':
+        return 'Tarea actual: Entregar paquete #${_maskedShipmentId(widget.shipmentId)}';
+      case 'delivered':
+        return 'Entrega completada';
+      default:
+        return 'Seguimiento del envío';
+    }
+  }
+
+  ({String status, String label})? _nextOperationalAction(String estado) {
+    switch (estado) {
+      case 'assigned':
+        return (status: 'picked_up', label: 'Confirmar carga');
+      case 'picked_up':
+      case 'in_transit':
+      case 'arrived':
+      case 'in_delivery':
+        return (status: 'delivered', label: 'Confirmar entrega');
+      default:
+        return null;
     }
   }
 
   Future<void> addDeliveryProofImage() async {
     final image = await imageService.takePhoto();
     if (image == null) return;
-
-    setState(() {
-      deliveryProofImages.add(image);
-    });
+    setState(() => deliveryProofImages.add(image));
   }
 
   Future<void> updateStatus(String status) async {
     if (status == 'delivered' && deliveryProofImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agrega al menos una evidencia de entrega antes de marcarlo como entregado.')),
+        const SnackBar(content: Text('Agrega al menos una evidencia antes de confirmar la entrega.')),
       );
       return;
     }
@@ -279,31 +236,19 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         }
       }
 
-      final updated = await shipmentService.updateStatus(
-        widget.shipmentId,
-        status,
-        imageUrls: uploadedProofUrls,
-      );
-
+      await shipmentService.updateStatus(widget.shipmentId, status, imageUrls: uploadedProofUrls);
       if (!mounted) return;
-
-      setState(() {
-        shipment = updated;
-        if (status == 'delivered') {
-          deliveryProofImages = [];
-        }
-      });
-
+      if (status == 'delivered') {
+        setState(() => deliveryProofImages = []);
+      }
       await loadTrackingData();
     } on ApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo actualizar el estado.')),
+        const SnackBar(content: Text('No se pudo actualizar el estado del envío.')),
       );
     } finally {
       if (mounted) {
@@ -318,140 +263,46 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
       if (checkpoint != null && checkpoint.trim().isNotEmpty) {
         return 'Ubicación reportada en $checkpoint';
       }
-      final lat = item.payload['lat'];
-      final lng = item.payload['lng'];
-      return 'Ubicación reportada: $lat, $lng';
+      return 'Ubicación actualizada';
     }
 
     switch (item.type) {
       case 'shipment_created':
         return 'Envío creado';
       case 'offer_created':
-        return 'Se recibió una oferta';
+        return 'Oferta recibida';
       case 'offer_accepted':
         return 'Oferta aceptada';
-      case 'dispute_opened':
-        return 'Incidencia reportada a soporte';
       case 'status_changed':
         final nextStatus = item.payload['toStatus']?.toString();
         return nextStatus == null || nextStatus.isEmpty
-            ? 'Estado operativo actualizado'
-            : 'Estado actualizado a ${formatStatus(nextStatus)}';
+            ? 'Estado actualizado'
+            : 'Estado actualizado a ${ShipmentStatusPresenter.label(nextStatus)}';
       default:
         return item.type.replaceAll('_', ' ');
     }
   }
 
-  String formatStatus(String estado) => ShipmentStatusPresenter.label(estado);
-
-  int statusIndex(String estado) {
-    switch (estado) {
-      case 'pending':
-        return 0;
-      case 'offered':
-        return 1;
-      case 'assigned':
-        return 2;
-      case 'picked_up':
-        return 3;
-      case 'in_transit':
-        return 4;
-      case 'arrived':
-        return 5;
-      case 'delivered':
-        return 6;
-      default:
-        return 0;
-    }
+  String _formatDate(DateTime value) {
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    final hour = local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+    return '$day/$month/$year · ${hour.toString().padLeft(2, '0')}:$minute $period';
   }
 
-  ({String status, String label})? nextOperationalAction(String estado) {
-    switch (estado) {
-      case 'assigned':
-        return (status: 'picked_up', label: 'Marcar recogido');
-      case 'picked_up':
-        return (status: 'in_transit', label: 'Marcar en ruta');
-      case 'in_transit':
-        return (status: 'arrived', label: 'Marcar arribó');
-      case 'arrived':
-        return (status: 'delivered', label: 'Marcar entregado');
-      default:
-        return null;
-    }
+  Future<void> _openReceiptPdf() async {
+    final currentShipment = shipment;
+    if (currentShipment == null) return;
+    await ticketService.openReceiptPdf(currentShipment);
   }
 
-  String? actionBlockReason(String estado) {
-    final nextAction = nextOperationalAction(estado);
-    if (updatingStatus) {
-      return 'Estamos guardando el cambio operativo.';
-    }
-    if (estado == 'offered') {
-      return 'Este envío ya tiene ofertas. Revísalas y acepta la que prefieras.';
-    }
-    if (nextAction == null) {
-      return 'No hay una siguiente acción disponible para este estado.';
-    }
-    if (!_isPrivilegedOperator && !_isAssignedTraveler) {
-      return 'Solo el viajero asignado o un operador puede avanzar este envío.';
-    }
-    if (nextAction.status == 'delivered' && deliveryProofImages.isEmpty) {
-      return 'Agrega al menos una evidencia antes de marcarlo como entregado.';
-    }
-    return null;
-  }
-
-  String _recommendedPickupPoint() {
-    if ((shipment?.remitenteDireccion ?? '').trim().isNotEmpty) {
-      return shipment!.remitenteDireccion.trim();
-    }
-    if (shipment?.pickupLat != null && shipment?.pickupLng != null) {
-      return 'Ubicación cargada en mapa para coordinar la recogida.';
-    }
-    return 'Todavía no hay un punto exacto confirmado.';
-  }
-
-  String _pickupChatDraft() {
-    final region = (shipment?.remitenteRegion ?? '').trim();
-    final point = _recommendedPickupPoint();
-    return region.isNotEmpty
-        ? 'Hola, coordinemos la recogida en $region. Punto sugerido: $point.'
-        : 'Hola, coordinemos la recogida. Punto sugerido: $point.';
-  }
-
-  int _deliveryStepIndex(String status) {
-    switch (status) {
-      case 'picked_up':
-        return 0;
-      case 'in_transit':
-      case 'arrived':
-        return 1;
-      case 'delivered':
-        return 2;
-      default:
-        return -1;
-    }
-  }
-
-  String _maskedShipmentId(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
-  }
-
-  String _compactRouteLabel() {
-    final origin = (shipment?.remitenteRegion ?? shipment?.origen ?? '').trim();
-    final destination = (shipment?.destino ?? '').trim();
-    if (origin.isEmpty && destination.isEmpty) return 'Ruta reservada';
-    return '${origin.isEmpty ? 'Origen' : origin} ➔ ${destination.isEmpty ? 'Destino' : destination}';
-  }
-
-  Widget _buildHorizontalStepper(String status) {
-    final current = _deliveryStepIndex(status);
-    const steps = [
-      ('Recogido', Icons.inventory_2_rounded),
-      ('En tránsito', Icons.local_shipping_outlined),
-      ('Entregado', Icons.check_circle_outline_rounded),
-    ];
+  Widget _buildCustomerStepper(String estado) {
+    const steps = ['Asignado', 'Recogido', 'En ruta', 'Entregado'];
+    final current = _customerStepperIndex(estado);
 
     return Row(
       children: List.generate(steps.length * 2 - 1, (index) {
@@ -470,30 +321,39 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         }
 
         final stepIndex = index ~/ 2;
-        final (label, icon) = steps[stepIndex];
         final active = current >= stepIndex;
         return Column(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: active ? Colors.white : AppTheme.surfaceSoft,
                 shape: BoxShape.circle,
                 border: Border.all(color: active ? Colors.white : AppTheme.border, width: 0.5),
               ),
-              child: Icon(icon, color: active ? Colors.black : AppTheme.muted, size: 20),
+              child: Icon(
+                stepIndex == 0
+                    ? Icons.assignment_turned_in_outlined
+                    : stepIndex == 1
+                        ? Icons.inventory_2_outlined
+                        : stepIndex == 2
+                            ? Icons.local_shipping_outlined
+                            : Icons.check_circle_outline_rounded,
+                color: active ? Colors.black : AppTheme.muted,
+                size: 18,
+              ),
             ),
             const SizedBox(height: 8),
             SizedBox(
-              width: 72,
+              width: 70,
               child: Text(
-                label,
+                steps[stepIndex],
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                   color: active ? Colors.white : AppTheme.muted,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 ),
               ),
             ),
@@ -503,152 +363,195 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     );
   }
 
-  Widget _buildMapHero() {
-    return Container(
-      height: 280,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border, width: 0.5),
-      ),
-      child: Stack(
+  Widget _buildTravelerTaskCard() {
+    final current = shipment!;
+    final nextAction = _nextOperationalAction(current.estado);
+    final canOperate = _isAssignedTraveler;
+
+    return AppGlassSection(
+      title: _taskTitle(current.estado),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: CustomPaint(
-                painter: _RouteHeroPainter(hasRoute: routeVisible),
-                child: const SizedBox.expand(),
-              ),
+          Text(_packageTitle(), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          Text(ShipmentStatusPresenter.label(current.estado), style: const TextStyle(color: AppTheme.muted)),
+          if (nextAction != null) ...[
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: updatingStatus || !canOperate ? null : () => updateStatus(nextAction.status),
+              child: Text(nextAction.label),
             ),
-          ),
-          Positioned(
-            left: 18,
-            right: 18,
-            bottom: 18,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.52),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.5),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(_compactRouteLabel(), style: const TextStyle(fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 6),
-                  Text(routeSummary ?? 'Mostrando trayecto disponible.', style: const TextStyle(color: Colors.white70, height: 1.35)),
-                ],
-              ),
+          ],
+          if (!canOperate) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Solo el viajero asignado puede avanzar esta tarea.',
+              style: TextStyle(color: AppTheme.muted, fontSize: 12),
             ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPickupPointsCard() {
+    final current = shipment!;
+    final showPickupData = _isTraveler && _isAssignedTraveler && current.estado != 'offered';
+    if (!showPickupData) return const SizedBox.shrink();
+
+    return AppGlassSection(
+      title: 'Puntos de recolección',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DetailRow(label: 'Recoger a', value: current.remitenteNombre.isEmpty ? 'Pendiente' : current.remitenteNombre),
+          const SizedBox(height: 10),
+          _DetailRow(label: 'Dirección exacta', value: current.remitenteDireccion.isEmpty ? 'Pendiente' : current.remitenteDireccion),
+          const SizedBox(height: 10),
+          _DetailRow(label: 'Teléfono', value: current.remitenteTelefono.isEmpty ? 'Pendiente' : current.remitenteTelefono),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    '/chat',
+                    arguments: {
+                      'shipmentId': widget.shipmentId,
+                      'initialDraft': 'Hola, voy en camino por el paquete #${_maskedShipmentId(widget.shipmentId)}.',
+                    },
+                  ),
+                  child: const Text('Abrir chat'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+                  child: const Text('Ver ruta'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  String _resolveImageUrl(String value) => AppEnv.resolveMediaUrl(value);
+  Widget _buildCustomerProgressCard() {
+    final current = shipment!;
+    final inTransit = current.estado == 'in_transit' || current.estado == 'arrived' || current.estado == 'in_delivery' || current.estado == 'delivered';
+    final etaLabel = eta['etaMinutes'] == null ? 'Disponible cuando el paquete salga en ruta' : '${eta['etaMinutes']} min';
 
-  Future<void> _openReceiptPdf() async {
-    final currentShipment = shipment;
-    if (currentShipment == null) return;
-    await ticketService.openReceiptPdf(currentShipment);
-  }
-
-  void openImagePreview({String? networkUrl, File? localFile, String? title}) {
-    showDialog<void>(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(16),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Container(
-                color: Colors.black,
-                constraints: const BoxConstraints(maxHeight: 620),
-                width: double.infinity,
-                child: InteractiveViewer(
-                  child: networkUrl != null
-                      ? Image.network(
-                          _resolveImageUrl(networkUrl),
-                          fit: BoxFit.contain,
-                          headers: SessionService.currentAccessToken == null || SessionService.currentAccessToken!.isEmpty
-                              ? null
-                              : {'Authorization': 'Bearer ${SessionService.currentAccessToken!}'},
-                        )
-                      : Image.file(localFile!, fit: BoxFit.contain),
+    return AppGlassSection(
+      title: 'Estado de tu envío',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCustomerStepper(current.estado),
+          if (inTransit) ...[
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(child: _MetricCard(label: 'ETA', value: etaLabel)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _MetricCard(
+                    label: 'Ruta',
+                    value: routeDistanceKm == null ? 'Activa' : '${routeDistanceKm!.toStringAsFixed(1)} km',
+                  ),
                 ),
-              ),
+              ],
             ),
-            Positioned(
-              top: 14,
-              left: 14,
-              right: 64,
-              child: Text(
-                title ?? 'Vista previa',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-              ),
-            ),
-            Positioned(
-              top: 10,
-              right: 10,
-              child: IconButton.filled(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded),
-              ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+              child: const Text('Ver mapa'),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget buildRemoteGallery(String title, List<String> images) {
-    if (images.isEmpty) {
-      return AppGlassSection(
-        title: title,
-        child: const Text(
-          'Aún no hay imágenes disponibles en esta sección.',
-          style: TextStyle(color: AppTheme.muted),
-        ),
-      );
+  Widget _buildOfferReviewCard() {
+    if (shipment!.estado != 'offered' || !_isCustomer) return const SizedBox.shrink();
+    return AppGlassSection(
+      title: 'Oferta del viajero',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Revisa y acepta la oferta desde la lista. Aquí no verás resumen técnico innecesario.'),
+          const SizedBox(height: 14),
+          ElevatedButton(
+            onPressed: () => Navigator.pushNamed(context, '/offers', arguments: widget.shipmentId),
+            child: const Text('Revisar ofertas'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeliveryProofSection() {
+    if (!_isTraveler || _nextOperationalAction(shipment!.estado)?.status != 'delivered') {
+      return const SizedBox.shrink();
     }
 
-    final token = SessionService.currentAccessToken;
     return AppGlassSection(
-      title: title,
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: images.map((imageUrl) {
-          return InkWell(
-            onTap: () => openImagePreview(networkUrl: imageUrl, title: title),
-            borderRadius: BorderRadius.circular(16),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.network(
-                _resolveImageUrl(imageUrl),
-                width: 92,
-                height: 92,
-                fit: BoxFit.cover,
-                headers: token == null || token.isEmpty
-                    ? null
-                    : {'Authorization': 'Bearer $token'},
-                errorBuilder: (_, __, ___) => Container(
-                  width: 92,
-                  height: 92,
-                  color: AppTheme.surfaceSoft,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.broken_image_outlined, color: AppTheme.muted),
-                ),
-              ),
+      title: 'Evidencia de entrega',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            deliveryProofImages.isEmpty
+                ? 'Agrega al menos una foto antes de confirmar la entrega.'
+                : '${deliveryProofImages.length} evidencia(s) listas para subir.',
+            style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: updatingStatus ? null : addDeliveryProofImage,
+            icon: const Icon(Icons.camera_alt_outlined),
+            label: const Text('Agregar evidencia'),
+          ),
+          if (deliveryProofImages.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: deliveryProofImages.asMap().entries.map((entry) {
+                final index = entry.key;
+                final image = entry.value;
+                return Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.file(image, height: 82, width: 82, fit: BoxFit.cover),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: GestureDetector(
+                        onTap: updatingStatus
+                            ? null
+                            : () => setState(() {
+                                  deliveryProofImages.removeAt(index);
+                                }),
+                        child: Container(
+                          decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                          padding: const EdgeInsets.all(4),
+                          child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
-          );
-        }).toList(),
+          ],
+        ],
       ),
     );
   }
@@ -683,13 +586,9 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
               SizedBox(height: 24),
               AppSkeletonBlock(height: 26, width: 220),
               SizedBox(height: 12),
-              AppSkeletonBlock(height: 16, width: 280),
-              SizedBox(height: 24),
-              AppSkeletonBlock(height: 140, radius: 28),
-              SizedBox(height: 16),
               AppSkeletonBlock(height: 160, radius: 28),
               SizedBox(height: 16),
-              AppSkeletonBlock(height: 220, radius: 28),
+              AppSkeletonBlock(height: 180, radius: 28),
             ],
           ),
         ),
@@ -697,23 +596,11 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     }
 
     if (shipment == null) {
-      return Scaffold(
-        body: Container(
-          color: AppTheme.background,
-          child: const Center(
-            child: Text('No se encontró el envío.'),
-          ),
-        ),
-      );
+      return const Scaffold(body: Center(child: Text('No se encontró el envío.')));
     }
 
-    final estado = shipment!.estado;
-    final bool delivered = estado == 'delivered';
-    final currentStep = statusIndex(estado);
-    final etaMinutes = eta['etaMinutes'];
-    final etaLabel = etaMinutes == null
-        ? (eta['reason']?.toString() ?? 'ETA no disponible')
-        : '$etaMinutes min';
+    final delivered = shipment!.estado == 'delivered';
+    final pickupPointsCard = _buildPickupPointsCard();
 
     return Scaffold(
       body: Container(
@@ -721,11 +608,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF101116),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
           ),
         ),
         child: SafeArea(
@@ -736,271 +619,67 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
               children: [
                 AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                 const SizedBox(height: 18),
-                _buildMapHero(),
+                Text('Envío #${_maskedShipmentId(widget.shipmentId)}', style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                Text(ShipmentStatusPresenter.label(shipment!.estado), style: const TextStyle(color: AppTheme.muted)),
+                const SizedBox(height: 18),
+                if (_isTraveler) _buildTravelerTaskCard() else _buildCustomerProgressCard(),
+                if (_isCustomer) ...[
+                  const SizedBox(height: 16),
+                  _buildOfferReviewCard(),
+                ],
                 const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.border, width: 0.5),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Envío #${_maskedShipmentId(widget.shipmentId)}',
-                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(formatStatus(estado), style: const TextStyle(color: AppTheme.muted)),
-                              ],
-                            ),
-                          ),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.warning_amber_rounded, color: AppTheme.muted),
-                            color: AppTheme.surface,
-                            onSelected: (value) {
-                              if (value == 'incident') openDispute();
-                            },
-                            itemBuilder: (context) => const [
-                              PopupMenuItem<String>(value: 'incident', child: Text('Reportar incidente')),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _buildHorizontalStepper(estado),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(child: _TrackingMetric(label: 'ETA', value: etaLabel)),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _TrackingMetric(
-                              label: 'Ruta',
-                              value: routeDistanceKm != null ? '${routeDistanceKm!.toStringAsFixed(1)} km' : 'Activa',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppTheme.border, width: 0.5),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Detalles esenciales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 12),
-                      _TrackingMetric(label: 'Ruta', value: _compactRouteLabel()),
-                      const SizedBox(height: 10),
-                      _TrackingMetric(label: 'Paquete', value: shipment!.descripcion?.trim().isNotEmpty == true ? shipment!.descripcion!.trim() : shipment!.tipo),
-                      const SizedBox(height: 10),
-                      _TrackingMetric(label: 'Contacto de entrega', value: shipment!.receptorNombre.isNotEmpty ? shipment!.receptorNombre : 'Pendiente'),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                pickupPointsCard,
+                if (pickupPointsCard is! SizedBox) const SizedBox(height: 16),
                 AppGlassSection(
-                  title: 'Acciones',
+                  title: 'Detalles esenciales',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (!delivered) ...[
-                        const Text(
-                          'Evidencia de entrega',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          deliveryProofImages.isEmpty
-                              ? 'Agrega al menos una foto antes de cerrar el envío como entregado.'
-                              : '${deliveryProofImages.length} evidencia(s) listas para subir.',
-                          style: const TextStyle(color: AppTheme.muted, fontSize: 13),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          onPressed: updatingStatus ? null : addDeliveryProofImage,
-                          icon: const Icon(Icons.camera_alt_outlined),
-                          label: const Text('Agregar evidencia'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppTheme.border),
-                            minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                        ),
-                        if (deliveryProofImages.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: deliveryProofImages.asMap().entries.map((entry) {
-                              final index = entry.key;
-                              final img = entry.value;
-                              return Stack(
-                                children: [
-                                  InkWell(
-                                    onTap: () => openImagePreview(localFile: img, title: 'Evidencia de entrega'),
-                                    borderRadius: BorderRadius.circular(16),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(16),
-                                      child: Image.file(
-                                        img,
-                                        height: 82,
-                                        width: 82,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: GestureDetector(
-                                      onTap: updatingStatus
-                                          ? null
-                                          : () {
-                                              setState(() {
-                                                deliveryProofImages.removeAt(index);
-                                              });
-                                            },
-                                      child: Container(
-                                        decoration: const BoxDecoration(
-                                          color: Colors.black87,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        padding: const EdgeInsets.all(4),
-                                        child: const Icon(Icons.close_rounded, size: 16, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 14),
-                        ],
-                        if (_isPrivilegedOperator) ...[
-                          ElevatedButton(
-                            onPressed: updatingStatus || currentStep >= 2
-                                ? null
-                                : () => updateStatus('assigned'),
-                            child: const Text('Marcar asignado'),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                        Builder(
-                          builder: (context) {
-                            final nextAction = nextOperationalAction(estado);
-                            final blockReason = actionBlockReason(estado);
-                            final isCustomerOfferStage = estado == 'offered' && shipment?.userId == SessionService.currentUserId;
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ElevatedButton(
-                                  onPressed: isCustomerOfferStage
-                                      ? () => Navigator.pushNamed(context, '/offers', arguments: widget.shipmentId)
-                                      : blockReason != null
-                                          ? null
-                                          : () => updateStatus(nextAction!.status),
-                                  child: Text(
-                                    isCustomerOfferStage
-                                        ? 'Ver ofertas y aceptar'
-                                        : (nextAction?.label ?? 'Sin acción disponible'),
-                                  ),
-                                ),
-                                if (blockReason != null) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    blockReason,
-                                    style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                  ),
-                                ],
-                              ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                        if (updatingStatus) ...[
-                          const Text(
-                            'Actualizando estado del envío...',
-                            style: TextStyle(color: AppTheme.muted, fontSize: 13),
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/map',
-                              arguments: widget.shipmentId,
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppTheme.border),
-                            minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: const Text('Ver ruta y ubicación'),
-                        ),
-                        const SizedBox(height: 10),
-                        OutlinedButton(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/chat',
-                              arguments: {
-                                'shipmentId': widget.shipmentId,
-                                'initialDraft': _pickupChatDraft(),
-                              },
-                            );
-                          },
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppTheme.border),
-                            minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: const Text('Abrir chat'),
-                        ),
-                        const SizedBox(height: 10),
-                      ] else ...[
+                      _DetailRow(label: 'Paquete', value: _packageTitle()),
+                      const SizedBox(height: 10),
+                      _DetailRow(label: 'Ruta', value: _routeLabel()),
+                      const SizedBox(height: 10),
+                      _DetailRow(label: 'Destinatario', value: shipment!.receptorNombre.isEmpty ? 'Pendiente' : shipment!.receptorNombre),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildDeliveryProofSection(),
+                if (_isTraveler && _nextOperationalAction(shipment!.estado)?.status == 'delivered') const SizedBox(height: 16),
+                AppGlassSection(
+                  title: delivered ? 'Recibo' : 'Acciones',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (delivered)
                         ElevatedButton.icon(
                           onPressed: _openReceiptPdf,
                           icon: const Icon(Icons.receipt_long_outlined),
                           label: const Text('Ver recibo'),
+                        )
+                      else ...[
+                        if (_isTraveler)
+                          OutlinedButton(
+                            onPressed: () => Navigator.pushNamed(
+                              context,
+                              '/chat',
+                              arguments: {
+                                'shipmentId': widget.shipmentId,
+                                'initialDraft': 'Hola, escribo por el paquete #${_maskedShipmentId(widget.shipmentId)}.',
+                              },
+                            ),
+                            child: const Text('Abrir chat'),
+                          ),
+                        if (_isTraveler) const SizedBox(height: 10),
+                        OutlinedButton(
+                          onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+                          child: Text(_isTraveler ? 'Abrir ruta' : 'Ver mapa'),
                         ),
                       ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                buildRemoteGallery('Fotos del paquete', shipment!.imagenesReferencia),
-                const SizedBox(height: 16),
-                buildRemoteGallery('Evidencias de entrega guardadas', shipment!.evidenciasEntrega),
                 const SizedBox(height: 16),
                 AppGlassSection(
                   title: 'Historial del envío',
@@ -1009,7 +688,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                     children: [
                       if (timeline.isEmpty)
                         const Text(
-                          'Todavía no hay eventos de tracking. Cuando empiecen los reportes o cambios de estado, aparecerán aquí.',
+                          'Todavía no hay eventos para este envío.',
                           style: TextStyle(color: AppTheme.muted, height: 1.35),
                         )
                       else
@@ -1025,24 +704,15 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(
-                                  item.kind == 'tracking' ? Icons.place_rounded : Icons.event_note_rounded,
-                                  color: AppTheme.accent,
-                                ),
+                                Icon(item.kind == 'tracking' ? Icons.place_rounded : Icons.event_note_rounded, color: AppTheme.accent),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        formatTimelineItem(item),
-                                        style: const TextStyle(fontWeight: FontWeight.w600),
-                                      ),
+                                      Text(formatTimelineItem(item), style: const TextStyle(fontWeight: FontWeight.w600)),
                                       const SizedBox(height: 4),
-                                      Text(
-                                        item.at.toString(),
-                                        style: const TextStyle(color: AppTheme.muted, fontSize: 13),
-                                      ),
+                                      Text(_formatDate(item.at), style: const TextStyle(color: AppTheme.muted, fontSize: 13)),
                                     ],
                                   ),
                                 ),
@@ -1062,74 +732,11 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   }
 }
 
-class _RouteHeroPainter extends CustomPainter {
-  final bool hasRoute;
-
-  _RouteHeroPainter({required this.hasRoute});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final background = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF181A20), Color(0xFF101116)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(Offset.zero & size);
-    canvas.drawRect(Offset.zero & size, background);
-
-    final linePaint = Paint()
-      ..color = hasRoute ? const Color(0xFF34D399) : Colors.white.withValues(alpha: 0.35)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final path = Path()
-      ..moveTo(size.width * 0.14, size.height * 0.72)
-      ..quadraticBezierTo(size.width * 0.38, size.height * 0.25, size.width * 0.58, size.height * 0.48)
-      ..quadraticBezierTo(size.width * 0.72, size.height * 0.62, size.width * 0.86, size.height * 0.22);
-    canvas.drawPath(path, linePaint);
-
-    final pointPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(Offset(size.width * 0.14, size.height * 0.72), 6, pointPaint);
-    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.22), 6, pointPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _RouteHeroPainter oldDelegate) => oldDelegate.hasRoute != hasRoute;
-}
-
-class _TrackingChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _TrackingChip({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceSoft,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.muted),
-          const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-}
-
-class _TrackingMetric extends StatelessWidget {
+class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
 
-  const _TrackingMetric({required this.label, required this.value});
+  const _MetricCard({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -1145,10 +752,27 @@ class _TrackingMetric extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppTheme.muted, fontSize: 12)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
         ],
       ),
     );
   }
 }
 
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 110, child: Text(label, style: const TextStyle(color: AppTheme.muted))),
+        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700))),
+      ],
+    );
+  }
+}

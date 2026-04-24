@@ -665,19 +665,11 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         runSpacing: 8,
                                         children: [
                                           _OfferChip(
-                                            label: 'Puntaje ${offer.marketplaceScore}',
-                                            color: offer.marketplaceScore >= 80
-                                                ? const Color(0xFF59D38C)
-                                                : offer.marketplaceScore >= 65
-                                                    ? const Color(0xFF8AB4FF)
-                                                    : const Color(0xFFFFD27A),
-                                          ),
-                                          _OfferChip(
                                             label: '${offer.deliveredCount} entregas',
                                             color: const Color(0xFF8AB4FF),
                                           ),
                                           _OfferChip(
-                                            label: 'Calificación ${offer.travelerRatingAvg.toStringAsFixed(1)}',
+                                            label: '${offer.travelerRatingAvg.toStringAsFixed(1)} ★',
                                             color: const Color(0xFFFFD27A),
                                           ),
                                         ],

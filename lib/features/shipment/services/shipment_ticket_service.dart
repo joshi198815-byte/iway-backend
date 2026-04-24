@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -98,9 +97,55 @@ class ShipmentTicketService {
   }
 
   Future<void> openReceiptPdf(ShipmentModel shipment) async {
-    final bytes = await generatePrintablePDF([shipment]);
+    final document = pw.Document();
+    document.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.a5,
+        margin: const pw.EdgeInsets.all(24),
+        build: (context) => pw.Container(
+          padding: const pw.EdgeInsets.all(18),
+          decoration: pw.BoxDecoration(
+            borderRadius: pw.BorderRadius.circular(18),
+            border: pw.Border.all(color: PdfColors.grey700, width: 0.8),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('Recibo digital', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 8),
+              pw.Text('Envío #${maskedId(shipment.id)}'),
+              pw.SizedBox(height: 16),
+              _row('Paquete', shipment.descripcion?.trim().isNotEmpty == true ? shipment.descripcion!.trim() : shipment.tipo),
+              _row('Ruta', '${shipment.remitenteRegion.isEmpty ? shipment.origen : shipment.remitenteRegion} → ${shipment.receptorDireccion.isEmpty ? shipment.destino : shipment.receptorDireccion}'),
+              _row('Cliente', shipment.customerName.isEmpty ? shipment.remitenteNombre : shipment.customerName),
+              _row('Destinatario', shipment.receptorNombre.isEmpty ? 'Pendiente' : shipment.receptorNombre),
+              _row('Estado final', shipment.estado),
+              pw.Spacer(),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  borderRadius: pw.BorderRadius.circular(14),
+                  color: PdfColors.grey200,
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('COBRO FINAL', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('US\$${shipment.valor.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final bytes = await document.save();
     await Printing.layoutPdf(
-      name: 'ticket_${maskedId(shipment.id)}.pdf',
+      name: 'recibo_${maskedId(shipment.id)}.pdf',
       onLayout: (_) async => bytes,
     );
   }

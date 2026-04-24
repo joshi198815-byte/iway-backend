@@ -414,7 +414,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
                                                   shipment.estado == 'offered' ? '/offers' : '/tracking',
                                                   arguments: shipment.id,
                                                 ),
-                                                child: const Text('Ver detalle'),
+                                                child: Text(shipment.estado == 'delivered' ? 'Ver recibo' : 'Ver detalle'),
                                               ),
                                             ],
                                           ),

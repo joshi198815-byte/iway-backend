@@ -3,8 +3,6 @@ import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/rating/services/rating_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
-import 'package:iway_app/shared/ui/app_glass_section.dart';
-import 'package:iway_app/shared/ui/app_page_intro.dart';
 
 class RatingScreen extends StatefulWidget {
   final String shipmentId;
@@ -17,12 +15,11 @@ class RatingScreen extends StatefulWidget {
 
 class _RatingScreenState extends State<RatingScreen> {
   final ratingService = RatingService();
+  final comentarioController = TextEditingController();
 
   int estrellas = 5;
   bool saving = false;
   bool checkingExisting = true;
-  bool alreadySubmitted = false;
-  final comentarioController = TextEditingController();
 
   @override
   void initState() {
@@ -34,10 +31,11 @@ class _RatingScreenState extends State<RatingScreen> {
     try {
       final exists = await ratingService.hasSubmittedRating(widget.shipmentId);
       if (!mounted) return;
-      setState(() {
-        alreadySubmitted = exists;
-        checkingExisting = false;
-      });
+      if (exists) {
+        Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+        return;
+      }
+      setState(() => checkingExisting = false);
     } catch (_) {
       if (!mounted) return;
       setState(() => checkingExisting = false);
@@ -51,16 +49,7 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> submit() async {
-    if (alreadySubmitted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ya enviaste tu calificación para este envío.')),
-      );
-      Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
-      return;
-    }
-
     final comentario = comentarioController.text.trim();
-
     if (comentario.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Agrega un comentario para continuar.')),
@@ -81,21 +70,14 @@ class _RatingScreenState extends State<RatingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('¡Gracias!')),
       );
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      if (!mounted) return;
       Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.message.contains('Ya existe una calificación enviada para este envío')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Esta calificación ya había sido enviada.')),
-        );
         Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -116,11 +98,7 @@ class _RatingScreenState extends State<RatingScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF101116),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
           ),
         ),
         child: SafeArea(
@@ -131,39 +109,36 @@ class _RatingScreenState extends State<RatingScreen> {
               children: [
                 AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                 const SizedBox(height: 24),
-                AppPageIntro(
-                  title: alreadySubmitted ? 'Calificación registrada' : 'Califica la experiencia',
-                  subtitle: alreadySubmitted
-                      ? 'Ya habíamos guardado tu feedback para este envío.'
-                      : 'Tu feedback ayuda a mejorar la calidad del servicio dentro de iWay.',
+                const Text(
+                  'Califica la experiencia',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
+                const Text(
+                  'Tu calificación se guarda y vuelves directo al inicio.',
+                  style: TextStyle(color: AppTheme.muted),
+                ),
+                const SizedBox(height: 24),
                 if (checkingExisting)
-                  const Center(child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: CircularProgressIndicator(),
-                  ))
-                else if (alreadySubmitted) ...[
-                  AppGlassSection(
-                    title: 'Todo listo',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Esta entrega ya fue calificada por tu cuenta.'),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst),
-                          child: const Text('Volver al inicio'),
-                        ),
-                      ],
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: CircularProgressIndicator(),
                     ),
-                  ),
-                ] else ...[
-                  AppGlassSection(
-                    title: 'Tu calificación',
+                  )
+                else ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: AppTheme.border, width: 0.5),
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text('Estrellas', style: TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 10),
                         Row(
                           children: List.generate(5, (index) {
                             final active = index < estrellas;
@@ -183,7 +158,7 @@ class _RatingScreenState extends State<RatingScreen> {
                           maxLines: 5,
                           decoration: const InputDecoration(
                             labelText: 'Comentario',
-                            hintText: 'Cuéntanos cómo fue la entrega, comunicación y puntualidad.',
+                            hintText: 'Cuéntanos cómo fue la entrega y la atención.',
                           ),
                         ),
                       ],

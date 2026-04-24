@@ -9,7 +9,12 @@ class CurrencyPresenter {
     final origin = shipment.origen.trim().toUpperCase();
     final destination = shipment.destino.trim().toUpperCase();
 
-    if (origin == 'GT' || destination == 'GT') {
+    final isInternationalGtUs = (origin == 'GT' && destination == 'US') || (origin == 'US' && destination == 'GT');
+    if (isInternationalGtUs) {
+      return 'US\$';
+    }
+
+    if (origin == 'GT' && destination == 'GT') {
       return 'Q';
     }
 

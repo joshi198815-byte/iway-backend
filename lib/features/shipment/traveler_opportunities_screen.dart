@@ -8,9 +8,6 @@ import 'package:iway_app/features/traveler/services/traveler_workspace_service.d
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/realtime_service.dart';
 import 'package:iway_app/services/session_service.dart';
-import 'package:iway_app/shared/ui/app_back_button_shell.dart';
-import 'package:iway_app/shared/ui/app_glass_section.dart';
-import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/utils/currency_presenter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,28 +22,6 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   final _shipmentService = ShipmentService();
   final _workspaceService = TravelerWorkspaceService();
   final _realtime = RealtimeService.instance;
-
-  String _maskedShipmentId(String value) {
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
-    return '#${suffix.toUpperCase()}';
-  }
-
-  String _cityCountry(String cityOrRegion, String countryCode) {
-    final city = cityOrRegion.trim();
-    final country = countryCode.trim().toUpperCase();
-    if (city.isEmpty && country.isEmpty) return 'Ubicación reservada';
-    if (city.isEmpty) return country;
-    if (country.isEmpty) return city;
-    return '$city, $country';
-  }
-
-  String _routeLabel(ShipmentModel shipment) {
-    final origin = _cityCountry(shipment.remitenteRegion, shipment.origen);
-    final destination = _cityCountry('', shipment.destino);
-    return '$origin ➔ $destination';
-  }
 
   static const _dismissedStoragePrefix = 'traveler_dismissed_opportunities';
 
@@ -64,17 +39,51 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
     _bindRealtime();
   }
 
-  Future<void> _bindRealtime() async {
-    await _realtime.ensureConnected();
-    _globalSyncSubscription = _realtime.globalEntitySync.listen((_) => _load());
+  String _maskedShipmentId(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '----';
+    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
+    return '#${suffix.toUpperCase()}';
+  }
+
+  String _cleanSegment(String value) {
+    final parts = value
+        .split(RegExp(r'[|,]'))
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+    return parts.isEmpty ? value.trim() : parts.first;
+  }
+
+  String _destinationLabel(ShipmentModel shipment) {
+    final address = shipment.receptorDireccion.trim();
+    if (address.isNotEmpty) {
+      final parts = address.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
+      if (parts.length >= 2) {
+        return '${parts[0]}, ${parts[1]}';
+      }
+      if (parts.isNotEmpty) return parts.first;
+    }
+    final country = shipment.destino.trim().toUpperCase();
+    return country == 'US' ? 'Estados Unidos' : country;
+  }
+
+  String _routeLabel(ShipmentModel shipment) {
+    final origin = _cleanSegment(shipment.remitenteRegion.isNotEmpty ? shipment.remitenteRegion : shipment.remitenteDireccion);
+    final destination = _destinationLabel(shipment);
+    if (origin.isEmpty && destination.isEmpty) return 'Ruta pendiente';
+    return '${origin.isEmpty ? 'Origen pendiente' : origin} → ${destination.isEmpty ? 'Destino pendiente' : destination}';
   }
 
   String get _dismissedStorageKey {
     final userId = SessionService.currentUserId;
-    if (userId == null || userId.isEmpty) {
-      return _dismissedStoragePrefix;
-    }
+    if (userId == null || userId.isEmpty) return _dismissedStoragePrefix;
     return '$_dismissedStoragePrefix:$userId';
+  }
+
+  Future<void> _bindRealtime() async {
+    await _realtime.ensureConnected();
+    _globalSyncSubscription = _realtime.globalEntitySync.listen((_) => _load());
   }
 
   Future<Set<String>> _readDismissedShipmentIds() async {
@@ -91,9 +100,6 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
       _dismissedShipmentIds = nextIds;
       _shipments = _shipments.where((shipment) => shipment.id != shipmentId).toList();
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Oportunidad descartada. Ya no se mostrará en tu lista.')),
-    );
   }
 
   Future<void> _load() async {
@@ -160,29 +166,21 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
-                      const SizedBox(height: 24),
-                      const AppPageIntro(
-                        title: 'Oportunidades',
-                        subtitle: 'Aquí ves todos los pedidos disponibles. Tú decides si ofertar o descartarlos.',
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
                       ),
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(
-                            color: _isOnline ? const Color(0xFF32FF84) : const Color(0xFFFF8A7A),
-                          ),
-                        ),
-                        child: Text(
-                          _isOnline
-                              ? 'Modo En línea activo. Ya puedes revisar cualquier oportunidad y decidir si ofertar o rechazarla.'
-                              : 'Ahora mismo estás desconectado. Vuelve al dashboard y activa tu modo En línea para recibir oportunidades.',
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'Oportunidades',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _isOnline
+                            ? 'Revisa pedidos disponibles y decide si ofertar o descartarlos.'
+                            : 'Activa tu modo En línea para recibir nuevas oportunidades.',
+                        style: const TextStyle(color: AppTheme.muted),
                       ),
                       const SizedBox(height: 16),
                       Expanded(
@@ -198,39 +196,56 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final shipment = _shipments[index];
-                                  return AppGlassSection(
-                                    title: 'Disponible ${_maskedShipmentId(shipment.id)}',
+                                  final title = shipment.descripcion?.trim().isNotEmpty == true
+                                      ? shipment.descripcion!.trim()
+                                      : shipment.tipo;
+                                  return Container(
+                                    padding: const EdgeInsets.all(18),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surface,
+                                      borderRadius: BorderRadius.circular(22),
+                                      border: Border.all(color: AppTheme.border, width: 0.5),
+                                    ),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          CurrencyPresenter.formatForShipment(shipment, shipment.valor),
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF34D399),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Text(
-                                          shipment.descripcion?.trim().isNotEmpty == true ? 'Envío de: ${shipment.descripcion!.trim()}' : 'Envío de: ${shipment.tipo}',
-                                          style: const TextStyle(fontWeight: FontWeight.w800),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
+                                        Row(
                                           children: [
-                                            _StatusChip(label: 'Disponible', color: const Color(0xFF2563EB)),
-                                            _StatusChip(label: _maskedShipmentId(shipment.id), color: const Color(0xFF3F3F46)),
+                                            Expanded(
+                                              child: Text(
+                                                _maskedShipmentId(shipment.id),
+                                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                                              ),
+                                            ),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF2563EB).withValues(alpha: 0.14),
+                                                borderRadius: BorderRadius.circular(999),
+                                              ),
+                                              child: const Text(
+                                                'Disponible',
+                                                style: TextStyle(color: Color(0xFF8AB4FF), fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
                                           ],
                                         ),
                                         const SizedBox(height: 12),
-                                        _LineItem(label: 'Ruta', value: _routeLabel(shipment)),
+                                        Text(
+                                          CurrencyPresenter.formatForShipment(shipment, shipment.valor),
+                                          style: const TextStyle(
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                            color: Color(0xFF34D399),
+                                          ),
+                                        ),
                                         const SizedBox(height: 8),
-                                        _LineItem(label: 'Peso', value: shipment.peso == null ? 'Pendiente' : '${shipment.peso!.toStringAsFixed(1)} lb'),
-                                        const SizedBox(height: 8),
-                                        const _LineItem(label: 'Privacidad', value: 'Dirección exacta y teléfono se revelan al aceptar.'),
+                                        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 10),
+                                        Text(
+                                          _routeLabel(shipment),
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
                                         const SizedBox(height: 14),
                                         Row(
                                           children: [
@@ -261,54 +276,6 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                     ],
                   ),
                 ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LineItem extends StatelessWidget {
-  const _LineItem({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 110,
-          child: Text(label, style: const TextStyle(color: AppTheme.muted)),
-        ),
-        Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w700))),
-      ],
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.45)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
         ),
       ),
     );

@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
-import 'package:iway_app/shared/ui/app_back_button_shell.dart';
-import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../auth/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,17 +20,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-
   final authService = AuthService();
 
   bool loading = false;
   bool rememberMe = false;
-
-  void showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
 
   @override
   void initState() {
@@ -55,7 +47,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final savedPassword = prefs.getString(_rememberedPasswordKey) ?? '';
 
     if (!mounted) return;
-
     setState(() {
       rememberMe = savedRememberMe;
       if (savedRememberMe) {
@@ -79,11 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
     await prefs.remove(_rememberedPasswordKey);
   }
 
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> login() async {
@@ -104,20 +92,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final user = await authService.login(email, password);
-
       if (!mounted) return;
 
-      setState(() => loading = false);
-
-      if (user != null) {
-        await _persistRememberedCredentials();
-        Navigator.pushReplacementNamed(
-          context,
-          SessionService.currentUser?.telefonoVerificado == true ? '/home' : '/verify_contact',
-        );
-      } else {
-        showMessage('No se pudo iniciar sesión. Revisa tus datos.');
+      if (user == null) {
+        setState(() => loading = false);
+        showMessage('No se pudo iniciar sesión.');
+        return;
       }
+
+      await _persistRememberedCredentials();
+      setState(() => loading = false);
+      Navigator.pushReplacementNamed(
+        context,
+        SessionService.currentUser?.telefonoVerificado == true ? '/home' : '/verify_contact',
+      );
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -130,6 +118,13 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
@@ -137,44 +132,38 @@ class _LoginScreenState extends State<LoginScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.background,
-              Color(0xFF121318),
-              AppTheme.background,
-            ],
+            colors: [AppTheme.background, Color(0xFF101116), AppTheme.background],
           ),
         ),
         child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(22, 12, 22, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
-                const SizedBox(height: 28),
-                const AppPageIntro(
-                  title: 'Bienvenido a iWay',
-                  subtitle: 'Logística GT ↔ USA con una experiencia más rápida, clara y segura.',
-                ),
-                const SizedBox(height: 28),
-                Container(
-                  padding: const EdgeInsets.all(20),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: AppTheme.border),
+                    border: Border.all(color: AppTheme.border, width: 0.5),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const _SectionBadge(label: 'Acceso seguro'),
-                      const SizedBox(height: 18),
+                      const Text(
+                        'Ingresar',
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Entra rápido a tu cuenta. Sin selector de rol, sin pasos de más.',
+                        style: TextStyle(color: AppTheme.muted, height: 1.35),
+                      ),
+                      const SizedBox(height: 24),
                       TextField(
                         controller: emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Correo',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
+                        decoration: const InputDecoration(labelText: 'Correo'),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
@@ -182,37 +171,34 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 14),
                       TextField(
                         controller: passwordController,
-                        decoration: const InputDecoration(
-                          labelText: 'Contraseña',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                        ),
+                        decoration: const InputDecoration(labelText: 'Contraseña'),
                         obscureText: true,
-                        autofillHints: const [AutofillHints.password],
                         textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
                         onSubmitted: (_) => login(),
                       ),
                       const SizedBox(height: 8),
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          checkboxTheme: CheckboxThemeData(
-                            side: const BorderSide(color: AppTheme.border),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                          ),
-                        ),
-                        child: CheckboxListTile(
-                          value: rememberMe,
-                          onChanged: (value) async {
-                            setState(() => rememberMe = value ?? false);
-                            await _persistRememberedCredentials();
-                          },
-                          title: const Text('Recordar mis datos'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          activeColor: AppTheme.accent,
+                      CheckboxListTile(
+                        value: rememberMe,
+                        onChanged: (value) async {
+                          setState(() => rememberMe = value ?? false);
+                          await _persistRememberedCredentials();
+                        },
+                        title: const Text('Recordar mis datos'),
+                        controlAffinity: ListTileControlAffinity.leading,
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeColor: AppTheme.accent,
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/forgot_password'),
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                          child: const Text('¿Olvidaste tu contraseña?'),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       ElevatedButton(
                         onPressed: loading ? null : login,
                         child: loading
@@ -223,129 +209,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : const Text('Ingresar'),
                       ),
-                      TextButton(
-                        onPressed: () => Navigator.pushNamed(context, '/forgot_password'),
-                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                        child: const Text('¿Olvidaste tu contraseña?'),
-                      ),
-                      const SizedBox(height: 8),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: Text(
-                          loading
-                              ? 'Validando tu cuenta y preparando tu panel...'
-                              : 'Tus envíos, ofertas y tracking en un solo flujo.',
-                          key: ValueKey(loading),
-                          style: const TextStyle(color: AppTheme.muted),
+                      const SizedBox(height: 10),
+                      Center(
+                        child: TextButton(
+                          onPressed: () => Navigator.pushNamed(context, '/register'),
+                          child: const Text('Crear cuenta'),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                _ActionTile(
-                  icon: Icons.person_add_alt_1_rounded,
-                  title: 'Crear cuenta como cliente',
-                  subtitle: 'Publica envíos y compara ofertas de viajeros.',
-                  onTap: () {
-                    Navigator.pushNamed(context, '/register');
-                  },
-                ),
-                const SizedBox(height: 12),
-                _ActionTile(
-                  icon: Icons.flight_takeoff_rounded,
-                  title: 'Registrarme como viajero',
-                  subtitle: 'Verifícate, recibe ofertas y comparte tracking.',
-                  onTap: () {
-                    Navigator.pushNamed(context, '/register_traveler');
-                  },
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SectionBadge extends StatelessWidget {
-  final String label;
-
-  const _SectionBadge({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceSoft,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: AppTheme.accent,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
-      child: Ink(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceSoft,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: AppTheme.accent),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(color: AppTheme.muted, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right_rounded),
-          ],
         ),
       ),
     );
