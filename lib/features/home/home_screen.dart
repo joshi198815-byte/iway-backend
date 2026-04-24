@@ -153,8 +153,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     ListTile tile({required IconData icon, required String title, required VoidCallback onTap, Color? color}) {
       return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+        minLeadingWidth: 28,
         leading: Icon(icon, color: color),
-        title: Text(title, style: TextStyle(color: color)),
+        title: Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
         onTap: () {
           Navigator.pop(context);
           onTap();
@@ -166,31 +168,82 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: SafeArea(
         child: Column(
           children: [
-            UserAccountsDrawerHeader(
-              decoration: const BoxDecoration(color: AppTheme.surface),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: AppTheme.surfaceSoft,
-                child: Text((user?.nombre.isNotEmpty == true ? user!.nombre[0] : 'I').toUpperCase()),
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: AppTheme.border, width: 0.5),
               ),
-              accountName: Text(user?.nombre ?? 'Usuario'),
-              accountEmail: Text(user?.email ?? ''),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 28,
+                        backgroundColor: AppTheme.surfaceSoft,
+                        backgroundImage: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
+                            ? NetworkImage(user.selfiePath!)
+                            : null,
+                        child: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
+                            ? null
+                            : Text((user?.nombre.isNotEmpty == true ? user!.nombre[0] : 'I').toUpperCase()),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              user?.nombre ?? 'Usuario',
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              user?.email ?? '',
+                              style: const TextStyle(color: AppTheme.muted),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: List.generate(
+                                5,
+                                (_) => const Padding(
+                                  padding: EdgeInsets.only(right: 2),
+                                  child: Icon(Icons.star, size: 14, color: Color(0xFFFBBF24)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
             tile(icon: Icons.person_outline, title: 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
             if (_isTraveler)
               tile(icon: Icons.route_outlined, title: 'Mis rutas', onTap: () => Navigator.pushNamed(context, '/traveler_routes')),
             if (_isTraveler)
               tile(icon: Icons.account_balance_wallet_outlined, title: 'Ingresos y comisiones', onTap: () => Navigator.pushNamed(context, '/debts')),
-            tile(icon: Icons.history_rounded, title: 'Mis pedidos', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            tile(icon: Icons.inventory_2_outlined, title: 'Mis pedidos', onTap: () => Navigator.pushNamed(context, '/my_orders')),
             tile(icon: Icons.support_agent_outlined, title: 'Soporte técnico', onTap: () => Navigator.pushNamed(context, '/support')),
             tile(icon: Icons.settings_outlined, title: 'Ajustes', onTap: () => Navigator.pushNamed(context, '/settings')),
             if (_isTraveler)
-              tile(icon: Icons.star_outline_rounded, title: 'Mis calificaciones', onTap: () => Navigator.pushNamed(context, '/my_ratings')),
+              tile(icon: Icons.star_outline, title: 'Mis calificaciones', onTap: () => Navigator.pushNamed(context, '/my_ratings')),
             if (!_isTraveler)
               tile(icon: Icons.group_outlined, title: 'Gestión de destinatarios', onTap: () => Navigator.pushNamed(context, '/recipients')),
             const Spacer(),
-            const Divider(height: 1),
-            tile(icon: Icons.logout_rounded, title: 'Cerrar sesión', color: Colors.redAccent, onTap: _logout),
-            tile(icon: Icons.person_remove_outlined, title: 'Eliminar cuenta', color: Colors.redAccent, onTap: () => Navigator.pushNamed(context, '/profile')),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(height: 1),
+            ),
+            tile(icon: Icons.logout_outlined, title: 'Cerrar sesión', color: const Color(0xFFE58B8B), onTap: _logout),
+            tile(icon: Icons.person_remove_outlined, title: 'Eliminar cuenta', color: const Color(0xFFE58B8B), onTap: () => Navigator.pushNamed(context, '/profile')),
+            const SizedBox(height: 12),
           ],
         ),
       ),
