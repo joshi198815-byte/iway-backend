@@ -408,78 +408,72 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildHero() {
-    if (_isTraveler) {
-      final onlineColor = _travelerOnline ? const Color(0xFF32FF84) : const Color(0xFFFF8A7A);
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: onlineColor.withValues(alpha: 0.55)),
-          boxShadow: [
-            BoxShadow(
-              color: onlineColor.withValues(alpha: 0.14),
-              blurRadius: 24,
-              offset: const Offset(0, 14),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Modo trabajo', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(
-              _travelerOnline
-                  ? 'Estás en línea. El backend ya te toma en cuenta para oportunidades compatibles.'
-                  : 'Estás desconectado. No recibirás nuevas oportunidades hasta volver a activarte.',
-              style: const TextStyle(color: AppTheme.muted, height: 1.4),
-            ),
-            const SizedBox(height: 18),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: onlineColor,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 18),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-                ),
-                onPressed: _updatingTravelerOnline ? null : () => _setTravelerOnline(!_travelerOnline),
-                icon: _updatingTravelerOnline
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                    : Icon(_travelerOnline ? Icons.wifi_tethering_rounded : Icons.wifi_off_rounded),
-                label: Text(_travelerOnline ? 'EN LÍNEA' : 'DESCONECTADO'),
+  Widget _buildTravelerQuickActions() {
+    if (!_isTraveler) return const SizedBox.shrink();
+
+    Widget actionCard({
+      required IconData icon,
+      required String title,
+      required String subtitle,
+      required VoidCallback? onTap,
+    }) {
+      return Expanded(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Ink(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.border, width: 0.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceSoft,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: AppTheme.accent, size: 28),
+                  ),
+                  const Spacer(),
+                  Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(subtitle, style: const TextStyle(color: AppTheme.muted, height: 1.35)),
+                ],
               ),
             ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _travelerOnline ? () => Navigator.pushNamed(context, '/traveler_opportunities') : null,
-                    icon: const Icon(Icons.local_offer_outlined),
-                    label: const Text('Ver oportunidades'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.pushNamed(context, '/my_orders'),
-                    icon: const Icon(Icons.local_shipping_outlined),
-                    label: const Text('Mis pedidos'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       );
     }
 
-    return const SizedBox.shrink();
+    return SizedBox(
+      height: 170,
+      child: Row(
+        children: [
+          actionCard(
+            icon: Icons.local_offer_outlined,
+            title: 'Oportunidades',
+            subtitle: _travelerOnline ? 'Revisa pedidos disponibles cerca de tu jornada.' : 'Activa En línea para ver nuevas oportunidades.',
+            onTap: _travelerOnline ? () => Navigator.pushNamed(context, '/traveler_opportunities') : null,
+          ),
+          const SizedBox(width: 12),
+          actionCard(
+            icon: Icons.local_shipping_outlined,
+            title: 'Mis pedidos',
+            subtitle: 'Consulta entregas activas e historial reciente.',
+            onTap: () => Navigator.pushNamed(context, '/my_orders'),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildShipmentList(List<ShipmentModel> shipments) {
@@ -628,14 +622,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       title: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Hola, ${user?.nombre.split(' ').first ?? 'i-WAY'}'),
+                          Text(user?.nombre.split(' ').first ?? 'i-WAY'), style: const TextStyle(fontWeight: FontWeight.w800)),
                           Text(
-                            _isTraveler ? 'Tu centro operativo' : 'Tus envíos',
+                            _isTraveler ? 'Panel de conductor' : 'Tus envíos',
                             style: const TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
                       actions: [
+                        if (_isTraveler)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Center(
+                              child: Switch(
+                                value: _travelerOnline,
+                                onChanged: _updatingTravelerOnline ? null : _setTravelerOnline,
+                              ),
+                            ),
+                          ),
+                        if (_isTraveler)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8),
+                            child: Center(
+                              child: Text('En línea', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            ),
+                          ),
                         Stack(
                           children: [
                             IconButton(
@@ -663,10 +674,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (_isTraveler) ...[
-                              _buildHero(),
+                              _buildTravelerQuickActions(),
                               const SizedBox(height: 18),
-                            ],
-                            _buildBannerCarousel(),
+                            ] else
+                              _buildBannerCarousel(),
                             const SizedBox(height: 18),
                             _buildNotificationsPreview(),
                             const SizedBox(height: 20),
