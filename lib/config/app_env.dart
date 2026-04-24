@@ -13,6 +13,8 @@ class AppEnv {
     return _defaultBaseUrl;
   }
 
+  static String get fallbackApiBaseUrl => _defaultBaseUrl;
+
   static String get googleMapsApiKey => _envGoogleMapsApiKey.trim();
 
   static String _normalize(String raw) {

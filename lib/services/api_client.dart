@@ -45,18 +45,22 @@ class ApiClient {
 
   List<Uri> _candidateUris(String path) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
-    final primaryBase = baseUrl.replaceAll(RegExp(r'/$'), '');
-    final fallbackBase = primaryBase.endsWith('/api')
-        ? primaryBase.substring(0, primaryBase.length - 4)
-        : primaryBase;
+    final bases = <String>{
+      baseUrl.replaceAll(RegExp(r'/$'), ''),
+      AppEnv.fallbackApiBaseUrl.replaceAll(RegExp(r'/$'), ''),
+    };
 
-    final candidates = <Uri>[
-      Uri.parse('$primaryBase$normalizedPath'),
-    ];
+    final candidates = <Uri>[];
+    for (final base in bases) {
+      candidates.add(Uri.parse('$base$normalizedPath'));
 
-    final fallbackUri = Uri.parse('$fallbackBase$normalizedPath');
-    if (fallbackUri.toString() != candidates.first.toString()) {
-      candidates.add(fallbackUri);
+      final fallbackBase = base.endsWith('/api')
+          ? base.substring(0, base.length - 4)
+          : base;
+      final fallbackUri = Uri.parse('$fallbackBase$normalizedPath');
+      if (!candidates.any((candidate) => candidate.toString() == fallbackUri.toString())) {
+        candidates.add(fallbackUri);
+      }
     }
 
     return candidates;
@@ -74,7 +78,9 @@ class ApiClient {
         final response = await sender(candidates[index]).timeout(requestTimeout);
         lastResponse = response;
 
-        final shouldRetryWithFallback = response.statusCode == 404 && index < candidates.length - 1;
+        final shouldRetryWithFallback =
+            (response.statusCode == 404 || !_looksLikeJsonResponse(response)) &&
+            index < candidates.length - 1;
         if (!shouldRetryWithFallback) {
           return response;
         }
@@ -174,6 +180,16 @@ class ApiClient {
     } finally {
       _handlingUnauthorized = false;
     }
+  }
+
+  bool _looksLikeJsonResponse(http.Response response) {
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    if (contentType.contains('application/json')) {
+      return true;
+    }
+
+    final body = response.body.trimLeft();
+    return body.startsWith('{') || body.startsWith('[');
   }
 
   dynamic _decodeResponse(http.Response response) {
