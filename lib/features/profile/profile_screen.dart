@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/auth/services/auth_service.dart';
+import 'package:iway_app/features/rating/models/rating_model.dart';
 import 'package:iway_app/features/rating/services/rating_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
@@ -30,12 +31,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _photoUrl;
   double _ratingAvg = 0;
   int _ratingCount = 0;
+  List<RatingModel> _ratings = [];
   String _selectedCountry = 'Guatemala';
   String? _selectedRegion;
   String? _selectedCity;
   String? _selectedZone;
   bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
-  bool get _showZoneSelector => _selectedCountry == 'Guatemala' && _selectedRegion == 'Guatemala';
 
   @override
   void initState() {
@@ -86,6 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _ratingAvg = avg.toDouble();
         _ratingCount = ratings.length;
+        _ratings = ratings;
       });
     } catch (_) {}
   }
@@ -130,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         stateRegion: [
           _selectedRegion,
           _selectedCity,
-          if (_showZoneSelector && (_selectedZone ?? '').isNotEmpty) _selectedZone,
+          if ((_selectedZone ?? '').isNotEmpty) _selectedZone,
         ].whereType<String>().where((value) => value.trim().isNotEmpty).join(' | '),
         address: _addressController.text,
         selfieUrl: _photoUrl,
@@ -219,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 24),
                 const AppPageIntro(
                   title: 'Tu perfil',
-                  subtitle: 'Foto real, ubicación clara y datos útiles. Sin ruido viejo.',
+                  subtitle: 'Gestiona tu información principal.',
                 ),
                 const SizedBox(height: 20),
                 Container(
@@ -266,12 +268,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             icon: const Icon(Icons.photo_camera_outlined),
                             label: const Text('Cámara'),
                           ),
-                          if (_isTraveler)
-                            OutlinedButton.icon(
-                              onPressed: () => Navigator.pushNamed(context, '/my_ratings'),
-                              icon: const Icon(Icons.star_outline_rounded),
-                              label: const Text('Mis calificaciones'),
-                            ),
                         ],
                       ),
                       if (_uploadingPhoto) ...[
@@ -301,7 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       DropdownButtonFormField<String>(
                         value: _selectedCountry,
-                        decoration: const InputDecoration(labelText: 'País'),
+                        decoration: const InputDecoration(labelText: 'Ubicación base · país'),
                         items: supportedCountries.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
                         onChanged: (value) {
                           if (value == null) return;
@@ -319,7 +315,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: _selectedRegion,
-                        decoration: InputDecoration(labelText: _selectedCountry == 'Guatemala' ? 'Departamento' : 'Estado'),
+                        decoration: const InputDecoration(labelText: 'Ubicación base · región'),
                         items: availableRegionsForCountry(_selectedCountry)
                             .map((item) => DropdownMenuItem(value: item, child: Text(item)))
                             .toList(),
@@ -337,24 +333,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         value: _selectedCity,
-                        decoration: InputDecoration(labelText: _selectedCountry == 'Guatemala' ? 'Municipio' : 'Ciudad'),
+                        decoration: const InputDecoration(labelText: 'Ubicación base · ciudad'),
                         items: cityOptions.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
                         onChanged: (value) => setState(() => _selectedCity = value),
                       ),
-                      if (_showZoneSelector) ...[
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<String>(
-                          value: _selectedZone,
-                          decoration: const InputDecoration(labelText: 'Zona'),
-                          items: zonesForDepartment('Guatemala')
-                              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-                              .toList(),
-                          onChanged: (value) => setState(() => _selectedZone = value),
-                        ),
-                      ],
                     ],
                   ),
                 ),
+                if (_isTraveler) ...[
+                  const SizedBox(height: 16),
+                  _RatingsSummaryCard(ratingAvg: _ratingAvg, ratingCount: _ratingCount, ratings: _ratings),
+                ],
                 const SizedBox(height: 16),
                 _SectionCard(
                   title: 'Estado de cuenta',
@@ -468,6 +457,91 @@ class _RatingStrip extends StatelessWidget {
           style: const TextStyle(color: AppTheme.muted, fontSize: 12),
         ),
       ],
+    );
+  }
+}
+
+class _RatingsSummaryCard extends StatelessWidget {
+  final double ratingAvg;
+  final int ratingCount;
+  final List<RatingModel> ratings;
+
+  const _RatingsSummaryCard({
+    required this.ratingAvg,
+    required this.ratingCount,
+    required this.ratings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+        childrenPadding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+        title: const Text('Resumen de calificaciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        subtitle: Text(
+          ratingCount == 0 ? 'Aún no tienes reseñas visibles.' : '$ratingCount calificaciones registradas',
+          style: const TextStyle(color: AppTheme.muted),
+        ),
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ratingCount == 0 ? '—' : ratingAvg.toStringAsFixed(1),
+                  style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: List.generate(
+                    5,
+                    (index) => Icon(
+                      index < ratingAvg.round() ? Icons.star_rounded : Icons.star_border_rounded,
+                      color: const Color(0xFFFFC83D),
+                      size: 18,
+                    ),
+                  ),
+                ),
+                if (ratings.isNotEmpty) ...[
+                  const SizedBox(height: 18),
+                  const Text('Comentarios recientes', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 10),
+                  ...ratings.take(3).map((rating) {
+                    final comment = rating.comentario.trim().isEmpty ? 'Sin comentario escrito.' : rating.comentario.trim();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceSoft,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(rating.fromUserName.isEmpty ? 'Usuario' : rating.fromUserName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(height: 4),
+                            Text(comment, style: const TextStyle(color: AppTheme.muted, height: 1.35)),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
