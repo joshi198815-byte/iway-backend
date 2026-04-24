@@ -380,6 +380,9 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     if (updatingStatus) {
       return 'Estamos guardando el cambio operativo.';
     }
+    if (estado == 'offered') {
+      return 'Este envío ya tiene ofertas. Revísalas y acepta la que prefieras.';
+    }
     if (nextAction == null) {
       return 'No hay una siguiente acción disponible para este estado.';
     }
@@ -879,14 +882,21 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                           builder: (context) {
                             final nextAction = nextOperationalAction(estado);
                             final blockReason = actionBlockReason(estado);
+                            final isCustomerOfferStage = estado == 'offered' && shipment?.userId == SessionService.currentUserId;
                             return Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 ElevatedButton(
-                                  onPressed: blockReason != null
-                                      ? null
-                                      : () => updateStatus(nextAction!.status),
-                                  child: Text(nextAction?.label ?? 'Sin acción disponible'),
+                                  onPressed: isCustomerOfferStage
+                                      ? () => Navigator.pushNamed(context, '/offers', arguments: widget.shipmentId)
+                                      : blockReason != null
+                                          ? null
+                                          : () => updateStatus(nextAction!.status),
+                                  child: Text(
+                                    isCustomerOfferStage
+                                        ? 'Ver ofertas y aceptar'
+                                        : (nextAction?.label ?? 'Sin acción disponible'),
+                                  ),
                                 ),
                                 if (blockReason != null) ...[
                                   const SizedBox(height: 8),

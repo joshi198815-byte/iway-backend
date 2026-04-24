@@ -399,15 +399,15 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                           AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                           const SizedBox(height: 24),
                           AppPageIntro(
-                            title: isTraveler ? 'Haz tu oferta' : 'Elige la mejor oferta',
+                            title: isTraveler ? 'Haz tu oferta' : 'Aceptar oferta',
                             subtitle: isTraveler
                                 ? 'Compite por este envío con un precio claro y directo.'
-                                : 'Compara viajeros y acepta la opción que más te convenga.',
+                                : 'Revisa precios y elige una oferta. Por ahora el cliente puede aceptar o rechazar, no contraofertar.',
                           ),
                           const SizedBox(height: 18),
                           if (shipment != null)
                             AppGlassSection(
-                              title: 'Detalle del envío',
+                              title: isTraveler ? 'Detalle del envío' : 'Resumen del envío',
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -443,32 +443,34 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                           ),
                                         ),
                                       ),
-                                    Text(
-                                      'Punto sugerido de encuentro: ${_recommendedPickupPoint(shipment!)}',
-                                      style: const TextStyle(color: AppTheme.muted),
-                                    ),
-                                    if (_distanceToPickupLabel(shipment!) != null)
+                                    if (isTraveler) ...[
                                       Text(
-                                        'Distancia aproximada: ${_distanceToPickupLabel(shipment!)}',
+                                        'Punto sugerido de encuentro: ${_recommendedPickupPoint(shipment!)}',
                                         style: const TextStyle(color: AppTheme.muted),
                                       ),
-                                    if (shipment!.remitenteNombre.isNotEmpty)
-                                      Text(
-                                        'Remitente: ${shipment!.remitenteNombre}',
-                                        style: const TextStyle(color: AppTheme.muted),
-                                      ),
-                                    if (shipment!.remitenteTelefono.isNotEmpty)
-                                      Text(
-                                        'Contacto de recogida: ${shipment!.remitenteTelefono}',
-                                        style: const TextStyle(color: AppTheme.muted),
-                                      ),
+                                      if (_distanceToPickupLabel(shipment!) != null)
+                                        Text(
+                                          'Distancia aproximada: ${_distanceToPickupLabel(shipment!)}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                      if (shipment!.remitenteNombre.isNotEmpty)
+                                        Text(
+                                          'Remitente: ${shipment!.remitenteNombre}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                      if (shipment!.remitenteTelefono.isNotEmpty)
+                                        Text(
+                                          'Contacto de recogida: ${shipment!.remitenteTelefono}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                    ],
                                     const SizedBox(height: 8),
                                   ],
                                   Text(
                                     'Entrega para: ${shipment!.receptorNombre.isEmpty ? 'No indicado' : shipment!.receptorNombre}',
                                     style: const TextStyle(color: AppTheme.muted),
                                   ),
-                                  if (shipment!.receptorTelefono.isNotEmpty)
+                                  if (shipment!.receptorTelefono.isNotEmpty && isTraveler)
                                     Text(
                                       'Teléfono: ${shipment!.receptorTelefono}',
                                       style: const TextStyle(color: AppTheme.muted),
@@ -489,37 +491,38 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       style: const TextStyle(color: AppTheme.muted),
                                     ),
                                   const SizedBox(height: 12),
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 10,
-                                    children: [
-                                      OutlinedButton.icon(
-                                        onPressed: () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/map',
-                                            arguments: widget.shipmentId,
-                                          );
-                                        },
-                                        icon: const Icon(Icons.map_outlined),
-                                        label: const Text('Abrir mapa'),
-                                      ),
-                                      OutlinedButton.icon(
-                                        onPressed: () {
-                                          Navigator.pushNamed(
-                                            context,
-                                            '/chat',
-                                            arguments: {
-                                              'shipmentId': widget.shipmentId,
-                                              'initialDraft': _pickupChatDraft(shipment!),
-                                            },
-                                          );
-                                        },
-                                        icon: const Icon(Icons.chat_bubble_outline_rounded),
-                                        label: const Text('Coordinar pickup'),
-                                      ),
-                                    ],
-                                  ),
+                                  if (isTraveler)
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 10,
+                                      children: [
+                                        OutlinedButton.icon(
+                                          onPressed: () {
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/map',
+                                              arguments: widget.shipmentId,
+                                            );
+                                          },
+                                          icon: const Icon(Icons.map_outlined),
+                                          label: const Text('Abrir mapa'),
+                                        ),
+                                        OutlinedButton.icon(
+                                          onPressed: () {
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/chat',
+                                              arguments: {
+                                                'shipmentId': widget.shipmentId,
+                                                'initialDraft': _pickupChatDraft(shipment!),
+                                              },
+                                            );
+                                          },
+                                          icon: const Icon(Icons.chat_bubble_outline_rounded),
+                                          label: const Text('Coordinar pickup'),
+                                        ),
+                                      ],
+                                    ),
                                 ],
                               ),
                             ),
@@ -656,7 +659,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         offer.travelerName.isNotEmpty ? offer.travelerName : 'Viajero ${offer.travelerId}',
                                         style: const TextStyle(fontWeight: FontWeight.w700),
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 6),
                                       Wrap(
                                         spacing: 8,
                                         runSpacing: 8,
@@ -674,36 +677,28 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                             color: const Color(0xFF8AB4FF),
                                           ),
                                           _OfferChip(
-                                            label: 'Verificación ${offer.travelerVerificationScore}',
+                                            label: 'Calificación ${offer.travelerRatingAvg.toStringAsFixed(1)}',
                                             color: const Color(0xFFFFD27A),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(height: 4),
+                                      const SizedBox(height: 8),
                                       Text(
                                         statusHelper(offer.estado, isTravelerView: isTraveler),
                                         style: const TextStyle(color: AppTheme.muted, fontSize: 13),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Calificación ${offer.travelerRatingAvg.toStringAsFixed(1)} • Cumplimiento ${(offer.acceptanceRate * 100).toStringAsFixed(0)}%',
-                                        style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        offer.mensaje,
-                                        style: const TextStyle(color: AppTheme.muted),
-                                      ),
-                                      if (offer.marketplaceInsights.isNotEmpty) ...[
+                                      if (isTraveler && offer.mensaje.trim().isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          offer.mensaje,
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                      ],
+                                      if (!isTraveler && offer.marketplaceInsights.isNotEmpty) ...[
                                         const SizedBox(height: 8),
-                                        ...offer.marketplaceInsights.take(3).map(
-                                          (insight) => Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
-                                            child: Text(
-                                              '• $insight',
-                                              style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                                            ),
-                                          ),
+                                        Text(
+                                          offer.marketplaceInsights.first,
+                                          style: const TextStyle(color: AppTheme.muted, fontSize: 12),
                                         ),
                                       ],
                                       if (!isTraveler) ...[

@@ -183,7 +183,7 @@ export class NotificationsService implements OnModuleInit {
     const projectId = process.env.FIREBASE_PROJECT_ID;
     const accessToken = params.accessToken ?? (await this.getFirebaseAccessToken());
     if (!projectId || !accessToken) {
-      return { sent: false };
+      return { sent: false, invalidToken: false, responseBody: 'firebase_not_configured' };
     }
 
     const response = await fetch(
@@ -227,10 +227,37 @@ export class NotificationsService implements OnModuleInit {
       },
     );
 
+    const responseText = (await response.text()).trim();
+    const invalidToken = responseText.includes('UNREGISTERED') || responseText.includes('registration-token-not-registered');
+
     return {
       sent: response.ok,
       status: response.status,
+      invalidToken,
+      responseBody: responseText,
     };
+  }
+
+  private async deactivateInvalidDeviceTokens(
+    devices: Array<{ token: string }>,
+    results: Array<{ invalidToken?: boolean }>,
+  ) {
+    const tokensToDeactivate = devices
+      .filter((device, index) => results[index]?.invalidToken === true)
+      .map((device) => device.token)
+      .filter((token) => token.trim().length > 0);
+
+    if (tokensToDeactivate.length === 0) {
+      return;
+    }
+
+    await this.prisma.deviceToken.updateMany({
+      where: { token: { in: tokensToDeactivate } },
+      data: {
+        active: false,
+        lastSeenAt: new Date(),
+      },
+    });
   }
 
   async findByUser(userId: string) {
@@ -369,6 +396,10 @@ export class NotificationsService implements OnModuleInit {
       const providerConfigured = this.firebaseConfigured();
       let sentCount = 0;
 
+      this.logger.log(
+        `sendPushMany start type=${type} shipmentId=${shipmentId ?? '-'} userCount=${uniqueUserIds.length} deviceCount=${activeDevices.length} providerConfigured=${providerConfigured}`,
+      );
+
       if (providerConfigured && activeDevices.length > 0) {
         const accessToken = await this.getFirebaseAccessToken();
         if (accessToken) {
@@ -384,9 +415,23 @@ export class NotificationsService implements OnModuleInit {
               }),
             ),
           );
+          await this.deactivateInvalidDeviceTokens(activeDevices, results);
           sentCount = results.filter((result) => result.sent).length;
+
+          const failedResults = results.filter((result) => !result.sent);
+          if (failedResults.length > 0) {
+            this.logger.warn(
+              `sendPushMany partial failure type=${type} shipmentId=${shipmentId ?? '-'} statuses=${failedResults.map((result) => result.status ?? 0).join(',')} bodies=${failedResults.map((result) => result.responseBody ?? '').filter((body) => body.length > 0).join(' | ')}`,
+            );
+          }
+        } else {
+          this.logger.warn(`sendPushMany access token unavailable type=${type} shipmentId=${shipmentId ?? '-'}`);
         }
       }
+
+      this.logger.log(
+        `sendPushMany result type=${type} shipmentId=${shipmentId ?? '-'} userCount=${uniqueUserIds.length} deviceCount=${activeDevices.length} sentCount=${sentCount} providerConfigured=${providerConfigured}`,
+      );
 
       return {
         queued: false,
@@ -454,6 +499,10 @@ export class NotificationsService implements OnModuleInit {
       },
     });
 
+    this.logger.log(
+      `registerDeviceToken userId=${userId} platform=${payload.platform} suspicious=${suspicious} installationId=${payload.installationId ?? '-'} tokenSuffix=${payload.token.slice(-12)}`,
+    );
+
     runtimeObservability.recordBusinessEvent({
       type: 'device_token_registered',
       actorId: userId,
@@ -493,7 +542,7 @@ export class NotificationsService implements OnModuleInit {
       });
 
       const providerConfigured = this.firebaseConfigured();
-      let pushResults: Array<{ sent: boolean; status?: number }> = [];
+      let pushResults: Array<{ sent: boolean; status?: number; invalidToken?: boolean; responseBody?: string }> = [];
 
       this.logger.log(
         `sendPush start userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} providerConfigured=${providerConfigured}`,
@@ -514,6 +563,7 @@ export class NotificationsService implements OnModuleInit {
               }),
             ),
           );
+          await this.deactivateInvalidDeviceTokens(activeDevices, pushResults);
         } else {
           this.logger.warn(
             `sendPush access token unavailable userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'}`,
@@ -530,7 +580,7 @@ export class NotificationsService implements OnModuleInit {
 
       if (failedCount > 0) {
         this.logger.warn(
-          `sendPush partial failure userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} statuses=${pushResults.map((result) => result.status ?? 0).join(',')}`,
+          `sendPush partial failure userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} statuses=${pushResults.map((result) => result.status ?? 0).join(',')} bodies=${pushResults.map((result) => result.responseBody ?? '').filter((body) => body.length > 0).join(' | ')}`,
         );
       }
 

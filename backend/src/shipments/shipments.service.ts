@@ -166,7 +166,6 @@ export class ShipmentsService {
         status: { in: [ShipmentStatus.pending, ShipmentStatus.offered] },
         assignedTravelerId: null,
         customerId: { not: travelerId },
-        ...(activeDirections.length > 0 ? { direction: { in: activeDirections } } : {}),
         offers: {
           none: {
             travelerId,
@@ -221,7 +220,7 @@ export class ShipmentsService {
 
         const pickupRegion = shipment.senderStateRegion?.trim() || 'sin departamento confirmado';
         const insights = [
-          activeDirections.includes(shipment.direction) ? 'Coincide con tu ruta activa' : 'Oportunidad disponible para tu operación',
+          activeDirections.includes(shipment.direction) ? 'Coincide con una de tus rutas activas' : 'Disponible aunque no coincida con tus rutas guardadas',
           `Recogida en ${pickupRegion}`,
           offerCount === 0 ? 'Sin competencia todavía' : `${offerCount} oferta${offerCount === 1 ? '' : 's'} activa${offerCount === 1 ? '' : 's'}`,
           minOfferPrice > 0 ? `Oferta más baja actual: $${minOfferPrice.toFixed(2)}` : 'Aún no hay ofertas registradas',

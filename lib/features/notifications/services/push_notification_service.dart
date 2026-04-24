@@ -49,51 +49,61 @@ class PushNotificationService {
 
   static Future<void> initialize() async {
     if (_initialized) return;
-    _initialized = true;
 
-    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
+    try {
+      const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosInit = DarwinInitializationSettings();
 
-    await _localNotifications.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
-      onDidReceiveNotificationResponse: (response) {
-        _handlePayload(response.payload);
-      },
-    );
+      await _localNotifications.initialize(
+        const InitializationSettings(android: androidInit, iOS: iosInit),
+        onDidReceiveNotificationResponse: (response) {
+          _handlePayload(response.payload);
+        },
+      );
 
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
 
-    final firebaseReady = await ensureFirebaseInitialized();
-    if (!firebaseReady) {
-      return;
-    }
+      final firebaseReady = await ensureFirebaseInitialized();
+      if (!firebaseReady) {
+        debugPrint('PushNotificationService.initialize: Firebase no disponible.');
+        return;
+      }
 
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    final messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: false,
-    );
-    await messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+      final messaging = FirebaseMessaging.instance;
+      final permission = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
 
-    await _syncCurrentToken();
-    FirebaseMessaging.instance.onTokenRefresh.listen((_) => _syncCurrentToken());
+      debugPrint('PushNotificationService.initialize: permission=${permission.authorizationStatus.name}');
 
-    FirebaseMessaging.onMessage.listen(_onForegroundMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessage);
+      await messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-    final initialMessage = await messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleRemoteMessage(initialMessage);
+      await _syncCurrentToken();
+      FirebaseMessaging.instance.onTokenRefresh.listen((_) => _syncCurrentToken());
+
+      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessage);
+
+      final initialMessage = await messaging.getInitialMessage();
+      if (initialMessage != null) {
+        _handleRemoteMessage(initialMessage);
+      }
+
+      _initialized = true;
+    } catch (e) {
+      debugPrint('PushNotificationService.initialize error: $e');
+      _initialized = false;
     }
   }
 
@@ -129,11 +139,17 @@ class PushNotificationService {
       final token = await FirebaseMessaging.instance
           .getToken()
           .timeout(_firebaseOperationTimeout, onTimeout: () => null);
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        debugPrint('PushNotificationService._syncCurrentToken: token vacío.');
+        return;
+      }
+      debugPrint('PushNotificationService._syncCurrentToken: registrando token ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
       await DeviceTokenService()
           .registerToken(token)
           .timeout(_firebaseOperationTimeout, onTimeout: () => <String, dynamic>{});
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService._syncCurrentToken error: $e');
+    }
   }
 
   static Future<void> _onForegroundMessage(RemoteMessage message) async {

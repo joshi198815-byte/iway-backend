@@ -7,10 +7,12 @@ import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/features/traveler/services/traveler_workspace_service.dart';
 import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/realtime_service.dart';
+import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/utils/currency_presenter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TravelerOpportunitiesScreen extends StatefulWidget {
   const TravelerOpportunitiesScreen({super.key});
@@ -24,7 +26,10 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   final _workspaceService = TravelerWorkspaceService();
   final _realtime = RealtimeService.instance;
 
+  static const _dismissedStoragePrefix = 'traveler_dismissed_opportunities';
+
   List<ShipmentModel> _shipments = [];
+  Set<String> _dismissedShipmentIds = <String>{};
   bool _loading = true;
   bool _isOnline = true;
   StreamSubscription<dynamic>? _globalSyncSubscription;
@@ -42,15 +47,48 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
     _globalSyncSubscription = _realtime.globalEntitySync.listen((_) => _load());
   }
 
+  String get _dismissedStorageKey {
+    final userId = SessionService.currentUserId;
+    if (userId == null || userId.isEmpty) {
+      return _dismissedStoragePrefix;
+    }
+    return '$_dismissedStoragePrefix:$userId';
+  }
+
+  Future<Set<String>> _readDismissedShipmentIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getStringList(_dismissedStorageKey) ?? const <String>[]).toSet();
+  }
+
+  Future<void> _dismissOpportunity(String shipmentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final nextIds = {..._dismissedShipmentIds, shipmentId};
+    await prefs.setStringList(_dismissedStorageKey, nextIds.toList());
+    if (!mounted) return;
+    setState(() {
+      _dismissedShipmentIds = nextIds;
+      _shipments = _shipments.where((shipment) => shipment.id != shipmentId).toList();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Oportunidad descartada. Ya no se mostrará en tu lista.')),
+    );
+  }
+
   Future<void> _load() async {
     try {
       final results = await Future.wait([
         _shipmentService.getAvailableShipments(),
         _workspaceService.getWorkspace(),
+        _readDismissedShipmentIds(),
       ]);
       if (!mounted) return;
+      final dismissedIds = results[2] as Set<String>;
+      final shipments = (results[0] as List<ShipmentModel>)
+          .where((shipment) => !dismissedIds.contains(shipment.id))
+          .toList();
       setState(() {
-        _shipments = results[0] as List<ShipmentModel>;
+        _dismissedShipmentIds = dismissedIds;
+        _shipments = shipments;
         _isOnline = (results[1] as TravelerWorkspaceState).isOnline;
         _loading = false;
       });
@@ -104,7 +142,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                       const SizedBox(height: 24),
                       const AppPageIntro(
                         title: 'Oportunidades',
-                        subtitle: 'Solo ves pedidos compatibles cuando tu modo trabajo está en línea.',
+                        subtitle: 'Aquí ves todos los pedidos disponibles. Tú decides si ofertar o descartarlos.',
                       ),
                       const SizedBox(height: 16),
                       Container(
@@ -119,7 +157,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                         ),
                         child: Text(
                           _isOnline
-                              ? 'Modo En línea activo. Estas oportunidades vienen del backend en tiempo real.'
+                              ? 'Modo En línea activo. Ya puedes revisar cualquier oportunidad y decidir si ofertar o rechazarla.'
                               : 'Ahora mismo estás desconectado. Vuelve al dashboard y activa tu modo En línea para recibir oportunidades.',
                           style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
@@ -129,7 +167,7 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                         child: _shipments.isEmpty
                             ? const Center(
                                 child: Text(
-                                  'No hay oportunidades activas para tus rutas en este momento.',
+                                  'No hay oportunidades activas en este momento.',
                                   style: TextStyle(color: AppTheme.muted),
                                 ),
                               )
@@ -151,15 +189,25 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                         const SizedBox(height: 8),
                                         _LineItem(label: 'Pago estimado', value: CurrencyPresenter.formatForShipment(shipment, shipment.valor)),
                                         const SizedBox(height: 14),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          child: ElevatedButton(
-                                            onPressed: () async {
-                                              await Navigator.pushNamed(context, '/offers', arguments: shipment.id);
-                                              await _load();
-                                            },
-                                            child: const Text('Ofertar'),
-                                          ),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: ElevatedButton(
+                                                onPressed: () async {
+                                                  await Navigator.pushNamed(context, '/offers', arguments: shipment.id);
+                                                  await _load();
+                                                },
+                                                child: const Text('Ofertar'),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: OutlinedButton(
+                                                onPressed: () => _dismissOpportunity(shipment.id),
+                                                child: const Text('Rechazar'),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),

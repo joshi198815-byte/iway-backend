@@ -433,8 +433,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => Navigator.pushNamed(context, '/tracking', arguments: shipment.id),
-                  child: const Text('Abrir detalle'),
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    shipment.estado == 'offered' && !_isTraveler ? '/offers' : '/tracking',
+                    arguments: shipment.id,
+                  ),
+                  child: Text(shipment.estado == 'offered' && !_isTraveler ? 'Ver ofertas' : 'Abrir detalle'),
                 ),
               ),
             ],

@@ -245,8 +245,12 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
                                           runSpacing: 10,
                                           children: [
                                             ElevatedButton(
-                                              onPressed: () => Navigator.pushNamed(context, '/tracking', arguments: shipment.id),
-                                              child: const Text('Ver seguimiento'),
+                                              onPressed: () => Navigator.pushNamed(
+                                                context,
+                                                shipment.estado == 'offered' ? '/offers' : '/tracking',
+                                                arguments: shipment.id,
+                                              ),
+                                              child: Text(shipment.estado == 'offered' ? 'Ver ofertas' : 'Ver seguimiento'),
                                             ),
                                             OutlinedButton(
                                               onPressed: () => _showSupport(shipment),
