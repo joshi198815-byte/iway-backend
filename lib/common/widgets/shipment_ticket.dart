@@ -17,8 +17,9 @@ class ShipmentTicket extends StatelessWidget {
 
   String _maskedId(String id) {
     final trimmed = id.trim();
-    if (trimmed.isEmpty) return '----';
-    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
+    if (trimmed.isEmpty) return '------';
+    final suffix = trimmed.length <= 6 ? trimmed : trimmed.substring(trimmed.length - 6);
+    return '...${suffix.toUpperCase()}';
   }
 
   @override

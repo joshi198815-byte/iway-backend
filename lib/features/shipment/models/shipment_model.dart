@@ -32,6 +32,8 @@ class ShipmentModel {
   final String marketplaceTier;
   final int offerCount;
   final List<String> marketplaceInsights;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
   String estado;
 
   ShipmentStatusValue? get statusValue => parseShipmentStatus(estado);
@@ -73,6 +75,8 @@ class ShipmentModel {
       marketplaceTier: marketplaceTier,
       offerCount: offerCount ?? this.offerCount,
       marketplaceInsights: marketplaceInsights,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
       estado: estado ?? this.estado,
     );
   }
@@ -109,6 +113,8 @@ class ShipmentModel {
     this.marketplaceTier = 'watch',
     this.offerCount = 0,
     this.marketplaceInsights = const [],
+    this.createdAt,
+    this.updatedAt,
     required this.estado,
   });
 
@@ -167,6 +173,8 @@ class ShipmentModel {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      createdAt: _toDateTime(json['createdAt']),
+      updatedAt: _toDateTime(json['updatedAt']),
       estado: (json['status'] ?? json['estado'] ?? '').toString(),
     );
   }
@@ -183,5 +191,11 @@ class ShipmentModel {
     if (value is double) return value;
     if (value is int) return value.toDouble();
     return double.tryParse(value.toString());
+  }
+
+  static DateTime? _toDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }

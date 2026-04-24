@@ -50,4 +50,8 @@ class TravelerOrdersController {
       await _shipmentService.updateStatus(shipment.id, 'picked_up');
     }
   }
+
+  Future<void> openReceipt(ShipmentModel shipment) {
+    return _ticketService.openReceiptPdf(shipment);
+  }
 }

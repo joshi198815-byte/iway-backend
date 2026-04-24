@@ -140,13 +140,20 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         );
       }
 
-      final polylines = polylinePoints.length >= 2
+      final fallbackPoints = [
+        if (shipmentData.pickupLat != null && shipmentData.pickupLng != null) LatLng(shipmentData.pickupLat!, shipmentData.pickupLng!),
+        if (shipmentData.deliveryLat != null && shipmentData.deliveryLng != null) LatLng(shipmentData.deliveryLat!, shipmentData.deliveryLng!),
+      ];
+
+      final polylineSource = polylinePoints.length >= 2 ? polylinePoints : fallbackPoints;
+      final polylines = polylineSource.length >= 2
           ? {
               Polyline(
                 polylineId: const PolylineId('shipment-route'),
-                points: polylinePoints,
+                points: polylineSource,
                 color: AppTheme.accent,
                 width: 5,
+                patterns: polylinePoints.length >= 2 ? const [] : const [PatternItem.dash(18), PatternItem.gap(10)],
               ),
             }
           : <Polyline>{};
@@ -159,8 +166,8 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
         loading = false;
       });
 
-      final fitPoints = polylinePoints.isNotEmpty
-          ? polylinePoints
+      final fitPoints = polylineSource.isNotEmpty
+          ? polylineSource
           : [if (_pickupPoint != null) _pickupPoint!, if (_deliveryPoint != null) _deliveryPoint!];
       await _fitRouteBounds(fitPoints);
     } catch (_) {
@@ -172,15 +179,19 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   Future<void> _openGoogleMaps() async {
     final point = _deliveryPoint;
     if (point == null) return;
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}');
+    final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openWaze() async {
     final point = _deliveryPoint;
     if (point == null) return;
-    final uri = Uri.parse('https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes');
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final primary = Uri.parse('waze://?ll=${point.latitude},${point.longitude}&navigate=yes');
+    final fallback = Uri.parse('https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes');
+    final opened = await launchUrl(primary, mode: LaunchMode.externalApplication);
+    if (!opened) {
+      await launchUrl(fallback, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -255,7 +266,17 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             border: Border.all(color: AppTheme.border, width: 0.5),
                           ),
                           child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Text(
+                                routePolylines.isEmpty
+                                    ? 'Ruta disponible cuando existan coordenadas válidas.'
+                                    : routePolylines.first.patterns.isEmpty
+                                        ? 'Ruta en tiempo real disponible.'
+                                        : 'Ruta visual estimada entre origen y destino.',
+                                style: const TextStyle(color: AppTheme.muted),
+                              ),
+                              const SizedBox(height: 14),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(

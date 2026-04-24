@@ -19,6 +19,7 @@ import '../features/shipment/models/shipment_model.dart';
 import '../features/shipment/tracking_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/chat/chat_screen.dart';
+import '../features/history/history_screen.dart';
 import '../features/payments/debts_screen.dart';
 import '../features/rating/rating_screen.dart';
 import '../features/rating/my_ratings_screen.dart';
@@ -49,6 +50,7 @@ class AppRoutes {
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/my_orders': (context) => const MyOrdersScreen(),
+    '/history': (context) => const HistoryScreen(),
     '/scan_shipment': (context) => const QrScanScreen(),
     '/recipients': (context) => const RecipientManagementScreen(),
     '/settings': (context) => const SettingsScreen(),

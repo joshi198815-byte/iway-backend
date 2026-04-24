@@ -32,7 +32,7 @@ class _RatingScreenState extends State<RatingScreen> {
       final exists = await ratingService.hasSubmittedRating(widget.shipmentId);
       if (!mounted) return;
       if (exists) {
-        Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
         return;
       }
       setState(() => checkingExisting = false);
@@ -70,11 +70,11 @@ class _RatingScreenState extends State<RatingScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('¡Gracias!')),
       );
-      Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
     } on ApiException catch (e) {
       if (!mounted) return;
       if (e.message.contains('Ya existe una calificación enviada para este envío')) {
-        Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));

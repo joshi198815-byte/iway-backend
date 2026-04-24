@@ -94,9 +94,9 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
 
   String _maskedShipmentId(String value) {
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
-    return '#${suffix.toUpperCase()}';
+    if (trimmed.isEmpty) return '------';
+    final suffix = trimmed.length <= 6 ? trimmed : trimmed.substring(trimmed.length - 6);
+    return '#...${suffix.toUpperCase()}';
   }
 
   String _cityCountry(String cityOrRegion, String countryCode) {
@@ -141,7 +141,7 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
       case 'ruta':
         return _shipments.where((item) {
           final hasAcceptedOffer = item.assignedTravelerId != null && item.assignedTravelerId!.isNotEmpty;
-          return hasAcceptedOffer && item.estado != 'delivered';
+          return hasAcceptedOffer && item.estado != 'delivered' && item.estado != 'archived';
         }).toList();
       case 'completados':
         return _shipments.where((item) => item.estado == 'delivered').toList();
@@ -409,11 +409,18 @@ class _MyOrdersScreenState extends State<MyOrdersScreen> with WidgetsBindingObse
                                                   label: const Text('Confirmar carga'),
                                                 ),
                                               OutlinedButton(
-                                                onPressed: () => Navigator.pushNamed(
-                                                  context,
-                                                  shipment.estado == 'offered' ? '/offers' : '/tracking',
-                                                  arguments: shipment.id,
-                                                ),
+                                                onPressed: () async {
+                                                  if (shipment.estado == 'delivered') {
+                                                    await _controller.openReceipt(shipment);
+                                                    return;
+                                                  }
+                                                  if (!mounted) return;
+                                                  await Navigator.pushNamed(
+                                                    context,
+                                                    shipment.estado == 'offered' ? '/offers' : '/tracking',
+                                                    arguments: shipment.id,
+                                                  );
+                                                },
                                                 child: Text(shipment.estado == 'delivered' ? 'Ver recibo' : 'Ver detalle'),
                                               ),
                                             ],

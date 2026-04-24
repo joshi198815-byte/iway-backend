@@ -123,8 +123,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   String _maskedShipmentId(String value) {
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
+    if (trimmed.isEmpty) return '------';
+    final suffix = trimmed.length <= 6 ? trimmed : trimmed.substring(trimmed.length - 6);
+    return '...${suffix.toUpperCase()}';
   }
 
   String _shipmentTitle(ShipmentModel shipment) {
@@ -151,8 +152,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return '$origin → $destination';
   }
 
+  bool _isTerminalStatus(String status) => status == 'delivered' || status == 'archived';
+
   List<ShipmentModel> _activeTravelerTasks(List<ShipmentModel> shipments) {
     return shipments.where((item) {
+      if (_isTerminalStatus(item.estado)) return false;
       return item.estado == 'assigned' ||
           item.estado == 'picked_up' ||
           item.estado == 'in_transit' ||
@@ -246,6 +250,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             tile(icon: Icons.person_outline, title: 'Perfil', onTap: () => Navigator.pushNamed(context, '/profile')),
             tile(icon: Icons.inventory_2_outlined, title: 'Mis pedidos', onTap: () => Navigator.pushNamed(context, '/my_orders')),
+            tile(icon: Icons.receipt_long_outlined, title: 'Mis envíos / Recibos', onTap: () => Navigator.pushNamed(context, '/history')),
             if (_isTraveler)
               tile(icon: Icons.star_outline, title: 'Mis calificaciones', onTap: () => Navigator.pushNamed(context, '/my_ratings')),
             if (_isTraveler)
@@ -412,7 +417,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildCustomerShipmentList(List<ShipmentModel> shipments) {
-    if (shipments.isEmpty) {
+    final activeShipments = shipments.where((shipment) => !_isTerminalStatus(shipment.estado)).toList();
+    if (activeShipments.isEmpty) {
       return _EmptyCard(
         title: 'Todavía no tienes envíos',
         message: 'Crea tu primer envío para empezar a recibir ofertas.',
@@ -421,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
 
     return Column(
-      children: shipments.take(6).map((shipment) {
+      children: activeShipments.take(6).map((shipment) {
         final openOffers = shipment.estado == 'offered';
         final delivered = shipment.estado == 'delivered';
         return Padding(

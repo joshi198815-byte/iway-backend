@@ -41,9 +41,9 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
 
   String _maskedShipmentId(String value) {
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    final suffix = trimmed.length <= 4 ? trimmed : trimmed.substring(trimmed.length - 4);
-    return '#${suffix.toUpperCase()}';
+    if (trimmed.isEmpty) return '------';
+    final suffix = trimmed.length <= 6 ? trimmed : trimmed.substring(trimmed.length - 6);
+    return '#...${suffix.toUpperCase()}';
   }
 
   String _cleanSegment(String value) {
@@ -55,24 +55,31 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
     return parts.isEmpty ? value.trim() : parts.first;
   }
 
+  String _originLabel(ShipmentModel shipment) {
+    final candidate = shipment.remitenteRegion.isNotEmpty ? shipment.remitenteRegion : shipment.remitenteDireccion;
+    final origin = _cleanSegment(candidate);
+    if (origin.isNotEmpty) return origin;
+    final country = shipment.origen.trim().toUpperCase();
+    return country == 'GT' ? 'Guatemala' : country == 'US' ? 'Estados Unidos' : 'Origen pendiente';
+  }
+
   String _destinationLabel(ShipmentModel shipment) {
     final address = shipment.receptorDireccion.trim();
     if (address.isNotEmpty) {
       final parts = address.split(',').map((item) => item.trim()).where((item) => item.isNotEmpty).toList();
       if (parts.length >= 2) {
-        return '${parts[0]}, ${parts[1]}';
+        return '${parts[parts.length - 2]}, ${parts.last}';
       }
       if (parts.isNotEmpty) return parts.first;
     }
     final country = shipment.destino.trim().toUpperCase();
-    return country == 'US' ? 'Estados Unidos' : country;
+    return country == 'US' ? 'Estados Unidos' : country == 'GT' ? 'Guatemala' : 'Destino pendiente';
   }
 
   String _routeLabel(ShipmentModel shipment) {
-    final origin = _cleanSegment(shipment.remitenteRegion.isNotEmpty ? shipment.remitenteRegion : shipment.remitenteDireccion);
+    final origin = _originLabel(shipment);
     final destination = _destinationLabel(shipment);
-    if (origin.isEmpty && destination.isEmpty) return 'Ruta pendiente';
-    return '${origin.isEmpty ? 'Origen pendiente' : origin} → ${destination.isEmpty ? 'Destino pendiente' : destination}';
+    return 'Origen: $origin → Destino: $destination';
   }
 
   String get _dismissedStorageKey {

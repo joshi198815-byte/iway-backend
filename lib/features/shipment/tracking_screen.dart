@@ -45,7 +45,6 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   Map<String, dynamic> eta = const {};
   bool loading = true;
   bool updatingStatus = false;
-  bool _ratingPromptShown = false;
   double? routeDistanceKm;
   int? routeDurationMinutes;
   List<File> deliveryProofImages = [];
@@ -111,7 +110,6 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         loading = false;
       });
 
-      _maybeOpenRating(shipmentData);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -125,20 +123,9 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     }
   }
 
-  void _maybeOpenRating(ShipmentModel shipmentData) {
-    final currentUserId = SessionService.currentUserId;
-    if (_ratingPromptShown || !mounted || currentUserId == null) return;
-    if (shipmentData.estado != 'delivered') return;
-
-    final isCustomer = shipmentData.userId == currentUserId;
-    final isTraveler = shipmentData.assignedTravelerId == currentUserId;
-    if (!isCustomer && !isTraveler) return;
-
-    _ratingPromptShown = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/rating', arguments: widget.shipmentId);
-    });
+  bool get _hasLiveTrackingData {
+    final etaMinutes = eta['etaMinutes'];
+    return routeDistanceKm != null || routeDurationMinutes != null || etaMinutes is num;
   }
 
   int _customerStepperIndex(String estado) {
@@ -160,8 +147,9 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
 
   String _maskedShipmentId(String value) {
     final trimmed = value.trim();
-    if (trimmed.isEmpty) return '----';
-    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
+    if (trimmed.isEmpty) return '------';
+    final suffix = trimmed.length <= 6 ? trimmed : trimmed.substring(trimmed.length - 6);
+    return '...${suffix.toUpperCase()}';
   }
 
   String _packageTitle() {
@@ -288,10 +276,9 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     final day = local.day.toString().padLeft(2, '0');
     final month = local.month.toString().padLeft(2, '0');
     final year = local.year.toString();
-    final hour = local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = local.hour >= 12 ? 'PM' : 'AM';
-    return '$day/$month/$year · ${hour.toString().padLeft(2, '0')}:$minute $period';
+    return '$day/$month/$year - $hour:$minute';
   }
 
   Future<void> _openReceiptPdf() async {
@@ -443,7 +430,8 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   Widget _buildCustomerProgressCard() {
     final current = shipment!;
     final inTransit = current.estado == 'in_transit' || current.estado == 'arrived' || current.estado == 'in_delivery' || current.estado == 'delivered';
-    final etaLabel = eta['etaMinutes'] == null ? 'Disponible cuando el paquete salga en ruta' : '${eta['etaMinutes']} min';
+    final etaMinutes = eta['etaMinutes'];
+    final etaLabel = etaMinutes is num ? '${etaMinutes.round()} min' : null;
 
     return AppGlassSection(
       title: 'Estado de tu envío',
@@ -453,23 +441,30 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
           _buildCustomerStepper(current.estado),
           if (inTransit) ...[
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(child: _MetricCard(label: 'ETA', value: etaLabel)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _MetricCard(
-                    label: 'Ruta',
-                    value: routeDistanceKm == null ? 'Activa' : '${routeDistanceKm!.toStringAsFixed(1)} km',
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
-              child: const Text('Ver mapa'),
-            ),
+            if (_hasLiveTrackingData) ...[
+              Row(
+                children: [
+                  if (etaLabel != null) Expanded(child: _MetricCard(label: 'ETA', value: etaLabel)),
+                  if (etaLabel != null && routeDistanceKm != null) const SizedBox(width: 10),
+                  if (routeDistanceKm != null)
+                    Expanded(
+                      child: _MetricCard(
+                        label: 'Ruta',
+                        value: '${routeDistanceKm!.toStringAsFixed(1)} km',
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton(
+                onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+                child: const Text('Ver mapa'),
+              ),
+            ] else
+              const Text(
+                'El seguimiento iniciará cuando el viajero recoja el paquete.',
+                style: TextStyle(color: AppTheme.muted, height: 1.35),
+              ),
           ],
         ],
       ),
@@ -652,13 +647,19 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (delivered)
+                      if (delivered) ...[
                         ElevatedButton.icon(
                           onPressed: _openReceiptPdf,
                           icon: const Icon(Icons.receipt_long_outlined),
                           label: const Text('Ver recibo'),
-                        )
-                      else ...[
+                        ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.pushNamed(context, '/rating', arguments: widget.shipmentId),
+                          icon: const Icon(Icons.star_outline_rounded),
+                          label: const Text('Calificar entrega'),
+                        ),
+                      ] else ...[
                         if (_isTraveler)
                           OutlinedButton(
                             onPressed: () => Navigator.pushNamed(
