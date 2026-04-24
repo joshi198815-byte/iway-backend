@@ -12,6 +12,7 @@ import '../features/shipment/traveler_opportunities_screen.dart';
 import '../features/shipment/my_orders_screen.dart';
 import '../features/shipment/recipient_management_screen.dart';
 import '../features/shipment/searching_traveler_screen.dart';
+import '../features/shipment/qr_scan_screen.dart';
 import '../features/map/map_screen.dart';
 import '../features/matching/offers_screen.dart';
 import '../features/shipment/models/shipment_model.dart';
@@ -48,6 +49,7 @@ class AppRoutes {
     '/create_shipment': (context) => const CreateShipmentScreen(),
     '/traveler_opportunities': (context) => const TravelerOpportunitiesScreen(),
     '/my_orders': (context) => const MyOrdersScreen(),
+    '/scan_shipment': (context) => const QrScanScreen(),
     '/recipients': (context) => const RecipientManagementScreen(),
     '/settings': (context) => const SettingsScreen(),
     '/traveler_routes': (context) => const TravelerRoutesScreen(),

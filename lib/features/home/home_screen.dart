@@ -684,6 +684,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ),
                       actions: [
                         if (_isTraveler)
+                          IconButton(
+                            onPressed: () => Navigator.pushNamed(context, '/scan_shipment'),
+                            icon: const Icon(Icons.qr_code_scanner_rounded),
+                            tooltip: 'Escanear',
+                          ),
+                        if (_isTraveler)
                           Padding(
                             padding: const EdgeInsets.only(right: 4),
                             child: Center(
