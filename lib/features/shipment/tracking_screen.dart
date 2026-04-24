@@ -15,7 +15,6 @@ import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/services/upload_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_glass_section.dart';
-import 'package:iway_app/shared/ui/app_page_intro.dart';
 import 'package:iway_app/shared/ui/app_skeleton.dart';
 import 'package:iway_app/shared/utils/shipment_status_presenter.dart';
 
@@ -413,26 +412,134 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
         : 'Hola, coordinemos la recogida. Punto sugerido: $point.';
   }
 
-  Widget buildStep(String title, bool active) {
+  int _deliveryStepIndex(String status) {
+    switch (status) {
+      case 'picked_up':
+        return 0;
+      case 'in_transit':
+      case 'arrived':
+        return 1;
+      case 'delivered':
+        return 2;
+      default:
+        return -1;
+    }
+  }
+
+  String _maskedShipmentId(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return '----';
+    return trimmed.length <= 4 ? trimmed.toUpperCase() : trimmed.substring(trimmed.length - 4).toUpperCase();
+  }
+
+  String _compactRouteLabel() {
+    final origin = (shipment?.remitenteRegion ?? shipment?.origen ?? '').trim();
+    final destination = (shipment?.destino ?? '').trim();
+    if (origin.isEmpty && destination.isEmpty) return 'Ruta reservada';
+    return '${origin.isEmpty ? 'Origen' : origin} ➔ ${destination.isEmpty ? 'Destino' : destination}';
+  }
+
+  Widget _buildHorizontalStepper(String status) {
+    final current = _deliveryStepIndex(status);
+    const steps = [
+      ('Recogido', Icons.inventory_2_rounded),
+      ('En tránsito', Icons.local_shipping_outlined),
+      ('Entregado', Icons.check_circle_outline_rounded),
+    ];
+
     return Row(
-      children: [
-        Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            color: active ? Colors.white : AppTheme.surfaceSoft,
-            shape: BoxShape.circle,
-            border: Border.all(color: active ? Colors.white : AppTheme.border),
+      children: List.generate(steps.length * 2 - 1, (index) {
+        if (index.isOdd) {
+          final activeConnector = current >= (index ~/ 2) + 1;
+          return Expanded(
+            child: Container(
+              height: 2,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: activeConnector ? Colors.white : AppTheme.border,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          );
+        }
+
+        final stepIndex = index ~/ 2;
+        final (label, icon) = steps[stepIndex];
+        final active = current >= stepIndex;
+        return Column(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: active ? Colors.white : AppTheme.surfaceSoft,
+                shape: BoxShape.circle,
+                border: Border.all(color: active ? Colors.white : AppTheme.border, width: 0.5),
+              ),
+              child: Icon(icon, color: active ? Colors.black : AppTheme.muted, size: 20),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: 72,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  color: active ? Colors.white : AppTheme.muted,
+                ),
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildMapHero() {
+    return Container(
+      height: 280,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.border, width: 0.5),
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: CustomPaint(
+                painter: _RouteHeroPainter(hasRoute: routeVisible),
+                child: const SizedBox.expand(),
+              ),
+            ),
           ),
-          child: Icon(
-            active ? Icons.check_rounded : Icons.circle,
-            size: active ? 16 : 8,
-            color: active ? Colors.black : AppTheme.muted,
+          Positioned(
+            left: 18,
+            right: 18,
+            bottom: 18,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.52),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.5),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_compactRouteLabel(), style: const TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(routeSummary ?? 'Mostrando trayecto disponible.', style: const TextStyle(color: Colors.white70, height: 1.35)),
+                ],
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Text(title),
-      ],
+        ],
+      ),
     );
   }
 
@@ -620,180 +727,94 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
-                const SizedBox(height: 24),
-                const AppPageIntro(
-                  title: 'Seguimiento del envío',
-                  subtitle: 'Estado, tiempo estimado y eventos relevantes en una sola vista.',
-                ),
-                const SizedBox(height: 20),
-                AppGlassSection(
-                  title: 'Estado actual',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: Text(
-                          formatStatus(estado),
-                          key: ValueKey(estado),
-                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, letterSpacing: -0.8),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        child: Text(
-                          'Tiempo estimado: $etaLabel',
-                          key: ValueKey(etaLabel),
-                          style: const TextStyle(color: AppTheme.muted),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        currentStep >= 6
-                            ? 'Este envío ya fue marcado como entregado.'
-                            : currentStep >= 2
-                                ? 'El envío ya va en operación. Avánzalo por fases para que el cliente vea progreso real.'
-                                : 'Todavía puedes avanzar el estado cuando el envío cambie de fase.',
-                        style: const TextStyle(color: AppTheme.muted, height: 1.35),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        currentStep >= 6
-                            ? 'Cierre operativo completo, ya puedes revisar evidencia y calificación.'
-                            : nextOperationalAction(estado) != null
-                                ? 'Siguiente paso recomendado: ${nextOperationalAction(estado)!.label}.'
-                                : 'En espera de la siguiente acción operativa o comercial.',
-                        style: const TextStyle(fontSize: 13, color: AppTheme.accent, fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 18),
+                _buildMapHero(),
                 const SizedBox(height: 16),
-                AppGlassSection(
-                  title: 'Progreso',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      buildStep('Publicado', currentStep >= 0),
-                      const SizedBox(height: 12),
-                      buildStep('Con ofertas', currentStep >= 1),
-                      const SizedBox(height: 12),
-                      buildStep('Asignado', currentStep >= 2),
-                      const SizedBox(height: 12),
-                      buildStep('Recogido', currentStep >= 3),
-                      const SizedBox(height: 12),
-                      buildStep('En ruta', currentStep >= 4),
-                      const SizedBox(height: 12),
-                      buildStep('Por entregar', currentStep >= 5),
-                      const SizedBox(height: 12),
-                      buildStep('Entregado', currentStep >= 6),
-                    ],
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.border, width: 0.5),
                   ),
-                ),
-                const SizedBox(height: 16),
-                AppGlassSection(
-                  title: 'Ruta y ubicación',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if ((shipment?.remitenteRegion ?? '').isNotEmpty || (shipment?.remitenteDireccion ?? '').isNotEmpty) ...[
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surfaceSoft,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppTheme.border),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Punto de recogida',
-                                style: TextStyle(fontWeight: FontWeight.w700),
-                              ),
-                              const SizedBox(height: 6),
-                              if ((shipment?.remitenteRegion ?? '').isNotEmpty)
-                                Text(
-                                  'Departamento/estado: ${shipment!.remitenteRegion}',
-                                  style: const TextStyle(color: AppTheme.muted),
-                                ),
-                              Text(
-                                'Punto sugerido de encuentro: ${_recommendedPickupPoint()}',
-                                style: const TextStyle(color: AppTheme.muted),
-                              ),
-                              if ((shipment?.remitenteNombre ?? '').isNotEmpty)
-                                Text(
-                                  'Entrega inicial con: ${shipment!.remitenteNombre}',
-                                  style: const TextStyle(color: AppTheme.muted),
-                                ),
-                              if ((shipment?.remitenteTelefono ?? '').isNotEmpty)
-                                Text(
-                                  'Contacto: ${shipment!.remitenteTelefono}',
-                                  style: const TextStyle(color: AppTheme.muted),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-                      Text(
-                        routeSummary ?? 'Cargando contexto de ruta...',
-                        style: const TextStyle(fontWeight: FontWeight.w600, height: 1.35),
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                      Row(
                         children: [
-                          _TrackingChip(
-                            icon: Icons.location_on_outlined,
-                            label: 'Ubicación del paquete',
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Envío #${_maskedShipmentId(widget.shipmentId)}',
+                                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(formatStatus(estado), style: const TextStyle(color: AppTheme.muted)),
+                              ],
+                            ),
                           ),
-                          _TrackingChip(
-                            icon: Icons.map_outlined,
-                            label: 'Mapa activo',
-                          ),
-                          _TrackingChip(
-                            icon: Icons.chat_bubble_outline,
-                            label: (shipment?.assignedTravelerId ?? '').isNotEmpty ? 'Chat disponible' : 'Esperando asignación',
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.warning_amber_rounded, color: AppTheme.muted),
+                            color: AppTheme.surface,
+                            onSelected: (value) {
+                              if (value == 'incident') openDispute();
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem<String>(value: 'incident', child: Text('Reportar incidente')),
+                            ],
                           ),
                         ],
                       ),
-                      if (routeDistanceKm != null || routeDurationMinutes != null) ...[
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            if (routeDistanceKm != null)
-                              Expanded(
-                                child: _TrackingMetric(
-                                  label: 'Distancia',
-                                  value: '${routeDistanceKm!.toStringAsFixed(1)} km',
-                                ),
-                              ),
-                            if (routeDistanceKm != null && routeDurationMinutes != null)
-                              const SizedBox(width: 10),
-                            if (routeDurationMinutes != null)
-                              Expanded(
-                                child: _TrackingMetric(
-                                  label: 'Tiempo estimado',
-                                  value: '${routeDurationMinutes!} min',
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
+                      const SizedBox(height: 14),
+                      _buildHorizontalStepper(estado),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(child: _TrackingMetric(label: 'ETA', value: etaLabel)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _TrackingMetric(
+                              label: 'Ruta',
+                              value: routeDistanceKm != null ? '${routeDistanceKm!.toStringAsFixed(1)} km' : 'Activa',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppTheme.border, width: 0.5),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Detalles esenciales', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 12),
+                      _TrackingMetric(label: 'Ruta', value: _compactRouteLabel()),
+                      const SizedBox(height: 10),
+                      _TrackingMetric(label: 'Paquete', value: shipment!.descripcion?.trim().isNotEmpty == true ? shipment!.descripcion!.trim() : shipment!.tipo),
+                      const SizedBox(height: 10),
+                      _TrackingMetric(label: 'Contacto de entrega', value: shipment!.receptorNombre.isNotEmpty ? shipment!.receptorNombre : 'Pendiente'),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
                 AppGlassSection(
-                  title: 'Acciones rápidas',
+                  title: 'Acciones',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (currentStep < 6) ...[
+                      if (!delivered) ...[
                         const Text(
                           'Evidencia de entrega',
                           style: TextStyle(fontWeight: FontWeight.w700),
@@ -958,46 +979,24 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                           child: const Text('Abrir chat'),
                         ),
                         const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          onPressed: openDispute,
-                          icon: const Icon(Icons.report_problem_outlined),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: AppTheme.border),
-                            minimumSize: const Size(double.infinity, 54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          label: const Text('Reportar incidente'),
-                        ),
                       ] else ...[
-                        const Text(
-                          'Este envío ya fue cerrado. Solo queda consultar la evidencia guardada, la ruta final y dejar una calificación.',
-                          style: TextStyle(color: AppTheme.muted, height: 1.35),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
+                        ElevatedButton.icon(
                           onPressed: () {
+                            if (shipment!.evidenciasEntrega.isNotEmpty) {
+                              openImagePreview(
+                                networkUrl: shipment!.evidenciasEntrega.first,
+                                title: 'Recibo de entrega',
+                              );
+                              return;
+                            }
                             Navigator.pushNamed(
                               context,
                               '/map',
                               arguments: widget.shipmentId,
                             );
                           },
-                          child: const Text('Ver ruta final'),
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              '/rating',
-                              arguments: widget.shipmentId,
-                            );
-                          },
-                          icon: const Icon(Icons.star_outline_rounded),
-                          label: const Text('Calificar experiencia'),
+                          icon: const Icon(Icons.receipt_long_outlined),
+                          label: const Text('Ver recibo'),
                         ),
                       ],
                     ],
@@ -1066,6 +1065,42 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
       ),
     );
   }
+}
+
+class _RouteHeroPainter extends CustomPainter {
+  final bool hasRoute;
+
+  _RouteHeroPainter({required this.hasRoute});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final background = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF181A20), Color(0xFF101116)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ).createShader(Offset.zero & size);
+    canvas.drawRect(Offset.zero & size, background);
+
+    final linePaint = Paint()
+      ..color = hasRoute ? const Color(0xFF34D399) : Colors.white.withValues(alpha: 0.35)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    final path = Path()
+      ..moveTo(size.width * 0.14, size.height * 0.72)
+      ..quadraticBezierTo(size.width * 0.38, size.height * 0.25, size.width * 0.58, size.height * 0.48)
+      ..quadraticBezierTo(size.width * 0.72, size.height * 0.62, size.width * 0.86, size.height * 0.22);
+    canvas.drawPath(path, linePaint);
+
+    final pointPaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(size.width * 0.14, size.height * 0.72), 6, pointPaint);
+    canvas.drawCircle(Offset(size.width * 0.86, size.height * 0.22), 6, pointPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RouteHeroPainter oldDelegate) => oldDelegate.hasRoute != hasRoute;
 }
 
 class _TrackingChip extends StatelessWidget {
