@@ -288,49 +288,114 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildSectionHeader(String title, {String? subtitle, Widget? trailing}) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              if (subtitle != null) ...[
+                const SizedBox(height: 4),
+                Text(subtitle, style: const TextStyle(color: AppTheme.muted, height: 1.35)),
+              ],
+            ],
+          ),
+        ),
+        if (trailing != null) trailing,
+      ],
+    );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border, width: 0.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceSoft,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppTheme.accent),
+          ),
+          const SizedBox(height: 14),
+          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(message, style: const TextStyle(color: AppTheme.muted, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNotificationsPreview() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppTheme.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border, width: 0.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Text('Actividad reciente', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const Spacer(),
-              TextButton(onPressed: () => Navigator.pushNamed(context, '/notifications'), child: const Text('Ver todo')),
-            ],
+          _buildSectionHeader(
+            'Actividad reciente',
+            subtitle: 'Movimientos clave y avisos útiles de tu cuenta.',
+            trailing: TextButton(
+              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+              child: const Text('Ver todo'),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           if (_notifications.isEmpty)
-            Text(
-              _isTraveler
-                  ? 'Aquí verás eventos reales como nuevas oportunidades, ofertas aceptadas y pagos.'
-                  : 'Aquí verás eventos reales como ofertas, cambios de estado y entregas.',
-              style: const TextStyle(color: AppTheme.muted, height: 1.4),
+            _buildEmptyState(
+              icon: Icons.notifications_none_rounded,
+              title: 'Sin novedades por ahora',
+              message: _isTraveler
+                  ? 'Aquí verás nuevas oportunidades, ofertas aceptadas y pagos.'
+                  : 'Aquí verás ofertas, cambios de estado y confirmaciones de entrega.',
             )
           else
             ..._notifications.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceSoft,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.notifications_active_outlined, size: 18, color: AppTheme.accent),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.notifications_active_outlined, size: 18, color: AppTheme.accent),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(item.titulo.isNotEmpty ? item.titulo : 'Nuevo evento', style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 2),
-                          Text(_sanitizeActivityText(item.mensaje), style: const TextStyle(color: AppTheme.muted, height: 1.3)),
+                          const SizedBox(height: 4),
+                          Text(_sanitizeActivityText(item.mensaje), style: const TextStyle(color: AppTheme.muted, height: 1.35)),
                         ],
                       ),
                     ),
@@ -419,15 +484,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _buildShipmentList(List<ShipmentModel> shipments) {
     if (shipments.isEmpty) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: Text(_isTraveler ? 'Aún no tienes pedidos en tu historial.' : 'Todavía no has publicado envíos.', style: const TextStyle(color: AppTheme.muted)),
+      return _buildEmptyState(
+        icon: _isTraveler ? Icons.inventory_2_outlined : Icons.add_box_outlined,
+        title: _isTraveler ? 'Aún no tienes actividad' : 'Todavía no has publicado envíos',
+        message: _isTraveler
+            ? 'Cuando aceptes pedidos o avances entregas, aparecerán aquí.'
+            : 'Crea tu primer envío para empezar a recibir ofertas.',
       );
     }
 
@@ -553,6 +615,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     SliverAppBar(
                       pinned: true,
                       floating: false,
+                      scrolledUnderElevation: 0,
                       backgroundColor: AppTheme.background,
                       elevation: 0,
                       leading: Builder(
@@ -604,11 +667,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               const SizedBox(height: 18),
                             ],
                             _buildBannerCarousel(),
-                            if (!_isTraveler) const SizedBox(height: 18),
                             const SizedBox(height: 18),
                             _buildNotificationsPreview(),
-                            const SizedBox(height: 18),
-                            Text(_isTraveler ? 'Actividad reciente' : 'Tus envíos recientes', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 20),
+                            _buildSectionHeader(
+                              _isTraveler ? 'Actividad reciente' : 'Tus envíos recientes',
+                              subtitle: _isTraveler
+                                  ? 'Resumen rápido de tus pedidos más recientes.'
+                                  : 'Accesos rápidos a los envíos que requieren atención.',
+                            ),
                             const SizedBox(height: 12),
                             _buildShipmentList(shipments),
                           ],
