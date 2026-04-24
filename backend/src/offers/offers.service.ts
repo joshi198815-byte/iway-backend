@@ -112,10 +112,6 @@ export class OffersService {
       throw new BadRequestException('Tu perfil no puede ofertar hasta completar la revisión KYC.');
     }
 
-    if (traveler.status !== TravelerStatus.verified && (traveler.verificationScore ?? 0) < 65) {
-      throw new BadRequestException('Tu perfil necesita una validación KYC más sólida antes de ofertar.');
-    }
-
     if (!this.isTravelerOnline()) {
       throw new BadRequestException('No se pudo habilitar el modo oferta para el viajero.');
     }

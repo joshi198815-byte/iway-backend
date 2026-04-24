@@ -272,7 +272,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         id: '',
         userId: userId,
         tipo: _category,
-        peso: _category == 'documentos' ? null : double.tryParse(_weightController.text.trim()),
+        peso: _category == 'documentos' ? 0.01 : double.tryParse(_weightController.text.trim()),
         descripcion: _descriptionController.text.trim(),
         valor: double.parse(_valueController.text.trim()),
         origen: _direction == 'gt_to_us' ? 'GT' : 'US',
