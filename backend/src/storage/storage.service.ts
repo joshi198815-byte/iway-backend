@@ -63,6 +63,8 @@ export class StorageService {
 
     const relativePath = `/uploads/${fileName}`;
     const protectedUrl = `/api/storage/file/${payload.bucket}/${ownerId}/${fileName}`;
+    const publicBaseUrl = (process.env.PUBLIC_BASE_URL ?? process.env.APP_PUBLIC_BASE_URL ?? '').trim().replace(/\/$/, '');
+    const absolutePublicUrl = publicBaseUrl ? `${publicBaseUrl}${relativePath}` : relativePath;
 
     const uploadedFile = await this.prisma.uploadedFile.create({
       data: {
@@ -87,7 +89,7 @@ export class StorageService {
       path: relativePath,
       url: relativePath,
       protectedUrl,
-      publicUrl: relativePath,
+      publicUrl: absolutePublicUrl,
     };
   }
 

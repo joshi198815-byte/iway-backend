@@ -17,6 +17,20 @@ class AppEnv {
 
   static String get googleMapsApiKey => _envGoogleMapsApiKey.trim();
 
+  static String resolveMediaUrl(String raw) {
+    final value = raw.trim();
+    if (value.isEmpty) return value;
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+
+    final hostBase = apiBaseUrl.endsWith('/api')
+        ? apiBaseUrl.substring(0, apiBaseUrl.length - 4)
+        : apiBaseUrl;
+
+    return value.startsWith('/') ? '$hostBase$value' : '$hostBase/$value';
+  }
+
   static String _normalize(String raw) {
     final trimmed = raw.trim().replaceAll(RegExp(r'/$'), '');
     return trimmed.endsWith('/api') ? trimmed : '$trimmed/api';

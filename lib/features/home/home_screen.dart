@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:iway_app/config/app_env.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/home/services/home_banner_service.dart';
 import 'package:iway_app/features/notifications/models/notification_model.dart';
@@ -90,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     try {
       final data = await _notificationService.getAll();
       if (!mounted) return;
-      setState(() => _notifications = data.take(5).toList());
+      setState(() => _notifications = data);
     } catch (_) {}
   }
 
@@ -186,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         radius: 28,
                         backgroundColor: AppTheme.surfaceSoft,
                         backgroundImage: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
-                            ? NetworkImage(user.selfiePath!)
+                            ? NetworkImage(AppEnv.resolveMediaUrl(user.selfiePath!))
                             : null,
                         child: user?.selfiePath != null && user!.selfiePath!.isNotEmpty
                             ? null
@@ -396,71 +397,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildNotificationsPreview() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            'Actividad reciente',
-            subtitle: 'Movimientos clave y avisos útiles de tu cuenta.',
-            trailing: TextButton(
-              onPressed: () => Navigator.pushNamed(context, '/notifications'),
-              child: const Text('Ver todo'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_notifications.isEmpty)
-            _buildEmptyState(
-              icon: Icons.notifications_none_rounded,
-              title: 'Sin novedades por ahora',
-              message: _isTraveler
-                  ? 'Aquí verás nuevas oportunidades, ofertas aceptadas y pagos.'
-                  : 'Aquí verás ofertas, cambios de estado y confirmaciones de entrega.',
-            )
-          else
-            ..._notifications.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceSoft,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
-                      child: Icon(Icons.notifications_active_outlined, size: 18, color: AppTheme.accent),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.titulo.isNotEmpty ? item.titulo : 'Nuevo evento', style: const TextStyle(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          Text(_sanitizeActivityText(item.mensaje), style: const TextStyle(color: AppTheme.muted, height: 1.35)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTravelerQuickActions() {
     if (!_isTraveler) return const SizedBox.shrink();
 
@@ -656,7 +592,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             child: FutureBuilder<List<ShipmentModel>>(
               future: _myShipmentsFuture,
               builder: (context, snapshot) {
-                final shipments = snapshot.data ?? const <ShipmentModel>[];
                 return CustomScrollView(
                   slivers: [
                     SliverAppBar(
@@ -675,7 +610,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       title: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(user?.nombre.split(' ').first ?? 'i-WAY'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(
+                            user?.nombre.split(' ').first ?? 'i-WAY',
+                            style: const TextStyle(fontWeight: FontWeight.w800),
+                          ),
                           Text(
                             _isTraveler ? 'Panel de conductor' : 'Tus envíos',
                             style: const TextStyle(color: AppTheme.muted, fontSize: 12, fontWeight: FontWeight.w500),
@@ -709,7 +647,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         Stack(
                           children: [
                             IconButton(
-                              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                              onPressed: () async {
+                                await Navigator.pushNamed(context, '/notifications');
+                                if (!mounted) return;
+                                await _loadNotifications();
+                              },
                               icon: const Icon(Icons.notifications_none_rounded),
                             ),
                             if (unreadCount > 0)
@@ -738,16 +680,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ] else
                               _buildBannerCarousel(),
                             const SizedBox(height: 18),
-                            _buildNotificationsPreview(),
-                            const SizedBox(height: 20),
-                            _buildSectionHeader(
-                              _isTraveler ? 'Actividad reciente' : 'Tus envíos recientes',
-                              subtitle: _isTraveler
-                                  ? 'Resumen rápido de tus pedidos más recientes.'
-                                  : 'Accesos rápidos a los envíos que requieren atención.',
+                            _buildEmptyState(
+                              icon: _isTraveler ? Icons.dashboard_customize_outlined : Icons.inbox_outlined,
+                              title: _isTraveler ? 'Panel limpio y operativo' : 'Tu panel quedó más claro',
+                              message: _isTraveler
+                                  ? 'Usa Oportunidades, Mis pedidos y la campanita para seguir tu operación sin ruido extra.'
+                                  : 'Usa Nuevo Envío, Mis pedidos y la campanita para revisar solo lo importante.',
                             ),
-                            const SizedBox(height: 12),
-                            _buildShipmentList(shipments),
                           ],
                         ),
                       ),

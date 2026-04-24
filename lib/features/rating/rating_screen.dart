@@ -48,7 +48,12 @@ class _RatingScreenState extends State<RatingScreen> {
       );
 
       if (!mounted) return;
-      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('¡Gracias!')),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

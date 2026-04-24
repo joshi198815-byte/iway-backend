@@ -97,6 +97,14 @@ class ShipmentTicketService {
     await Printing.layoutPdf(onLayout: (_) async => bytes);
   }
 
+  Future<void> openReceiptPdf(ShipmentModel shipment) async {
+    final bytes = await generatePrintablePDF([shipment]);
+    await Printing.layoutPdf(
+      name: 'ticket_${maskedId(shipment.id)}.pdf',
+      onLayout: (_) async => bytes,
+    );
+  }
+
   Future<void> printShipments(List<ShipmentModel> shipments) async {
     final bytes = await generatePrintablePDF(shipments);
     await printBytes(bytes);

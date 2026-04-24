@@ -134,6 +134,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'shipment_published':
         return Icons.local_offer_outlined;
       case 'shipment_assigned':
+      case 'shipment_in_route':
       case 'shipment_status_changed':
         return Icons.local_shipping_outlined;
       case 'tracking_updated':
@@ -154,6 +155,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'traveler_verification':
         return const Color(0xFF8AB4FF);
       case 'shipment_assigned':
+      case 'shipment_in_route':
       case 'shipment_status_changed':
       case 'tracking_updated':
         return const Color(0xFF59D38C);
@@ -172,6 +174,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
       case 'shipment_published':
         return 'Oferta';
       case 'shipment_assigned':
+      case 'shipment_in_route':
       case 'shipment_status_changed':
         return 'Operación';
       case 'tracking_updated':
@@ -198,6 +201,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> with WidgetsB
         return 'Toca para revisar y enviar una nueva propuesta';
       case 'offer_accepted':
       case 'shipment_assigned':
+      case 'shipment_in_route':
       case 'shipment_delivered':
       case 'delivery_closed':
       case 'shipment_status_changed':

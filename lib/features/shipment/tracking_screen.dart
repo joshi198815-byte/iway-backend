@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:iway_app/config/app_env.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
+import 'package:iway_app/features/shipment/services/shipment_ticket_service.dart';
 import 'package:iway_app/features/disputes/services/dispute_service.dart';
 import 'package:iway_app/features/tracking/models/tracking_timeline_item.dart';
 import 'package:iway_app/features/tracking/services/tracking_service.dart';
@@ -39,6 +41,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
   final uploadService = UploadService();
   final realtime = RealtimeService.instance;
   final disputeService = DisputeService();
+  final ticketService = const ShipmentTicketService();
 
   List<File> deliveryProofImages = [];
 
@@ -177,7 +180,10 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     final currentUserId = SessionService.currentUserId;
     if (_ratingPromptShown || !mounted || currentUserId == null) return;
     if (shipmentData.estado != 'delivered') return;
-    if (shipmentData.userId != currentUserId) return;
+
+    final isCustomer = shipmentData.userId == currentUserId;
+    final isTraveler = shipmentData.assignedTravelerId == currentUserId;
+    if (!isCustomer && !isTraveler) return;
 
     _ratingPromptShown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -543,11 +549,12 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     );
   }
 
-  String _resolveImageUrl(String value) {
-    if (value.startsWith('http://') || value.startsWith('https://')) {
-      return value;
-    }
-    return '${ApiClient.baseUrl}$value';
+  String _resolveImageUrl(String value) => AppEnv.resolveMediaUrl(value);
+
+  Future<void> _openReceiptPdf() async {
+    final currentShipment = shipment;
+    if (currentShipment == null) return;
+    await ticketService.openReceiptPdf(currentShipment);
   }
 
   void openImagePreview({String? networkUrl, File? localFile, String? title}) {
@@ -701,6 +708,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     }
 
     final estado = shipment!.estado;
+    final bool delivered = estado == 'delivered';
     final currentStep = statusIndex(estado);
     final etaMinutes = eta['etaMinutes'];
     final etaLabel = etaMinutes == null
@@ -981,20 +989,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                         const SizedBox(height: 10),
                       ] else ...[
                         ElevatedButton.icon(
-                          onPressed: () {
-                            if (shipment!.evidenciasEntrega.isNotEmpty) {
-                              openImagePreview(
-                                networkUrl: shipment!.evidenciasEntrega.first,
-                                title: 'Recibo de entrega',
-                              );
-                              return;
-                            }
-                            Navigator.pushNamed(
-                              context,
-                              '/map',
-                              arguments: widget.shipmentId,
-                            );
-                          },
+                          onPressed: _openReceiptPdf,
                           icon: const Icon(Icons.receipt_long_outlined),
                           label: const Text('Ver recibo'),
                         ),

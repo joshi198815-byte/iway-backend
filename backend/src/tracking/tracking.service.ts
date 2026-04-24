@@ -241,6 +241,36 @@ export class TrackingService {
     return coordinates;
   }
 
+  private readonly destinationAirports = {
+    GT: [
+      { code: 'GUA', name: 'La Aurora International Airport', lat: 14.5833, lng: -90.5275 },
+    ],
+    US: [
+      { code: 'MIA', name: 'Miami International Airport', lat: 25.7959, lng: -80.2871 },
+      { code: 'IAH', name: 'Houston Intercontinental Airport', lat: 29.9902, lng: -95.3368 },
+      { code: 'ATL', name: 'Hartsfield-Jackson Atlanta International Airport', lat: 33.6407, lng: -84.4277 },
+      { code: 'DFW', name: 'Dallas/Fort Worth International Airport', lat: 32.8998, lng: -97.0403 },
+      { code: 'LAX', name: 'Los Angeles International Airport', lat: 33.9416, lng: -118.4085 },
+      { code: 'JFK', name: 'John F. Kennedy International Airport', lat: 40.6413, lng: -73.7781 },
+    ],
+  } as const;
+
+  private resolveNearestDestinationAirport(
+    countryCode: string,
+    destination: { lat: number; lng: number },
+  ) {
+    const options = [
+      ...(this.destinationAirports[countryCode as keyof typeof this.destinationAirports] ?? []),
+    ];
+    if (options.length === 0) return null;
+
+    return options.reduce((best, current) => {
+      const bestDistance = this.haversineKm(best.lat, best.lng, destination.lat, destination.lng);
+      const currentDistance = this.haversineKm(current.lat, current.lng, destination.lat, destination.lng);
+      return currentDistance < bestDistance ? current : best;
+    });
+  }
+
   private async getGoogleDirectionsRoute(
     origin: { lat: number; lng: number },
     destination: { lat: number; lng: number },
@@ -354,26 +384,65 @@ export class TrackingService {
         ? { lat: Number(shipment.deliveryLat), lng: Number(shipment.deliveryLng) }
         : null;
 
-    const googleRoute =
-      originPoint != null && destinationPoint != null
-        ? await this.getGoogleDirectionsRoute(originPoint, destinationPoint)
-        : null;
-    const effectiveGoogleRoute =
-      googleRoute != null && googleRoute.polyline.length >= 2 ? googleRoute : null;
-    const effectivePolyline = effectiveGoogleRoute?.polyline ?? fallbackPolyline;
+    const isInternationalGtUs =
+      shipment.originCountryCode !== shipment.destinationCountryCode &&
+      ['GT', 'US'].includes(shipment.originCountryCode) &&
+      ['GT', 'US'].includes(shipment.destinationCountryCode);
+    const destinationCountryReached = ['arrived', 'in_delivery', 'delivered'].includes(shipment.status);
+
+    let effectiveGoogleRoute: Awaited<ReturnType<typeof this.getGoogleDirectionsRoute>> | null = null;
+    let effectivePolyline = fallbackPolyline;
+    let effectiveDistanceKm = fallbackDistanceKm;
+    let effectiveDurationMinutes: number | null | undefined = null;
+    let reason: string | null = null;
+
+    if (isInternationalGtUs) {
+      if (destinationPoint != null && destinationCountryReached) {
+        const airport = this.resolveNearestDestinationAirport(shipment.destinationCountryCode, destinationPoint);
+        if (airport) {
+          points.push({ lat: airport.lat, lng: airport.lng, kind: 'airport' });
+          const airportRoute = await this.getGoogleDirectionsRoute(
+            { lat: airport.lat, lng: airport.lng },
+            destinationPoint,
+          );
+          effectiveGoogleRoute = airportRoute != null && airportRoute.polyline.length >= 2 ? airportRoute : null;
+          effectivePolyline = effectiveGoogleRoute?.polyline ?? [
+            { lat: airport.lat, lng: airport.lng },
+            destinationPoint,
+          ];
+          effectiveDistanceKm = effectiveGoogleRoute?.distanceKm ?? this.haversineKm(airport.lat, airport.lng, destinationPoint.lat, destinationPoint.lng);
+          effectiveDurationMinutes = effectiveGoogleRoute?.durationMinutes ?? null;
+          reason = null;
+        } else {
+          effectivePolyline = [];
+          effectiveDistanceKm = null;
+          reason = 'No se encontró un aeropuerto internacional de referencia para el tramo final.';
+        }
+      } else {
+        effectivePolyline = [];
+        effectiveDistanceKm = null;
+        reason = 'Ruta internacional en tránsito aéreo. El tramo terrestre final aparecerá al llegar al país de destino.';
+      }
+    } else if (originPoint != null && destinationPoint != null) {
+      const googleRoute = await this.getGoogleDirectionsRoute(originPoint, destinationPoint);
+      effectiveGoogleRoute = googleRoute != null && googleRoute.polyline.length >= 2 ? googleRoute : null;
+      effectivePolyline = effectiveGoogleRoute?.polyline ?? fallbackPolyline;
+      effectiveDistanceKm = effectiveGoogleRoute?.distanceKm ?? fallbackDistanceKm;
+      effectiveDurationMinutes = effectiveGoogleRoute?.durationMinutes;
+      reason = effectivePolyline.length >= 2 ? null : 'Faltan coordenadas de origen o destino para trazar la ruta.';
+    } else {
+      reason = 'Faltan coordenadas de origen o destino para trazar la ruta.';
+    }
 
     return {
       shipmentId,
       hasRoute: effectivePolyline.length >= 2,
-      provider: effectiveGoogleRoute?.provider ?? 'estimated-segments',
+      provider: effectiveGoogleRoute?.provider ?? (isInternationalGtUs ? 'destination-airport-segment' : 'estimated-segments'),
       polyline: effectivePolyline,
       points,
-      distanceKm: effectiveGoogleRoute?.distanceKm ?? fallbackDistanceKm,
-      durationMinutes: effectiveGoogleRoute?.durationMinutes,
-      reason:
-        effectivePolyline.length >= 2
-          ? null
-          : 'Faltan coordenadas de origen o destino para trazar la ruta.',
+      distanceKm: effectiveDistanceKm,
+      durationMinutes: effectiveDurationMinutes,
+      reason,
     };
   }
 }
