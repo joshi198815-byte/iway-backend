@@ -14,6 +14,11 @@ export class RatingsController {
     return this.ratingsService.findByUser(userId, req.user);
   }
 
+  @Get('shipment/:shipmentId/mine')
+  findMineByShipment(@Param('shipmentId') shipmentId: string, @Req() req: any) {
+    return this.ratingsService.findMineByShipment(shipmentId, req.user);
+  }
+
   @Post()
   create(@Body() body: CreateRatingDto, @Req() req: any) {
     return this.ratingsService.create({

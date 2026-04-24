@@ -24,6 +24,11 @@ class RatingService {
     });
   }
 
+  Future<bool> hasSubmittedRating(String shipmentId) async {
+    final data = await _apiClient.get('/ratings/shipment/$shipmentId/mine');
+    return data is Map<String, dynamic> && (data['id']?.toString().isNotEmpty == true);
+  }
+
   Future<List<RatingModel>> getRatings(String userId) async {
     final data = await _apiClient.get('/ratings/user/$userId');
     if (data is! List) return const [];

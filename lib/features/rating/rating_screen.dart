@@ -20,7 +20,29 @@ class _RatingScreenState extends State<RatingScreen> {
 
   int estrellas = 5;
   bool saving = false;
+  bool checkingExisting = true;
+  bool alreadySubmitted = false;
   final comentarioController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingRating();
+  }
+
+  Future<void> _loadExistingRating() async {
+    try {
+      final exists = await ratingService.hasSubmittedRating(widget.shipmentId);
+      if (!mounted) return;
+      setState(() {
+        alreadySubmitted = exists;
+        checkingExisting = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => checkingExisting = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -29,6 +51,14 @@ class _RatingScreenState extends State<RatingScreen> {
   }
 
   Future<void> submit() async {
+    if (alreadySubmitted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ya enviaste tu calificación para este envío.')),
+      );
+      Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+      return;
+    }
+
     final comentario = comentarioController.text.trim();
 
     if (comentario.isEmpty) {
@@ -56,6 +86,13 @@ class _RatingScreenState extends State<RatingScreen> {
       Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.message.contains('Ya existe una calificación enviada para este envío')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Esta calificación ya había sido enviada.')),
+        );
+        Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst);
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.message)),
       );
@@ -94,52 +131,76 @@ class _RatingScreenState extends State<RatingScreen> {
               children: [
                 AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                 const SizedBox(height: 24),
-                const AppPageIntro(
-                  title: 'Califica la experiencia',
-                  subtitle: 'Tu feedback ayuda a mejorar la calidad del servicio dentro de iWay.',
+                AppPageIntro(
+                  title: alreadySubmitted ? 'Calificación registrada' : 'Califica la experiencia',
+                  subtitle: alreadySubmitted
+                      ? 'Ya habíamos guardado tu feedback para este envío.'
+                      : 'Tu feedback ayuda a mejorar la calidad del servicio dentro de iWay.',
                 ),
                 const SizedBox(height: 20),
-                AppGlassSection(
-                  title: 'Tu calificación',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: List.generate(5, (index) {
-                          final active = index < estrellas;
-                          return IconButton(
-                            onPressed: () => setState(() => estrellas = index + 1),
-                            icon: Icon(
-                              active ? Icons.star_rounded : Icons.star_border_rounded,
-                              color: active ? const Color(0xFFFFC83D) : AppTheme.muted,
-                              size: 34,
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: comentarioController,
-                        maxLines: 5,
-                        decoration: const InputDecoration(
-                          labelText: 'Comentario',
-                          hintText: 'Cuéntanos cómo fue la entrega, comunicación y puntualidad.',
+                if (checkingExisting)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (alreadySubmitted) ...[
+                  AppGlassSection(
+                    title: 'Todo listo',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Esta entrega ya fue calificada por tu cuenta.'),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => Navigator.popUntil(context, (route) => route.settings.name == '/home' || route.isFirst),
+                          child: const Text('Volver al inicio'),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 22),
-                ElevatedButton(
-                  onPressed: saving ? null : submit,
-                  child: saving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Enviar calificación'),
-                ),
+                ] else ...[
+                  AppGlassSection(
+                    title: 'Tu calificación',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: List.generate(5, (index) {
+                            final active = index < estrellas;
+                            return IconButton(
+                              onPressed: () => setState(() => estrellas = index + 1),
+                              icon: Icon(
+                                active ? Icons.star_rounded : Icons.star_border_rounded,
+                                color: active ? const Color(0xFFFFC83D) : AppTheme.muted,
+                                size: 34,
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: comentarioController,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            labelText: 'Comentario',
+                            hintText: 'Cuéntanos cómo fue la entrega, comunicación y puntualidad.',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  ElevatedButton(
+                    onPressed: saving ? null : submit,
+                    child: saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Enviar calificación'),
+                  ),
+                ],
               ],
             ),
           ),

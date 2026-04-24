@@ -33,6 +33,35 @@ export class RatingsService {
     });
   }
 
+  async findMineByShipment(shipmentId: string, requester: { sub: string; role: string }) {
+    const shipment = await this.prisma.shipment.findUnique({
+      where: { id: shipmentId },
+      select: {
+        id: true,
+        customerId: true,
+        assignedTravelerId: true,
+      },
+    });
+
+    if (!shipment) {
+      throw new NotFoundException('Envío no encontrado.');
+    }
+
+    const isPrivileged = ['admin', 'support'].includes(requester.role);
+    const isParticipant = shipment.customerId === requester.sub || shipment.assignedTravelerId === requester.sub;
+
+    if (!isPrivileged && !isParticipant) {
+      throw new ForbiddenException('No tienes permiso para consultar esta calificación.');
+    }
+
+    return this.prisma.rating.findFirst({
+      where: {
+        shipmentId,
+        fromUserId: requester.sub,
+      },
+    });
+  }
+
   async create(payload: CreateRatingPayload) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id: payload.shipmentId },
