@@ -1,4 +1,4 @@
-import { IsNumber, IsString, Min } from 'class-validator';
+import { IsNumber, IsString, Max, Min } from 'class-validator';
 
 export class CreateOfferDto {
   @IsString()
@@ -6,5 +6,6 @@ export class CreateOfferDto {
 
   @IsNumber()
   @Min(0.01)
+  @Max(9999.99)
   price!: number;
 }

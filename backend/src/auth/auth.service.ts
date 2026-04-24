@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole, VerificationChannel } from '@prisma/client';
+import { UserRole, UserStatus, VerificationChannel } from '@prisma/client';
 import { GeoService } from '../geo/geo.service';
 import { StorageService } from '../storage/storage.service';
 import { TravelersService } from '../travelers/travelers.service';
@@ -311,6 +311,10 @@ export class AuthService implements OnModuleInit {
 
     if (!passwordValid) {
       throw new UnauthorizedException('Credenciales inválidas.');
+    }
+
+    if (user.status === UserStatus.deleted) {
+      throw new UnauthorizedException('Esta cuenta fue eliminada.');
     }
 
     if (

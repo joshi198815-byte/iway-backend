@@ -23,12 +23,12 @@ export class CreateShipmentDto {
   description?: string;
 
   @IsNumber()
-  @Min(0.01)
+  @Min(0)
   declaredValue!: number;
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(0.01)
   weightLb?: number;
 
   @IsOptional()

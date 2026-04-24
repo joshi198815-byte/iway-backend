@@ -18,6 +18,7 @@ enum UserStatus {
   active
   blocked
   pending_verification
+  deleted
 }
 
 enum TravelerType {
@@ -41,13 +42,18 @@ enum KycTier {
 }
 
 enum ShipmentStatus {
+  draft
   pending
+  published
   offered
   assigned
   picked_up
   in_transit
+  in_delivery
   arrived
   delivered
+  cancelled
+  disputed
 }
 
 enum OfferStatus {

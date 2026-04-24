@@ -27,10 +27,7 @@ export class ShipmentsController {
 
   @Post()
   create(@Body() body: CreateShipmentDto, @Req() req: any) {
-    return this.shipmentsService.create({
-      ...body,
-      customerId: req.user.sub,
-    });
+    return this.shipmentsService.create(body, req.user.sub);
   }
 
   @Get('available')

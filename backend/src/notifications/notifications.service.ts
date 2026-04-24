@@ -353,48 +353,62 @@ export class NotificationsService implements OnModuleInit {
     type = 'push',
     shipmentId?: string,
   ) {
-    const uniqueUserIds = [...new Set(userIds.filter((id) => typeof id === 'string' && id.trim().length > 0))];
-    if (uniqueUserIds.length === 0) {
-      return { queued: false, providerConfigured: this.firebaseConfigured(), userCount: 0, deviceCount: 0, sentCount: 0 };
-    }
-
-    await this.createMany(uniqueUserIds, title, body, type, shipmentId);
-
-    const activeDevices = await this.prisma.deviceToken.findMany({
-      where: { userId: { in: uniqueUserIds }, active: true },
-      select: { id: true, platform: true, token: true, userId: true },
-    });
-
-    const providerConfigured = this.firebaseConfigured();
-    let sentCount = 0;
-
-    if (providerConfigured && activeDevices.length > 0) {
-      const accessToken = await this.getFirebaseAccessToken();
-      if (accessToken) {
-        const results = await Promise.all(
-          activeDevices.map((device) =>
-            this.sendFirebasePushToToken({
-              token: device.token,
-              title,
-              body,
-              type,
-              shipmentId,
-              accessToken,
-            }),
-          ),
-        );
-        sentCount = results.filter((result) => result.sent).length;
+    try {
+      const uniqueUserIds = [...new Set(userIds.filter((id) => typeof id === 'string' && id.trim().length > 0))];
+      if (uniqueUserIds.length === 0) {
+        return { queued: false, providerConfigured: this.firebaseConfigured(), userCount: 0, deviceCount: 0, sentCount: 0 };
       }
-    }
 
-    return {
-      queued: false,
-      providerConfigured,
-      userCount: uniqueUserIds.length,
-      deviceCount: activeDevices.length,
-      sentCount,
-      jobId: null,
-    };
+      await this.createMany(uniqueUserIds, title, body, type, shipmentId);
+
+      const activeDevices = await this.prisma.deviceToken.findMany({
+        where: { userId: { in: uniqueUserIds }, active: true },
+        select: { id: true, platform: true, token: true, userId: true },
+      });
+
+      const providerConfigured = this.firebaseConfigured();
+      let sentCount = 0;
+
+      if (providerConfigured && activeDevices.length > 0) {
+        const accessToken = await this.getFirebaseAccessToken();
+        if (accessToken) {
+          const results = await Promise.all(
+            activeDevices.map((device) =>
+              this.sendFirebasePushToToken({
+                token: device.token,
+                title,
+                body,
+                type,
+                shipmentId,
+                accessToken,
+              }),
+            ),
+          );
+          sentCount = results.filter((result) => result.sent).length;
+        }
+      }
+
+      return {
+        queued: false,
+        providerConfigured,
+        userCount: uniqueUserIds.length,
+        deviceCount: activeDevices.length,
+        sentCount,
+        jobId: null,
+      };
+    } catch (error) {
+      this.logger.error(
+        `sendPushMany failed type=${type} shipmentId=${shipmentId ?? '-'} error=${error instanceof Error ? error.message : 'unknown'}`,
+      );
+      return {
+        queued: false,
+        providerConfigured: this.firebaseConfigured(),
+        userCount: [...new Set(userIds.filter((id) => typeof id === 'string' && id.trim().length > 0))].length,
+        deviceCount: 0,
+        sentCount: 0,
+        jobId: null,
+      };
+    }
   }
 
   async registerDeviceToken(userId: string, payload: RegisterDeviceTokenDto) {
@@ -471,66 +485,80 @@ export class NotificationsService implements OnModuleInit {
     type = 'push',
     shipmentId?: string,
   ) {
-    const notification = await this.create(userId, title, body, type, shipmentId);
-    const activeDevices = await this.prisma.deviceToken.findMany({
-      where: { userId, active: true },
-      select: { id: true, platform: true, token: true },
-    });
+    try {
+      const notification = await this.create(userId, title, body, type, shipmentId);
+      const activeDevices = await this.prisma.deviceToken.findMany({
+        where: { userId, active: true },
+        select: { id: true, platform: true, token: true },
+      });
 
-    const providerConfigured = this.firebaseConfigured();
-    let pushResults: Array<{ sent: boolean; status?: number }> = [];
+      const providerConfigured = this.firebaseConfigured();
+      let pushResults: Array<{ sent: boolean; status?: number }> = [];
 
-    this.logger.log(
-      `sendPush start userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} providerConfigured=${providerConfigured}`,
-    );
+      this.logger.log(
+        `sendPush start userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} providerConfigured=${providerConfigured}`,
+      );
 
-    if (providerConfigured && activeDevices.length > 0) {
-      const accessToken = await this.getFirebaseAccessToken();
-      if (accessToken) {
-        pushResults = await Promise.all(
-          activeDevices.map((device) =>
-            this.sendFirebasePushToToken({
-              token: device.token,
-              title,
-              body,
-              type,
-              shipmentId,
-              accessToken,
-            }),
-          ),
-        );
-      } else {
+      if (providerConfigured && activeDevices.length > 0) {
+        const accessToken = await this.getFirebaseAccessToken();
+        if (accessToken) {
+          pushResults = await Promise.all(
+            activeDevices.map((device) =>
+              this.sendFirebasePushToToken({
+                token: device.token,
+                title,
+                body,
+                type,
+                shipmentId,
+                accessToken,
+              }),
+            ),
+          );
+        } else {
+          this.logger.warn(
+            `sendPush access token unavailable userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'}`,
+          );
+        }
+      }
+
+      const sentCount = pushResults.filter((result) => result.sent).length;
+      const failedCount = pushResults.length - sentCount;
+
+      this.logger.log(
+        `sendPush result userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} sentCount=${sentCount} failedCount=${failedCount} providerConfigured=${providerConfigured}`,
+      );
+
+      if (failedCount > 0) {
         this.logger.warn(
-          `sendPush access token unavailable userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'}`,
+          `sendPush partial failure userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} statuses=${pushResults.map((result) => result.status ?? 0).join(',')}`,
         );
       }
-    }
 
-    const sentCount = pushResults.filter((result) => result.sent).length;
-    const failedCount = pushResults.length - sentCount;
-
-    this.logger.log(
-      `sendPush result userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} deviceCount=${activeDevices.length} sentCount=${sentCount} failedCount=${failedCount} providerConfigured=${providerConfigured}`,
-    );
-
-    if (failedCount > 0) {
-      this.logger.warn(
-        `sendPush partial failure userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} statuses=${pushResults.map((result) => result.status ?? 0).join(',')}`,
+      return {
+        ...notification,
+        queued: false,
+        providerConfigured,
+        deviceCount: activeDevices.length,
+        sentCount,
+        jobId: null,
+        devices: activeDevices.map((device, index) => ({
+          id: device.id,
+          platform: device.platform,
+          sent: index < pushResults.length ? pushResults[index].sent : false,
+        })),
+      };
+    } catch (error) {
+      this.logger.error(
+        `sendPush failed userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'} error=${error instanceof Error ? error.message : 'unknown'}`,
       );
+      return {
+        queued: false,
+        providerConfigured: this.firebaseConfigured(),
+        deviceCount: 0,
+        sentCount: 0,
+        jobId: null,
+        devices: [],
+      };
     }
-
-    return {
-      ...notification,
-      queued: false,
-      providerConfigured,
-      deviceCount: activeDevices.length,
-      sentCount,
-      jobId: null,
-      devices: activeDevices.map((device, index) => ({
-        id: device.id,
-        platform: device.platform,
-        sent: index < pushResults.length ? pushResults[index].sent : false,
-      })),
-    };
   }
 }

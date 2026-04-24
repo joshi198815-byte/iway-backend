@@ -7,6 +7,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentStatusDto } from './dto/update-shipment-status.dto';
+import {
+  dispatchShipmentStatusTransitionSideEffects,
+  executeShipmentStatusTransition,
+} from './shipment-status.helper';
 
 @Injectable()
 export class ShipmentsService {
@@ -23,144 +27,72 @@ export class ShipmentsService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
-  private async getTravelerWorkspace(userId: string) {
-    const latestWorkspace = await this.prisma.auditLog.findFirst({
-      where: {
-        entityType: 'traveler_workspace',
-        entityId: userId,
-        action: 'traveler_workspace_updated',
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+  private normalizeCountryCode(countryCode: string) {
+    const normalized = countryCode.trim().toUpperCase();
 
-    const payload = latestWorkspace?.payload as Record<string, unknown> | null | undefined;
-    const routes = Array.isArray(payload?.routes)
-      ? [...new Set(payload!.routes
-          .map((item) => item?.toString().trim().toLowerCase())
-          .filter((item): item is string => Boolean(item && item.length > 0)))]
-      : [];
+    if (!['GT', 'US'].includes(normalized)) {
+      throw new BadRequestException('originCountryCode y destinationCountryCode solo aceptan GT o US.');
+    }
 
-    return {
-      isOnline: payload?.isOnline !== false,
-      routes,
-    };
+    return normalized as 'GT' | 'US';
   }
 
-  private buildStatusLabel(status: ShipmentStatus) {
-    switch (status) {
-      case ShipmentStatus.assigned:
-        return 'asignado';
-      case ShipmentStatus.picked_up:
-        return 'recogido';
-      case ShipmentStatus.in_transit:
-        return 'en ruta';
-      case ShipmentStatus.arrived:
-        return 'arribó';
-      case ShipmentStatus.delivered:
-        return 'entregado';
-      case ShipmentStatus.offered:
-        return 'con ofertas';
-      case ShipmentStatus.pending:
-        return 'pendiente';
-      default:
-        return status;
+  private resolveDirection(originCountryCode: 'GT' | 'US', destinationCountryCode: 'GT' | 'US') {
+    if (originCountryCode === destinationCountryCode) {
+      throw new BadRequestException('La ruta debe ser entre GT y US.');
     }
+
+    return originCountryCode === 'GT' ? 'gt_to_us' : 'us_to_gt';
   }
 
-  private async executeShipmentStatusTransition(params: {
-    shipmentId: string;
-    previousStatus: ShipmentStatus;
-    nextStatus: ShipmentStatus;
-    audience: Array<string | null | undefined>;
-    actorId?: string;
-    title?: string;
-    body?: string;
-    notificationType?: string;
-  }) {
-    const updatedShipment = await this.prisma.shipment.update({
-      where: { id: params.shipmentId },
-      data: { status: params.nextStatus },
+  async create(payload: CreateShipmentDto, customerId: string) {
+    const originCountryCode = this.normalizeCountryCode(payload.originCountryCode);
+    const destinationCountryCode = this.normalizeCountryCode(payload.destinationCountryCode);
+    const direction = this.resolveDirection(originCountryCode, destinationCountryCode);
+    const weightLb = this.normalizeDecimal(payload.weightLb);
+    const declaredValue = this.normalizeDecimal(payload.declaredValue);
+
+    if (weightLb <= 0) {
+      throw new BadRequestException('weightLb debe ser mayor a 0.');
+    }
+
+    if (declaredValue < 0) {
+      throw new BadRequestException('declaredValue no puede ser negativo.');
+    }
+
+    console.log('[FLOW]', 'create shipment', {
+      customerId,
+      originCountryCode,
+      destinationCountryCode,
+      weightLb,
+      declaredValue,
     });
-
-    await this.prisma.shipmentEvent.create({
-      data: {
-        shipmentId: params.shipmentId,
-        eventType: `status_${params.nextStatus}`,
-        createdBy: params.actorId,
-        eventPayload: {
-          previousStatus: params.previousStatus,
-          nextStatus: params.nextStatus,
-        },
-      },
-    });
-
-    const audience = [...new Set(params.audience.filter(
-      (userId): userId is string => Boolean(userId && userId.trim().length > 0),
-    ))];
-
-    this.realtimeGateway.emitShipmentStatusChanged(
-      params.shipmentId,
-      {
-        shipmentId: params.shipmentId,
-        previousStatus: params.previousStatus,
-        nextStatus: params.nextStatus,
-      },
-      audience,
-    );
-
-    if (audience.length > 0) {
-      await Promise.all(
-        audience.map((userId) =>
-          this.notificationsService.sendPush(
-            userId,
-            params.title ?? 'Estado del envío actualizado',
-            params.body ?? `El envío ${params.shipmentId} ahora está ${this.buildStatusLabel(params.nextStatus)}.`,
-            params.notificationType
-              ?? (params.nextStatus === ShipmentStatus.delivered ? 'shipment_delivered' : 'shipment_status_changed'),
-            params.shipmentId,
-          ),
-        ),
-      );
-    }
-
-    return updatedShipment;
-  }
-
-  async create(payload: CreateShipmentDto) {
-    const direction = this.geoService.resolveDirection(
-      payload.originCountryCode,
-      payload.destinationCountryCode,
-    );
-
-    if (!direction) {
-      throw new BadRequestException('Solo se permiten rutas Guatemala ↔ USA.');
-    }
-
-    if (!payload.customerId) {
-      throw new BadRequestException('No se pudo identificar al cliente autenticado.');
-    }
 
     const customer = await this.prisma.user.findUnique({
-      where: { id: payload.customerId },
-      select: { id: true, role: true },
+      where: { id: customerId },
+      select: { id: true, role: true, phoneVerified: true },
     });
 
     if (!customer || customer.role !== 'customer') {
       throw new BadRequestException('No se pudo identificar al cliente autenticado.');
     }
 
+    if (!customer.phoneVerified) {
+      throw new ForbiddenException('Debes validar tu número de teléfono antes de crear un envío.');
+    }
+
     const shipment = await this.prisma.shipment.create({
       data: {
-        customerId: payload.customerId,
+        customerId,
         status: ShipmentStatus.pending,
         direction,
-        originCountryCode: payload.originCountryCode.toUpperCase(),
-        destinationCountryCode: payload.destinationCountryCode.toUpperCase(),
+        originCountryCode,
+        destinationCountryCode,
         packageType: payload.packageType,
         packageCategory: payload.packageCategory,
         description: payload.description,
-        declaredValue: payload.declaredValue,
-        weightLb: payload.weightLb,
+        declaredValue,
+        weightLb,
         senderName: payload.senderName,
         senderPhone: payload.senderPhone,
         senderAddress: payload.senderAddress,
@@ -182,6 +114,12 @@ export class ShipmentsService {
     const eligibleTravelers = await this.prisma.travelerProfile.findMany({
       where: {
         status: TravelerStatus.verified,
+        routes: {
+          some: {
+            active: true,
+            direction,
+          },
+        },
       },
       select: {
         userId: true,
@@ -191,7 +129,7 @@ export class ShipmentsService {
     await this.notificationsService.sendPushMany(
       eligibleTravelers.map((item) => item.userId),
       'Nuevo envío disponible',
-      `Hay un envío ${payload.originCountryCode.toUpperCase()} → ${payload.destinationCountryCode.toUpperCase()} esperando ofertas.`,
+      `Hay un envío ${originCountryCode} → ${destinationCountryCode} esperando ofertas.`,
       'shipment_published',
       shipment.id,
     );
@@ -221,13 +159,14 @@ export class ShipmentsService {
       return [];
     }
 
-    await this.getTravelerWorkspace(travelerId);
+    const activeDirections = [...new Set(travelerProfile.routes.map((route) => route.direction))];
 
     const shipments = await this.prisma.shipment.findMany({
       where: {
         status: { in: [ShipmentStatus.pending, ShipmentStatus.offered] },
         assignedTravelerId: null,
         customerId: { not: travelerId },
+        ...(activeDirections.length > 0 ? { direction: { in: activeDirections } } : {}),
         offers: {
           none: {
             travelerId,
@@ -238,8 +177,6 @@ export class ShipmentsService {
       include: {
         offers: {
           select: {
-            travelerId: true,
-            status: true,
             price: true,
           },
         },
@@ -256,6 +193,7 @@ export class ShipmentsService {
         },
       },
       orderBy: [{ createdAt: 'desc' }],
+      take: 20,
     });
 
     return shipments
@@ -264,8 +202,8 @@ export class ShipmentsService {
         const minOfferPrice = offerCount > 0
           ? Math.min(...shipment.offers.map((offer) => this.normalizeDecimal(offer.price)))
           : 0;
-        const declaredValue = this.normalizeDecimal(shipment.declaredValue);
-        const weightLb = this.normalizeDecimal(shipment.weightLb);
+        const normalizedDeclaredValue = this.normalizeDecimal(shipment.declaredValue);
+        const normalizedWeightLb = this.normalizeDecimal(shipment.weightLb);
 
         let score = 55;
         if (travelerProfile.status === TravelerStatus.verified) score += 10;
@@ -275,15 +213,15 @@ export class ShipmentsService {
         if (currentDebt > 0) score -= Math.min(10, currentDebt / 20);
         if (offerCount === 0) score += 10;
         else if (offerCount <= 2) score += 4;
-        if (declaredValue >= 250) score += 6;
-        if (weightLb > 0 && weightLb <= 15) score += 4;
+        if (normalizedDeclaredValue >= 250) score += 6;
+        if (normalizedWeightLb > 0 && normalizedWeightLb <= 15) score += 4;
         if (shipment.insuranceEnabled) score += 3;
 
         score = Math.max(1, Math.min(100, Math.round(score)));
 
-        const pickupRegion = (shipment as { senderStateRegion?: string | null }).senderStateRegion?.trim() || 'sin departamento confirmado';
+        const pickupRegion = shipment.senderStateRegion?.trim() || 'sin departamento confirmado';
         const insights = [
-          'Oportunidad disponible para tu operación',
+          activeDirections.includes(shipment.direction) ? 'Coincide con tu ruta activa' : 'Oportunidad disponible para tu operación',
           `Recogida en ${pickupRegion}`,
           offerCount === 0 ? 'Sin competencia todavía' : `${offerCount} oferta${offerCount === 1 ? '' : 's'} activa${offerCount === 1 ? '' : 's'}`,
           minOfferPrice > 0 ? `Oferta más baja actual: $${minOfferPrice.toFixed(2)}` : 'Aún no hay ofertas registradas',
@@ -292,7 +230,7 @@ export class ShipmentsService {
 
         const customerScores = shipment.customer?.receivedRatings?.map((rating) => this.normalizeDecimal(rating.stars)) ?? [];
         const customerRatingAvg = customerScores.length > 0
-          ? customerScores.reduce((sum, score) => sum + score, 0) / customerScores.length
+          ? customerScores.reduce((sum, currentScore) => sum + currentScore, 0) / customerScores.length
           : 0;
 
         return {
@@ -336,7 +274,6 @@ export class ShipmentsService {
       orderBy: { createdAt: 'desc' },
     });
   }
-
 
   async findMine(requester: { sub: string; role: string }) {
     const where = requester.role === 'traveler'
@@ -425,13 +362,11 @@ export class ShipmentsService {
   async updateStatus(id: string, payload: UpdateShipmentStatusDto, requester: { sub: string; role: string }) {
     const shipment = await this.prisma.shipment.findUnique({
       where: { id },
-      include: {
-        customer: {
-          select: { id: true, fullName: true },
-        },
-        assignedTraveler: {
-          select: { id: true, fullName: true },
-        },
+      select: {
+        id: true,
+        status: true,
+        customerId: true,
+        assignedTravelerId: true,
       },
     });
 
@@ -458,6 +393,7 @@ export class ShipmentsService {
       const travelerAllowedStatuses: ShipmentStatus[] = [
         ShipmentStatus.picked_up,
         ShipmentStatus.in_transit,
+        ShipmentStatus.in_delivery,
         ShipmentStatus.arrived,
         ShipmentStatus.delivered,
       ];
@@ -467,26 +403,39 @@ export class ShipmentsService {
       }
     }
 
-    const updated = await this.executeShipmentStatusTransition({
-      shipmentId: id,
-      previousStatus: shipment.status,
-      nextStatus: payload.status,
-      audience: [shipment.customerId, shipment.assignedTravelerId],
-      actorId: requester.sub,
+    const transition = await this.prisma.$transaction(async (tx) => {
+      const nextTransition = await executeShipmentStatusTransition(tx, {
+        shipmentId: id,
+        previousStatus: shipment.status,
+        nextStatus: payload.status,
+        audience: [shipment.customerId, shipment.assignedTravelerId],
+        actorId: requester.sub,
+      });
+
+      if (payload.status === ShipmentStatus.delivered && payload.imageUrls?.length) {
+        await tx.shipmentImage.createMany({
+          data: payload.imageUrls.map((imageUrl) => ({
+            shipmentId: id,
+            imageUrl,
+            kind: 'delivery_proof',
+          })),
+        });
+      }
+
+      return nextTransition;
     });
 
-    if (payload.status === ShipmentStatus.delivered && payload.imageUrls?.length) {
-      await this.prisma.shipmentImage.createMany({
-        data: payload.imageUrls.map((imageUrl) => ({
-          shipmentId: id,
-          imageUrl,
-          kind: 'delivery_proof',
-        })),
-      });
-    }
+    await dispatchShipmentStatusTransitionSideEffects({
+      notificationsService: this.notificationsService,
+      realtimeGateway: this.realtimeGateway,
+      shipmentId: transition.shipmentId,
+      previousStatus: transition.previousStatus,
+      nextStatus: transition.nextStatus,
+      audience: transition.audience,
+    });
 
     if (payload.status === ShipmentStatus.delivered) {
-      await this.commissionsService.createCommissionForDeliveredShipment(updated);
+      await this.commissionsService.createCommissionForDeliveredShipment(transition.updatedShipment);
     }
 
     return this.prisma.shipment.findUnique({

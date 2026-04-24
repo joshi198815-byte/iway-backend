@@ -50,15 +50,18 @@ export class StorageService {
       .replace(/[^a-zA-Z0-9-_]/g, '-')
       .replace(/-+/g, '-')
       .toLowerCase();
-    const fileName = `${safeName}${extension}`;
+    const fileName = `${payload.bucket}-${ownerId}-${safeName}${extension}`;
     const uploadsRoot = path.resolve(process.cwd(), process.env.UPLOADS_DIR ?? 'uploads');
-    const ownerDir = path.join(uploadsRoot, payload.bucket, ownerId);
-    await mkdir(ownerDir, { recursive: true });
+    const legacyOwnerDir = path.join(uploadsRoot, payload.bucket, ownerId);
+    await mkdir(uploadsRoot, { recursive: true });
+    await mkdir(legacyOwnerDir, { recursive: true });
 
-    const absolutePath = path.join(ownerDir, fileName);
+    const absolutePath = path.join(uploadsRoot, fileName);
+    const legacyAbsolutePath = path.join(legacyOwnerDir, fileName);
     await writeFile(absolutePath, buffer);
+    await writeFile(legacyAbsolutePath, buffer);
 
-    const relativePath = `/uploads/${payload.bucket}/${ownerId}/${fileName}`;
+    const relativePath = `/uploads/${fileName}`;
     const protectedUrl = `/api/storage/file/${payload.bucket}/${ownerId}/${fileName}`;
 
     const uploadedFile = await this.prisma.uploadedFile.create({
@@ -69,7 +72,7 @@ export class StorageService {
         contentType,
         sizeBytes: buffer.byteLength,
         path: relativePath,
-        url: protectedUrl,
+        url: relativePath,
         isProtected: true,
       },
     });
@@ -82,7 +85,7 @@ export class StorageService {
       contentType,
       sizeBytes: buffer.byteLength,
       path: relativePath,
-      url: protectedUrl,
+      url: relativePath,
       protectedUrl,
       publicUrl: relativePath,
     };
