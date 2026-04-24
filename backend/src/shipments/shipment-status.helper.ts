@@ -22,6 +22,7 @@ type ShipmentStatusTransitionSideEffects = {
   title?: string;
   body?: string;
   notificationType?: string;
+  highPriority?: boolean;
 };
 
 export function normalizeShipmentAudience(audience: Array<string | null | undefined> = []) {
@@ -120,6 +121,7 @@ export async function dispatchShipmentStatusTransitionSideEffects(
         params.notificationType
           ?? (params.nextStatus === ShipmentStatus.delivered ? 'shipment_delivered' : 'shipment_status_changed'),
         params.shipmentId,
+        { highPriority: params.highPriority === true },
       ),
     ),
   );

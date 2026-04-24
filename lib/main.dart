@@ -11,6 +11,7 @@ Future<void> main() async {
   await AppLocaleController.load();
   await PushNotificationService.initialize();
   await PushNotificationService.syncTokenIfPossible();
+  PushNotificationService.flushPendingNavigation();
   await RealtimeService.instance.ensureConnected();
   runApp(const IwayApp());
 }

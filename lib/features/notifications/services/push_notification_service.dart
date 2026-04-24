@@ -23,7 +23,7 @@ class PushNotificationService {
     'iway_high_importance',
     'iWay Alerts',
     description: 'Alertas operativas y eventos clave de iWay.',
-    importance: Importance.high,
+    importance: Importance.max,
   );
 
   static final navigatorKey = GlobalKey<NavigatorState>();
@@ -156,6 +156,8 @@ class PushNotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
+    final highPriority = (message.data['priority']?.toString().toLowerCase() ?? '') == 'high';
+
     await _localNotifications.show(
       notification.hashCode,
       notification.title,
@@ -165,10 +167,18 @@ class PushNotificationService {
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
-          importance: Importance.high,
-          priority: Priority.high,
+          importance: highPriority ? Importance.max : Importance.high,
+          priority: highPriority ? Priority.max : Priority.high,
+          ticker: highPriority ? 'Prioridad alta' : 'iWay',
         ),
-        iOS: const DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+          interruptionLevel: highPriority
+              ? InterruptionLevel.timeSensitive
+              : InterruptionLevel.active,
+        ),
       ),
       payload: _payloadFromData(message.data),
     );

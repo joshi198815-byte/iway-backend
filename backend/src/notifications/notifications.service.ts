@@ -156,6 +156,7 @@ export class NotificationsService implements OnModuleInit {
         return shipmentId ? '/chat' : '/notifications';
       case 'offer_accepted':
       case 'shipment_assigned':
+      case 'shipment_in_route':
       case 'shipment_status_changed':
       case 'shipment_delivered':
       case 'delivery_closed':
@@ -178,6 +179,7 @@ export class NotificationsService implements OnModuleInit {
     body: string;
     type?: string;
     shipmentId?: string;
+    highPriority?: boolean;
     accessToken?: string | null;
   }) {
     const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -205,20 +207,23 @@ export class NotificationsService implements OnModuleInit {
               type: params.type ?? 'push',
               shipmentId: params.shipmentId ?? '',
               route: this.routeForType(params.type, params.shipmentId),
+              priority: params.highPriority ? 'high' : 'default',
             },
             android: {
-              priority: 'high',
+              priority: params.highPriority ? 'high' : 'normal',
               notification: {
                 channelId: 'iway_high_importance',
+                priority: params.highPriority ? 'PRIORITY_MAX' : 'PRIORITY_HIGH',
               },
             },
             apns: {
               headers: {
-                'apns-priority': '10',
+                'apns-priority': params.highPriority ? '10' : '5',
               },
               payload: {
                 aps: {
                   sound: 'default',
+                  'interruption-level': params.highPriority ? 'time-sensitive' : 'active',
                 },
               },
             },
@@ -379,6 +384,7 @@ export class NotificationsService implements OnModuleInit {
     body: string,
     type = 'push',
     shipmentId?: string,
+    options?: { highPriority?: boolean },
   ) {
     try {
       const uniqueUserIds = [...new Set(userIds.filter((id) => typeof id === 'string' && id.trim().length > 0))];
@@ -411,6 +417,7 @@ export class NotificationsService implements OnModuleInit {
                 body,
                 type,
                 shipmentId,
+                highPriority: options?.highPriority === true,
                 accessToken,
               }),
             ),
@@ -533,6 +540,7 @@ export class NotificationsService implements OnModuleInit {
     body: string,
     type = 'push',
     shipmentId?: string,
+    options?: { highPriority?: boolean },
   ) {
     try {
       const notification = await this.create(userId, title, body, type, shipmentId);
@@ -559,6 +567,7 @@ export class NotificationsService implements OnModuleInit {
                 body,
                 type,
                 shipmentId,
+                highPriority: options?.highPriority === true,
                 accessToken,
               }),
             ),

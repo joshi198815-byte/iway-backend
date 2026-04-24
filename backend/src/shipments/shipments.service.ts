@@ -366,6 +366,9 @@ export class ShipmentsService {
         status: true,
         customerId: true,
         assignedTravelerId: true,
+        packageType: true,
+        packageCategory: true,
+        description: true,
       },
     });
 
@@ -424,6 +427,9 @@ export class ShipmentsService {
       return nextTransition;
     });
 
+    const shipmentCategoryText = `${shipment.packageCategory ?? ''} ${shipment.packageType ?? ''} ${shipment.description ?? ''}`.toLowerCase();
+    const isMedicineShipment = shipmentCategoryText.includes('medicina');
+
     await dispatchShipmentStatusTransitionSideEffects({
       notificationsService: this.notificationsService,
       realtimeGateway: this.realtimeGateway,
@@ -431,6 +437,29 @@ export class ShipmentsService {
       previousStatus: transition.previousStatus,
       nextStatus: transition.nextStatus,
       audience: transition.audience,
+      notificationAudience:
+        payload.status === ShipmentStatus.picked_up || payload.status === ShipmentStatus.delivered
+          ? [shipment.customerId]
+          : transition.audience,
+      title:
+        payload.status === ShipmentStatus.picked_up
+          ? 'Envío en ruta'
+          : payload.status === ShipmentStatus.delivered
+            ? 'Entrega confirmada'
+            : undefined,
+      body:
+        payload.status === ShipmentStatus.picked_up
+          ? `Tu paquete ${transition.shipmentId} ya está en ruta hacia su destino.`
+          : payload.status === ShipmentStatus.delivered
+            ? `¡Entregado! Tu envío ${transition.shipmentId} ha sido recibido con éxito.`
+            : undefined,
+      notificationType:
+        payload.status === ShipmentStatus.picked_up
+          ? 'shipment_in_route'
+          : payload.status === ShipmentStatus.delivered
+            ? 'shipment_delivered'
+            : undefined,
+      highPriority: isMedicineShipment,
     });
 
     if (payload.status === ShipmentStatus.delivered) {
