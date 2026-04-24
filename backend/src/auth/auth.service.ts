@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole, UserStatus, VerificationChannel } from '@prisma/client';
@@ -15,6 +15,7 @@ import { AntiFraudService } from '../anti-fraud/anti-fraud.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { JobsService } from '../jobs/jobs.service';
+import { sendPasswordRecoveryEmail } from './auth-mailer.helper';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -227,12 +228,18 @@ export class AuthService implements OnModuleInit {
       },
     });
 
-    await this.notificationsService.sendPush(
-      user.id,
-      'Recuperación de contraseña',
-      `Tu código de recuperación iWay es ${code}. Vence en 10 minutos.`,
-      'contact_verification',
-    );
+    try {
+      await sendPasswordRecoveryEmail({
+        to: normalizedEmail,
+        code,
+      });
+    } catch (error) {
+      throw new InternalServerErrorException(
+        error instanceof Error && error.message === 'smtp_not_configured'
+          ? 'La recuperación por correo no está configurada en el servidor.'
+          : 'No se pudo enviar el correo de recuperación.',
+      );
+    }
 
     return { sent: true, expiresInMinutes: 10 };
   }

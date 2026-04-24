@@ -42,7 +42,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       });
 
       if (!mounted) return;
-      _showMessage('Si la cuenta existe, enviamos un código de recuperación.');
+      _showMessage('Si la cuenta existe, enviamos un código de recuperación por correo.');
     } on ApiException catch (e) {
       if (!mounted) return;
       _showMessage(e.message);
@@ -141,7 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 const SizedBox(height: 28),
                 const AppPageIntro(
                   title: 'Recuperar contraseña',
-                  subtitle: 'Solicita tu código y cambia tu contraseña desde aquí.',
+                  subtitle: 'Solicita tu código por correo y cambia tu contraseña desde aquí.',
                 ),
                 const SizedBox(height: 28),
                 Container(
