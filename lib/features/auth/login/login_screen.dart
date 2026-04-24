@@ -4,6 +4,7 @@ import 'package:iway_app/services/api_client.dart';
 import 'package:iway_app/services/session_service.dart';
 import 'package:iway_app/shared/ui/app_back_button_shell.dart';
 import 'package:iway_app/shared/ui/app_page_intro.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,12 +15,17 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _rememberLoginKey = 'remember_login_enabled';
+  static const _rememberedEmailKey = 'remembered_login_email';
+  static const _rememberedPasswordKey = 'remembered_login_password';
+
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
   final authService = AuthService();
 
   bool loading = false;
+  bool rememberMe = false;
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -30,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _loadRememberedCredentials();
     if (SessionService.isLoggedIn) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -39,6 +46,37 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       });
     }
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedRememberMe = prefs.getBool(_rememberLoginKey) ?? false;
+    final savedEmail = prefs.getString(_rememberedEmailKey) ?? '';
+    final savedPassword = prefs.getString(_rememberedPasswordKey) ?? '';
+
+    if (!mounted) return;
+
+    setState(() {
+      rememberMe = savedRememberMe;
+      if (savedRememberMe) {
+        emailController.text = savedEmail;
+        passwordController.text = savedPassword;
+      }
+    });
+  }
+
+  Future<void> _persistRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberLoginKey, rememberMe);
+
+    if (rememberMe) {
+      await prefs.setString(_rememberedEmailKey, emailController.text.trim());
+      await prefs.setString(_rememberedPasswordKey, passwordController.text.trim());
+      return;
+    }
+
+    await prefs.remove(_rememberedEmailKey);
+    await prefs.remove(_rememberedPasswordKey);
   }
 
   @override
@@ -72,6 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => loading = false);
 
       if (user != null) {
+        await _persistRememberedCredentials();
         Navigator.pushReplacementNamed(
           context,
           SessionService.currentUser?.telefonoVerificado == true ? '/home' : '/verify_contact',
@@ -132,7 +171,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 18),
                       TextField(
                         controller: emailController,
-                        decoration: const InputDecoration(labelText: 'Correo'),
+                        decoration: const InputDecoration(
+                          labelText: 'Correo',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
                         autofillHints: const [AutofillHints.email],
@@ -140,13 +182,37 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 14),
                       TextField(
                         controller: passwordController,
-                        decoration: const InputDecoration(labelText: 'Contraseña'),
+                        decoration: const InputDecoration(
+                          labelText: 'Contraseña',
+                          contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
                         obscureText: true,
                         autofillHints: const [AutofillHints.password],
                         textInputAction: TextInputAction.done,
                         onSubmitted: (_) => login(),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 8),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          checkboxTheme: CheckboxThemeData(
+                            side: const BorderSide(color: AppTheme.border),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+                          ),
+                        ),
+                        child: CheckboxListTile(
+                          value: rememberMe,
+                          onChanged: (value) async {
+                            setState(() => rememberMe = value ?? false);
+                            await _persistRememberedCredentials();
+                          },
+                          title: const Text('Recordar mis datos'),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          activeColor: AppTheme.accent,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
                       ElevatedButton(
                         onPressed: loading ? null : login,
                         child: loading
@@ -157,7 +223,12 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : const Text('Ingresar'),
                       ),
-                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/forgot_password'),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                        child: const Text('¿Olvidaste tu contraseña?'),
+                      ),
+                      const SizedBox(height: 8),
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 180),
                         child: Text(

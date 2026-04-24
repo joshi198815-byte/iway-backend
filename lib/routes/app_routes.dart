@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/splash/splash_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/auth/login/login_screen.dart';
+import '../features/auth/forgot_password/forgot_password_screen.dart';
 import '../features/auth/register/register_screen.dart';
 import '../features/auth/register/traveler_register_screen.dart';
 import '../features/auth/verification/contact_verification_screen.dart';
@@ -40,6 +41,7 @@ class AppRoutes {
     '/': (context) => const SplashScreen(),
     '/home': (context) => const HomeScreen(),
     '/login': (context) => const LoginScreen(),
+    '/forgot_password': (context) => const ForgotPasswordScreen(),
     '/register': (context) => const RegisterScreen(),
     '/register_traveler': (context) => const TravelerRegisterScreen(),
     '/verify_contact': (context) => const ContactVerificationScreen(),
