@@ -10,6 +10,21 @@ class AuthService {
 
   final ApiClient _apiClient;
 
+  Future<void> _finalizeAuthenticatedSession(
+    UserModel user, {
+    String? accessToken,
+  }) async {
+    await SessionService.setUser(user, accessToken: accessToken);
+
+    try {
+      await PushNotificationService.syncTokenIfPossible();
+    } catch (_) {}
+
+    try {
+      await RealtimeService.instance.ensureConnected();
+    } catch (_) {}
+  }
+
   Future<UserModel?> login(String email, String password) async {
     final data = await _apiClient.post('/auth/login', {
       'email': email.trim().toLowerCase(),
@@ -22,12 +37,10 @@ class AuthService {
     }
 
     final parsedUser = UserModel.fromBackendJson(user);
-    await SessionService.setUser(
+    await _finalizeAuthenticatedSession(
       parsedUser,
       accessToken: data['accessToken']?.toString(),
     );
-    await PushNotificationService.syncTokenIfPossible();
-    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 
@@ -58,12 +71,10 @@ class AuthService {
     }
 
     final parsedUser = UserModel.fromBackendJson(user);
-    await SessionService.setUser(
+    await _finalizeAuthenticatedSession(
       parsedUser,
       accessToken: data['accessToken']?.toString(),
     );
-    await PushNotificationService.syncTokenIfPossible();
-    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 
@@ -108,12 +119,10 @@ class AuthService {
     }
 
     final parsedUser = UserModel.fromBackendJson(user);
-    await SessionService.setUser(
+    await _finalizeAuthenticatedSession(
       parsedUser,
       accessToken: data['accessToken']?.toString(),
     );
-    await PushNotificationService.syncTokenIfPossible();
-    await RealtimeService.instance.ensureConnected();
     return parsedUser;
   }
 
