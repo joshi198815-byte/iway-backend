@@ -20,6 +20,7 @@ Future<void> main() async {
   await AppLocaleController.load();
   await PermissionService.requestStartupPermissionsIfNeeded();
   await PushNotificationService.initialize();
+  await PushNotificationService.registerCurrentToken();
   await PushNotificationService.syncTokenIfPossible();
   PushNotificationService.flushPendingNavigation();
   await RealtimeService.instance.ensureConnected();

@@ -84,7 +84,7 @@ class PushNotificationService {
         sound: true,
       );
 
-      await _syncCurrentToken();
+      await registerCurrentToken();
       FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
         debugPrint('PushNotificationService.onTokenRefresh: ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
         if (!SessionService.isLoggedIn || token.isEmpty) return;
@@ -117,10 +117,12 @@ class PushNotificationService {
       final firebaseReady = await ensureFirebaseInitialized()
           .timeout(_firebaseOperationTimeout, onTimeout: () => false);
       if (!firebaseReady) {
+        debugPrint('PushNotificationService.syncTokenIfPossible: Firebase no disponible.');
         return;
       }
-      await _syncCurrentToken();
-    } catch (_) {
+      await registerCurrentToken();
+    } catch (e) {
+      debugPrint('PushNotificationService.syncTokenIfPossible error: $e');
       return;
     }
   }
@@ -137,23 +139,27 @@ class PushNotificationService {
     } catch (_) {}
   }
 
-  static Future<void> _syncCurrentToken() async {
-    if (!SessionService.isLoggedIn) return;
+  static Future<void> registerCurrentToken() async {
+    if (!SessionService.isLoggedIn) {
+      debugPrint('PushNotificationService.registerCurrentToken: sesión no disponible.');
+      return;
+    }
 
     try {
       final token = await FirebaseMessaging.instance
           .getToken()
           .timeout(_firebaseOperationTimeout, onTimeout: () => null);
       if (token == null || token.isEmpty) {
-        debugPrint('PushNotificationService._syncCurrentToken: token vacío.');
+        debugPrint('PushNotificationService.registerCurrentToken: token vacío.');
         return;
       }
-      debugPrint('PushNotificationService._syncCurrentToken: registrando token ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
+      debugPrint('PushNotificationService.registerCurrentToken: registrando token ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
       await DeviceTokenService()
           .registerToken(token)
           .timeout(_firebaseOperationTimeout, onTimeout: () => null);
+      debugPrint('PushNotificationService.registerCurrentToken: token enviado al backend.');
     } catch (e) {
-      debugPrint('PushNotificationService._syncCurrentToken error: $e');
+      debugPrint('PushNotificationService.registerCurrentToken error: $e');
     }
   }
 

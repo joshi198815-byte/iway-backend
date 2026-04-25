@@ -17,6 +17,14 @@ class AuthService {
     await SessionService.setUser(user, accessToken: accessToken);
 
     try {
+      await PushNotificationService.initialize();
+    } catch (_) {}
+
+    try {
+      await PushNotificationService.registerCurrentToken();
+    } catch (_) {}
+
+    try {
       await PushNotificationService.syncTokenIfPossible();
     } catch (_) {}
 
