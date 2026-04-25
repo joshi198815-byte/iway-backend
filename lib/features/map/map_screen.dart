@@ -153,7 +153,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                 points: polylineSource,
                 color: AppTheme.accent,
                 width: 5,
-                patterns: polylinePoints.length >= 2 ? const [] : const [PatternItem.dash(18), PatternItem.gap(10)],
+                patterns: polylinePoints.length >= 2 ? [] : [PatternItem.dash(18), PatternItem.gap(10)],
               ),
             }
           : <Polyline>{};
