@@ -1,5 +1,6 @@
 import { ForbiddenException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { createHash, createSign } from 'node:crypto';
+import { createHash } from 'node:crypto';
+import * as admin from 'firebase-admin';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { RegisterDeviceTokenDto } from './dto/register-device-token.dto';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -9,6 +10,7 @@ import { JobsService } from '../jobs/jobs.service';
 @Injectable()
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
+  private firebaseApp: admin.app.App | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -19,10 +21,6 @@ export class NotificationsService implements OnModuleInit {
   onModuleInit() {
     this.jobsService.registerHandler('push-dispatch-single', async (payload) => {
       const devices = Array.isArray(payload.devices) ? payload.devices : [];
-      const accessToken = await this.getFirebaseAccessToken();
-      if (!accessToken) {
-        throw new Error('firebase_access_token_unavailable');
-      }
 
       const pushResults = await Promise.all(
         devices.map((device) => {
@@ -33,7 +31,6 @@ export class NotificationsService implements OnModuleInit {
             body: String(payload.body ?? ''),
             type: typeof payload.type === 'string' ? payload.type : 'push',
             shipmentId: typeof payload.shipmentId === 'string' ? payload.shipmentId : undefined,
-            accessToken,
           });
         }),
       );
@@ -52,10 +49,6 @@ export class NotificationsService implements OnModuleInit {
 
     this.jobsService.registerHandler('push-dispatch-batch', async (payload) => {
       const devices = Array.isArray(payload.devices) ? payload.devices : [];
-      const accessToken = await this.getFirebaseAccessToken();
-      if (!accessToken) {
-        throw new Error('firebase_access_token_unavailable');
-      }
 
       const pushResults = await Promise.all(
         devices.map((device) => {
@@ -66,7 +59,6 @@ export class NotificationsService implements OnModuleInit {
             body: String(payload.body ?? ''),
             type: typeof payload.type === 'string' ? payload.type : 'push',
             shipmentId: typeof payload.shipmentId === 'string' ? payload.shipmentId : undefined,
-            accessToken,
           });
         }),
       );
@@ -104,67 +96,60 @@ export class NotificationsService implements OnModuleInit {
     });
   }
 
-  private base64UrlEncode(input: string | Buffer) {
-    return Buffer.from(input)
-      .toString('base64')
-      .replace(/=/g, '')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_');
-  }
+  private getFirebaseServiceAccount() {
+    const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON?.trim();
+    if (!raw) {
+      return null;
+    }
 
-  private getFirebasePrivateKey() {
-    return process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const privateKeyRaw = typeof parsed.private_key === 'string'
+        ? parsed.private_key
+        : typeof parsed.privateKey === 'string'
+          ? parsed.privateKey
+          : '';
+
+      return {
+        projectId: typeof parsed.project_id === 'string' ? parsed.project_id : typeof parsed.projectId === 'string' ? parsed.projectId : undefined,
+        clientEmail: typeof parsed.client_email === 'string' ? parsed.client_email : typeof parsed.clientEmail === 'string' ? parsed.clientEmail : undefined,
+        privateKey: privateKeyRaw.replace(/\\n/g, '\n'),
+      } as admin.ServiceAccount;
+    } catch (error) {
+      this.logger.error(
+        `firebase service account json invalid error=${error instanceof Error ? error.message : 'unknown'}`,
+      );
+      return null;
+    }
   }
 
   private firebaseConfigured() {
-    return Boolean(
-      process.env.FIREBASE_PROJECT_ID &&
-        process.env.FIREBASE_CLIENT_EMAIL &&
-        this.getFirebasePrivateKey(),
-    );
+    return Boolean(this.getFirebaseServiceAccount());
   }
 
-  private async getFirebaseAccessToken() {
-    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = this.getFirebasePrivateKey();
+  private getFirebaseApp() {
+    if (this.firebaseApp) {
+      return this.firebaseApp;
+    }
 
-    if (!clientEmail || !privateKey) {
+    const serviceAccount = this.getFirebaseServiceAccount();
+    if (!serviceAccount) {
       return null;
     }
 
-    const now = Math.floor(Date.now() / 1000);
-    const header = this.base64UrlEncode(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-    const claimSet = this.base64UrlEncode(
-      JSON.stringify({
-        iss: clientEmail,
-        scope: 'https://www.googleapis.com/auth/firebase.messaging',
-        aud: 'https://oauth2.googleapis.com/token',
-        exp: now + 3600,
-        iat: now,
-      }),
-    );
-
-    const signer = createSign('RSA-SHA256');
-    signer.update(`${header}.${claimSet}`);
-    signer.end();
-    const signature = this.base64UrlEncode(signer.sign(privateKey));
-    const assertion = `${header}.${claimSet}.${signature}`;
-
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      }),
-    });
-
-    if (!response.ok) {
+    try {
+      this.firebaseApp = admin.apps.length > 0
+        ? admin.apps[0]
+        : admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+      return this.firebaseApp;
+    } catch (error) {
+      this.logger.error(
+        `firebase initialize failed error=${error instanceof Error ? error.message : 'unknown'}`,
+      );
       return null;
     }
-
-    const data = (await response.json()) as { access_token?: string };
-    return data.access_token ?? null;
   }
 
   private routeForType(type?: string, shipmentId?: string) {
@@ -287,77 +272,74 @@ export class NotificationsService implements OnModuleInit {
     type?: string;
     shipmentId?: string;
     highPriority?: boolean;
-    accessToken?: string | null;
   }) {
-    const projectId = process.env.FIREBASE_PROJECT_ID;
-    const accessToken = params.accessToken ?? (await this.getFirebaseAccessToken());
-    if (!projectId || !accessToken) {
+    const firebaseApp = this.getFirebaseApp();
+    if (!firebaseApp) {
       return { sent: false, invalidToken: false, responseBody: 'firebase_not_configured' };
     }
 
-    const response = await fetch(
-      `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+    try {
+      const messageId = await firebaseApp.messaging().send({
+        token: params.token,
+        notification: {
+          title: params.title,
+          body: params.body,
         },
-        body: JSON.stringify({
-          message: {
-            token: params.token,
-            notification: {
-              title: params.title,
-              body: params.body,
-            },
-            data: {
-              type: params.type ?? 'push',
-              shipmentId: params.shipmentId ?? '',
-              route: this.routeForType(params.type, params.shipmentId),
-              priority: 'high',
+        data: {
+          type: params.type ?? 'push',
+          shipmentId: params.shipmentId ?? '',
+          route: this.routeForType(params.type, params.shipmentId),
+          priority: 'high',
+          sound: 'default',
+          content_available: 'true',
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            channelId: 'high_importance_channel',
+            priority: 'max',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+            sound: 'default',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+          },
+        },
+        apns: {
+          headers: {
+            'apns-priority': '10',
+            'apns-push-type': 'alert',
+          },
+          payload: {
+            aps: {
               sound: 'default',
-              content_available: 'true',
-            },
-            android: {
-              priority: 'high',
-              notification: {
-                channelId: 'high_importance_channel',
-                priority: 'PRIORITY_MAX',
-                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-                sound: 'default',
-                defaultSound: true,
-                defaultVibrateTimings: true,
-                notificationPriority: 'PRIORITY_MAX',
-              },
-            },
-            apns: {
-              headers: {
-                'apns-priority': '10',
-                'apns-push-type': 'alert',
-              },
-              payload: {
-                aps: {
-                  sound: 'default',
-                  'content-available': 1,
-                  'mutable-content': 1,
-                  'interruption-level': params.highPriority ? 'time-sensitive' : 'active',
-                },
-              },
+              'content-available': 1,
+              'mutable-content': 1,
+              'interruption-level': params.highPriority ? 'time-sensitive' : 'active',
             },
           },
-        }),
-      },
-    );
+        },
+      });
 
-    const responseText = (await response.text()).trim();
-    const invalidToken = responseText.includes('UNREGISTERED') || responseText.includes('registration-token-not-registered');
+      return {
+        sent: true,
+        status: 200,
+        invalidToken: false,
+        responseBody: messageId,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const invalidToken =
+        errorMessage.includes('registration-token-not-registered') ||
+        errorMessage.includes('Requested entity was not found') ||
+        errorMessage.includes('UNREGISTERED');
 
-    return {
-      sent: response.ok,
-      status: response.status,
-      invalidToken,
-      responseBody: responseText,
-    };
+      return {
+        sent: false,
+        status: 500,
+        invalidToken,
+        responseBody: errorMessage,
+      };
+    }
   }
 
   private async deactivateInvalidDeviceTokens(
@@ -524,32 +506,26 @@ export class NotificationsService implements OnModuleInit {
       );
 
       if (providerConfigured && activeDevices.length > 0) {
-        const accessToken = await this.getFirebaseAccessToken();
-        if (accessToken) {
-          const results = await Promise.all(
-            activeDevices.map((device) =>
-              this.sendFirebasePushToToken({
-                token: device.token,
-                title,
-                body,
-                type,
-                shipmentId,
-                highPriority: options?.highPriority === true,
-                accessToken,
-              }),
-            ),
-          );
-          await this.deactivateInvalidDeviceTokens(activeDevices, results);
-          sentCount = results.filter((result) => result.sent).length;
+        const results = await Promise.all(
+          activeDevices.map((device) =>
+            this.sendFirebasePushToToken({
+              token: device.token,
+              title,
+              body,
+              type,
+              shipmentId,
+              highPriority: options?.highPriority === true,
+            }),
+          ),
+        );
+        await this.deactivateInvalidDeviceTokens(activeDevices, results);
+        sentCount = results.filter((result) => result.sent).length;
 
-          const failedResults = results.filter((result) => !result.sent);
-          if (failedResults.length > 0) {
-            this.logger.warn(
-              `sendPushMany partial failure type=${type} shipmentId=${shipmentId ?? '-'} statuses=${failedResults.map((result) => result.status ?? 0).join(',')} bodies=${failedResults.map((result) => result.responseBody ?? '').filter((body) => body.length > 0).join(' | ')}`,
-            );
-          }
-        } else {
-          this.logger.warn(`sendPushMany access token unavailable type=${type} shipmentId=${shipmentId ?? '-'}`);
+        const failedResults = results.filter((result) => !result.sent);
+        if (failedResults.length > 0) {
+          this.logger.warn(
+            `sendPushMany partial failure type=${type} shipmentId=${shipmentId ?? '-'} statuses=${failedResults.map((result) => result.status ?? 0).join(',')} bodies=${failedResults.map((result) => result.responseBody ?? '').filter((body) => body.length > 0).join(' | ')}`,
+          );
         }
       }
 
@@ -674,27 +650,19 @@ export class NotificationsService implements OnModuleInit {
       );
 
       if (providerConfigured && activeDevices.length > 0) {
-        const accessToken = await this.getFirebaseAccessToken();
-        if (accessToken) {
-          pushResults = await Promise.all(
-            activeDevices.map((device) =>
-              this.sendFirebasePushToToken({
-                token: device.token,
-                title,
-                body,
-                type,
-                shipmentId,
-                highPriority: options?.highPriority === true,
-                accessToken,
-              }),
-            ),
-          );
-          await this.deactivateInvalidDeviceTokens(activeDevices, pushResults);
-        } else {
-          this.logger.warn(
-            `sendPush access token unavailable userId=${userId} type=${type} shipmentId=${shipmentId ?? '-'}`,
-          );
-        }
+        pushResults = await Promise.all(
+          activeDevices.map((device) =>
+            this.sendFirebasePushToToken({
+              token: device.token,
+              title,
+              body,
+              type,
+              shipmentId,
+              highPriority: options?.highPriority === true,
+            }),
+          ),
+        );
+        await this.deactivateInvalidDeviceTokens(activeDevices, pushResults);
       }
 
       const sentCount = pushResults.filter((result) => result.sent).length;
