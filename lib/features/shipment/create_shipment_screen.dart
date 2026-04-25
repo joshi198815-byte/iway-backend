@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/data/location_catalogs.dart';
@@ -36,6 +37,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final List<AddressSuggestion> _originAddressSuggestions = [];
   Timer? _debounce;
   Timer? _originDebounce;
+  GoogleMapController? _pickupMapController;
 
   int _step = 0;
   bool _insuranceEnabled = false;
@@ -62,6 +64,37 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     _loadRecipients();
     _addressController.addListener(_onAddressChanged);
     _originAddressController.addListener(_onOriginAddressChanged);
+    _loadInitialPickupLocation();
+  }
+
+  Future<void> _loadInitialPickupLocation() async {
+    if (_pickupLat != null && _pickupLng != null) return;
+
+    try {
+      final permission = await Geolocator.checkPermission();
+      var effectivePermission = permission;
+      if (permission == LocationPermission.denied) {
+        effectivePermission = await Geolocator.requestPermission();
+      }
+      if (effectivePermission == LocationPermission.denied ||
+          effectivePermission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _pickupLat = position.latitude;
+        _pickupLng = position.longitude;
+      });
+
+      await _pickupMapController?.animateCamera(
+        CameraUpdate.newLatLngZoom(LatLng(position.latitude, position.longitude), 16),
+      );
+    } catch (_) {}
   }
 
   Future<void> _loadRecipients() async {
@@ -392,7 +425,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Toca el mapa o arrastra el pin. Sin este punto exacto no se publica el envío.',
+          'Mueve el mapa, haz zoom o arrastra el pin hasta dejar el punto exacto. Sin este punto no se publica el envío.',
           style: TextStyle(color: AppTheme.muted),
         ),
         const SizedBox(height: 12),
@@ -402,10 +435,29 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             height: 240,
             child: GoogleMap(
               initialCameraPosition: CameraPosition(target: _pickupMapTarget, zoom: 13.5),
-              myLocationEnabled: false,
-              myLocationButtonEnabled: false,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
               zoomControlsEnabled: false,
               mapToolbarEnabled: false,
+              scrollGesturesEnabled: true,
+              zoomGesturesEnabled: true,
+              rotateGesturesEnabled: true,
+              tiltGesturesEnabled: true,
+              onMapCreated: (controller) {
+                _pickupMapController = controller;
+                if (_pickupLat != null && _pickupLng != null) {
+                  controller.animateCamera(
+                    CameraUpdate.newLatLngZoom(LatLng(_pickupLat!, _pickupLng!), 16),
+                  );
+                }
+              },
+              onCameraMove: (position) {
+                if (!mounted) return;
+                setState(() {
+                  _pickupLat = position.target.latitude;
+                  _pickupLng = position.target.longitude;
+                });
+              },
               onTap: _setPickupPoint,
               markers: {
                 Marker(
@@ -760,6 +812,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   void dispose() {
     _debounce?.cancel();
     _originDebounce?.cancel();
+    _pickupMapController?.dispose();
     _descriptionController.dispose();
     _weightController.dispose();
     _valueController.dispose();

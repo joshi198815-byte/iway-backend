@@ -432,12 +432,14 @@ export class OffersService {
       offer.shipmentId,
     );
 
-    await this.notificationsService.schedulePickupReminders({
-      shipmentId: offer.shipmentId,
-      customerId: offer.shipment.customerId,
-      travelerId: offer.travelerId,
-      pickupAt: offer.pickupAt,
-    });
+    if (offer.pickupAt) {
+      await this.notificationsService.schedulePickupReminders({
+        shipmentId: offer.shipmentId,
+        customerId: offer.shipment.customerId,
+        travelerId: offer.travelerId,
+        pickupAt: offer.pickupAt,
+      });
+    }
 
     this.realtimeGateway.emitOfferUpdated(
       offer.shipmentId,

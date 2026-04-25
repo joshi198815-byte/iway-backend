@@ -163,15 +163,26 @@ export class ShipmentsService {
 
     const shipments = await this.prisma.shipment.findMany({
       where: {
-        status: { in: [ShipmentStatus.pending, ShipmentStatus.offered] },
+        status: { in: [ShipmentStatus.pending, ShipmentStatus.published, ShipmentStatus.offered] },
         assignedTravelerId: null,
         customerId: { not: travelerId },
-        offers: {
-          none: {
-            travelerId,
-            status: { in: [OfferStatus.pending, OfferStatus.accepted] },
+        AND: [
+          {
+            offers: {
+              none: {
+                status: OfferStatus.accepted,
+              },
+            },
           },
-        },
+          {
+            offers: {
+              none: {
+                travelerId,
+                status: { in: [OfferStatus.pending, OfferStatus.accepted] },
+              },
+            },
+          },
+        ],
       },
       include: {
         offers: {
