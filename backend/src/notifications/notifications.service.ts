@@ -112,17 +112,21 @@ export class NotificationsService implements OnModuleInit {
       .replace(/\//g, '_');
   }
 
+  private getFirebasePrivateKey() {
+    return process.env.FIREBASE_PRIVATE_KEY?.trim().replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+  }
+
   private firebaseConfigured() {
     return Boolean(
       process.env.FIREBASE_PROJECT_ID &&
         process.env.FIREBASE_CLIENT_EMAIL &&
-        process.env.FIREBASE_PRIVATE_KEY,
+        this.getFirebasePrivateKey(),
     );
   }
 
   private async getFirebaseAccessToken() {
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const privateKey = this.getFirebasePrivateKey();
 
     if (!clientEmail || !privateKey) {
       return null;

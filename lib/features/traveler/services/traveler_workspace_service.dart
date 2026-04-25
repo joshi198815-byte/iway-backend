@@ -1,5 +1,11 @@
 import 'package:iway_app/services/api_client.dart';
 
+bool _isMissingRouteAnnouncementEndpoint(Object error) {
+  return error is ApiException &&
+      error.statusCode == 404 &&
+      error.message.toLowerCase().contains('cannot get');
+}
+
 class TravelerWorkspaceState {
   final bool isOnline;
   final List<String> routes;
@@ -78,12 +84,19 @@ class TravelerWorkspaceService {
   }
 
   Future<TravelerRouteAnnouncement?> getLatestRouteAnnouncement() async {
-    final data = await _apiClient.get('/travelers/me/route-announcement');
-    if (data == null) return null;
-    if (data is! Map<String, dynamic>) {
-      throw ApiException('No se pudo cargar tu anuncio de ruta.');
+    try {
+      final data = await _apiClient.get('/travelers/me/route-announcement');
+      if (data == null) return null;
+      if (data is! Map<String, dynamic>) {
+        throw ApiException('No se pudo cargar tu anuncio de ruta.');
+      }
+      return TravelerRouteAnnouncement.fromJson(data);
+    } catch (error) {
+      if (_isMissingRouteAnnouncementEndpoint(error)) {
+        return null;
+      }
+      rethrow;
     }
-    return TravelerRouteAnnouncement.fromJson(data);
   }
 
   Future<TravelerRouteAnnouncement> publishRouteAnnouncement({
@@ -91,14 +104,21 @@ class TravelerWorkspaceService {
     required List<String> allowedProducts,
     List<String> regions = const [],
   }) async {
-    final data = await _apiClient.post('/travelers/me/route-announcement', {
-      'message': message,
-      'allowedProducts': allowedProducts,
-      'regions': regions,
-    });
-    if (data is! Map<String, dynamic>) {
-      throw ApiException('No se pudo publicar tu anuncio de ruta.');
+    try {
+      final data = await _apiClient.post('/travelers/me/route-announcement', {
+        'message': message,
+        'allowedProducts': allowedProducts,
+        'regions': regions,
+      });
+      if (data is! Map<String, dynamic>) {
+        throw ApiException('No se pudo publicar tu anuncio de ruta.');
+      }
+      return TravelerRouteAnnouncement.fromJson(data);
+    } catch (error) {
+      if (_isMissingRouteAnnouncementEndpoint(error)) {
+        throw ApiException('Tu backend actual todavía no expone anuncios de ruta. Actualiza el deploy e intenta de nuevo.');
+      }
+      rethrow;
     }
-    return TravelerRouteAnnouncement.fromJson(data);
   }
 }
