@@ -27,6 +27,7 @@ dependencies:
   http: ^1.2.1
   path_provider: ^2.1.4
   pdf: ^3.11.1
+  permission_handler: ^11.3.1
   printing: ^5.13.4
   shared_preferences: ^2.2.3
   socket_io_client: ^3.0.2

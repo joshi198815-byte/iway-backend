@@ -208,14 +208,19 @@ export class NotificationsService implements OnModuleInit {
               shipmentId: params.shipmentId ?? '',
               route: this.routeForType(params.type, params.shipmentId),
               priority: 'high',
+              sound: 'default',
+              content_available: 'true',
             },
             android: {
               priority: 'high',
               notification: {
-                channelId: 'iway_high_importance',
+                channelId: 'high_importance_channel',
                 priority: 'PRIORITY_MAX',
                 clickAction: 'FLUTTER_NOTIFICATION_CLICK',
                 sound: 'default',
+                defaultSound: true,
+                defaultVibrateTimings: true,
+                notificationPriority: 'PRIORITY_MAX',
               },
             },
             apns: {
@@ -226,6 +231,8 @@ export class NotificationsService implements OnModuleInit {
               payload: {
                 aps: {
                   sound: 'default',
+                  'content-available': 1,
+                  'mutable-content': 1,
                   'interruption-level': params.highPriority ? 'time-sensitive' : 'active',
                 },
               },

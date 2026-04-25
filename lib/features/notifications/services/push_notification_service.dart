@@ -15,10 +15,12 @@ class PushNotificationService {
   static const Duration _firebaseOperationTimeout = Duration(seconds: 8);
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'iway_high_importance',
+    'high_importance_channel',
     'iWay Alerts',
     description: 'Alertas operativas y eventos clave de iWay.',
     importance: Importance.max,
+    playSound: true,
+    enableVibration: true,
   );
 
   static final navigatorKey = GlobalKey<NavigatorState>();
@@ -83,7 +85,17 @@ class PushNotificationService {
       );
 
       await _syncCurrentToken();
-      FirebaseMessaging.instance.onTokenRefresh.listen((_) => _syncCurrentToken());
+      FirebaseMessaging.instance.onTokenRefresh.listen((token) async {
+        debugPrint('PushNotificationService.onTokenRefresh: ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
+        if (!SessionService.isLoggedIn || token.isEmpty) return;
+        try {
+          await DeviceTokenService()
+              .registerToken(token)
+              .timeout(_firebaseOperationTimeout, onTimeout: () => null);
+        } catch (e) {
+          debugPrint('PushNotificationService.onTokenRefresh error: $e');
+        }
+      });
 
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
       FirebaseMessaging.onMessageOpenedApp.listen(_handleRemoteMessage);
@@ -139,7 +151,7 @@ class PushNotificationService {
       debugPrint('PushNotificationService._syncCurrentToken: registrando token ${token.substring(token.length > 12 ? token.length - 12 : 0)}');
       await DeviceTokenService()
           .registerToken(token)
-          .timeout(_firebaseOperationTimeout, onTimeout: () => <String, dynamic>{});
+          .timeout(_firebaseOperationTimeout, onTimeout: () => null);
     } catch (e) {
       debugPrint('PushNotificationService._syncCurrentToken error: $e');
     }
@@ -160,16 +172,18 @@ class PushNotificationService {
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
-          importance: highPriority ? Importance.max : Importance.max,
-          priority: highPriority ? Priority.max : Priority.max,
+          importance: Importance.max,
+          priority: Priority.max,
           playSound: true,
           enableVibration: true,
+          channelShowBadge: true,
           ticker: highPriority ? 'Prioridad alta' : 'iWay',
         ),
         iOS: DarwinNotificationDetails(
           presentAlert: true,
           presentBadge: true,
           presentSound: true,
+          sound: 'default',
           interruptionLevel: highPriority
               ? InterruptionLevel.timeSensitive
               : InterruptionLevel.active,
