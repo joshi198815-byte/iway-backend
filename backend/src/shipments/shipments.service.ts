@@ -355,7 +355,35 @@ export class ShipmentsService {
 
     this.ensureShipmentAccess(shipment, requester);
 
-    return shipment;
+    const acceptedOffer = shipment.offers.find((offer) => offer.status === 'accepted');
+    let travelerAnnouncementMessage: string | null = null;
+    let travelerAnnouncementProducts: string[] = [];
+
+    if (shipment.assignedTravelerId) {
+      const latestAnnouncement = await this.prisma.auditLog.findFirst({
+        where: {
+          entityType: 'traveler_route_announcement',
+          entityId: shipment.assignedTravelerId,
+          action: 'traveler_route_announcement_published',
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      const payload = latestAnnouncement?.payload as Record<string, unknown> | null | undefined;
+      travelerAnnouncementMessage = payload?.message?.toString() ?? null;
+      travelerAnnouncementProducts = Array.isArray(payload?.allowedProducts)
+        ? payload!.allowedProducts
+            .map((item) => item?.toString().trim())
+            .filter((item): item is string => Boolean(item && item.length > 0))
+        : [];
+    }
+
+    return {
+      ...shipment,
+      pickupScheduledAt: acceptedOffer?.pickupAt ?? null,
+      travelerAnnouncementMessage,
+      travelerAnnouncementProducts,
+    };
   }
 
   async updateStatus(id: string, payload: UpdateShipmentStatusDto, requester: { sub: string; role: string }) {

@@ -33,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   StreamSubscription<dynamic>? _globalSyncSubscription;
   bool _travelerOnline = true;
   bool _updatingTravelerOnline = false;
+  TravelerRouteAnnouncement? _latestAnnouncement;
 
   bool get _isTraveler => SessionService.currentUser?.tipo == 'traveler';
 
@@ -50,8 +51,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (!_isTraveler) return;
     try {
       final workspace = await _travelerWorkspaceService.getWorkspace();
+      final announcement = await _travelerWorkspaceService.getLatestRouteAnnouncement();
       if (!mounted) return;
-      setState(() => _travelerOnline = workspace.isOnline);
+      setState(() {
+        _travelerOnline = workspace.isOnline;
+        _latestAnnouncement = announcement;
+      });
     } catch (_) {}
   }
 
@@ -72,6 +77,96 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       if (mounted) {
         setState(() => _updatingTravelerOnline = false);
       }
+    }
+  }
+
+  Future<void> _openRouteAnnouncementComposer() async {
+    final messageController = TextEditingController();
+    final productsController = TextEditingController();
+    final regionsController = TextEditingController(text: SessionService.currentUser?.estado ?? '');
+
+    final published = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        title: const Text('Anunciar mi próxima ruta'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: messageController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Mensaje del anuncio'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: productsController,
+                decoration: const InputDecoration(labelText: 'Qué estás recibiendo (ej. Documentos, Medicina, Pan)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: regionsController,
+                decoration: const InputDecoration(labelText: 'Regiones objetivo (opcional, separadas por coma)'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              final message = messageController.text.trim();
+              final allowedProducts = productsController.text
+                  .split(',')
+                  .map((item) => item.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toList();
+              final regions = regionsController.text
+                  .split(',')
+                  .map((item) => item.trim())
+                  .where((item) => item.isNotEmpty)
+                  .toList();
+
+              if (message.isEmpty || allowedProducts.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('Completa el mensaje y qué productos recibirás.')),
+                );
+                return;
+              }
+
+              try {
+                await _travelerWorkspaceService.publishRouteAnnouncement(
+                  message: message,
+                  allowedProducts: allowedProducts,
+                  regions: regions,
+                );
+                if (!dialogContext.mounted) return;
+                Navigator.pop(dialogContext, true);
+              } catch (_) {
+                if (!dialogContext.mounted) return;
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  const SnackBar(content: Text('No se pudo publicar tu anuncio de ruta.')),
+                );
+              }
+            },
+            child: const Text('Publicar anuncio'),
+          ),
+        ],
+      ),
+    );
+
+    messageController.dispose();
+    productsController.dispose();
+    regionsController.dispose();
+
+    if (published == true) {
+      await _loadTravelerWorkspace();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tu ruta fue anunciada.')),
+      );
     }
   }
 
@@ -293,6 +388,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
             ),
           ],
+        ),
+        const SizedBox(height: 16),
+        _ActionCard(
+          icon: Icons.campaign_outlined,
+          title: 'Anunciar mi próxima ruta',
+          subtitle: _latestAnnouncement == null
+              ? 'Publica lo que recogerás y avisa a los usuarios.'
+              : '${_latestAnnouncement!.message} • ${_latestAnnouncement!.allowedProducts.join(', ')}',
+          onTap: _openRouteAnnouncementComposer,
         ),
         const SizedBox(height: 16),
         Container(

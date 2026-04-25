@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   KycCheckKind,
   KycCheckStatus,
@@ -6,6 +6,8 @@ import {
   ShipmentDirection,
   TravelerStatus,
   TravelerType,
+  UserRole,
+  UserStatus,
 } from '@prisma/client';
 import { PrismaService } from '../database/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -22,6 +24,8 @@ export class TravelersService {
 
   private readonly workspaceEntityType = 'traveler_workspace';
   private readonly workspaceAction = 'traveler_workspace_updated';
+  private readonly routeAnnouncementEntityType = 'traveler_route_announcement';
+  private readonly routeAnnouncementAction = 'traveler_route_announcement_published';
 
   private normalizeDecimal(value: unknown) {
     const parsed = Number(value ?? 0);
@@ -49,6 +53,27 @@ export class TravelersService {
         .map((item) => item?.toString().trim())
         .filter((item): item is string => Boolean(item && item.length > 0)),
     )];
+  }
+
+  private normalizeTags(value: unknown): string[] {
+    if (Array.isArray(value)) {
+      return [...new Set(
+        value
+          .map((item) => item?.toString().trim())
+          .filter((item): item is string => Boolean(item && item.length > 0)),
+      )];
+    }
+
+    if (typeof value === 'string') {
+      return [...new Set(
+        value
+          .split(/[\n,|/]+/)
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0),
+      )];
+    }
+
+    return [];
   }
 
   async getWorkspace(userId: string, requester: { sub: string; role: string }) {
@@ -110,6 +135,114 @@ export class TravelersService {
     return {
       ...next,
       updatedAt: new Date(),
+    };
+  }
+
+  async getLatestRouteAnnouncement(userId: string, requester: { sub: string; role: string }) {
+    if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
+      throw new ForbiddenException('No tienes acceso a este anuncio.');
+    }
+
+    const latestAnnouncement = await this.prisma.auditLog.findFirst({
+      where: {
+        actorId: userId,
+        entityType: this.routeAnnouncementEntityType,
+        action: this.routeAnnouncementAction,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!latestAnnouncement) {
+      return null;
+    }
+
+    const payload = latestAnnouncement.payload as Record<string, unknown> | null | undefined;
+    return {
+      message: payload?.message?.toString() ?? '',
+      allowedProducts: this.normalizeTags(payload?.allowedProducts),
+      regions: this.normalizeTags(payload?.regions),
+      createdAt: latestAnnouncement.createdAt,
+      recipientCount: Number(payload?.recipientCount ?? 0),
+    };
+  }
+
+  async publishRouteAnnouncement(
+    userId: string,
+    payload: { message?: string; allowedProducts?: string[] | string; regions?: string[] | string },
+    requester: { sub: string; role: string },
+  ) {
+    if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
+      throw new ForbiddenException('No puedes publicar este anuncio.');
+    }
+
+    const traveler = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        role: true,
+        fullName: true,
+      },
+    });
+
+    if (!traveler || traveler.role !== UserRole.traveler) {
+      throw new NotFoundException('Viajero no encontrado.');
+    }
+
+    const message = payload.message?.toString().trim() ?? '';
+    const allowedProducts = this.normalizeTags(payload.allowedProducts);
+    const regions = this.normalizeTags(payload.regions);
+
+    if (!message) {
+      throw new BadRequestException('El mensaje del anuncio es obligatorio.');
+    }
+
+    if (allowedProducts.length === 0) {
+      throw new BadRequestException('Debes indicar qué productos estás recibiendo.');
+    }
+
+    const customers = await this.prisma.user.findMany({
+      where: {
+        role: UserRole.customer,
+        status: UserStatus.active,
+        ...(regions.length > 0
+          ? {
+              OR: regions.flatMap((region) => ([
+                { stateRegion: { contains: region, mode: 'insensitive' } },
+                { city: { contains: region, mode: 'insensitive' } },
+              ])),
+            }
+          : {}),
+      },
+      select: { id: true },
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        actorId: requester.sub,
+        entityType: this.routeAnnouncementEntityType,
+        entityId: userId,
+        action: this.routeAnnouncementAction,
+        payload: {
+          message,
+          allowedProducts,
+          regions,
+          recipientCount: customers.length,
+        },
+      },
+    });
+
+    await this.notificationsService.sendPushMany(
+      customers.map((customer) => customer.id),
+      'Ruta anunciada',
+      `${traveler.fullName} viajará pronto: ${message}. ¡Crea tu envío ahora!`,
+      'traveler_route_announcement',
+    );
+
+    return {
+      message,
+      allowedProducts,
+      regions,
+      recipientCount: customers.length,
     };
   }
 

@@ -299,6 +299,7 @@ model Offer {
   shipmentId String
   travelerId String
   price      Decimal
+  pickupAt   DateTime
   message    String?
   status     OfferStatus @default(pending)
   createdAt  DateTime    @default(now())

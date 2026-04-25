@@ -34,6 +34,9 @@ class ShipmentModel {
   final List<String> marketplaceInsights;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+  final DateTime? pickupScheduledAt;
+  final String travelerAnnouncementMessage;
+  final List<String> travelerAnnouncementProducts;
   String estado;
 
   ShipmentStatusValue? get statusValue => parseShipmentStatus(estado);
@@ -77,6 +80,9 @@ class ShipmentModel {
       marketplaceInsights: marketplaceInsights,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      pickupScheduledAt: pickupScheduledAt,
+      travelerAnnouncementMessage: travelerAnnouncementMessage,
+      travelerAnnouncementProducts: travelerAnnouncementProducts,
       estado: estado ?? this.estado,
     );
   }
@@ -115,6 +121,9 @@ class ShipmentModel {
     this.marketplaceInsights = const [],
     this.createdAt,
     this.updatedAt,
+    this.pickupScheduledAt,
+    this.travelerAnnouncementMessage = '',
+    this.travelerAnnouncementProducts = const [],
     required this.estado,
   });
 
@@ -175,6 +184,13 @@ class ShipmentModel {
           const [],
       createdAt: _toDateTime(json['createdAt']),
       updatedAt: _toDateTime(json['updatedAt']),
+      pickupScheduledAt: _toDateTime(json['pickupScheduledAt']),
+      travelerAnnouncementMessage: (json['travelerAnnouncementMessage'] ?? '').toString(),
+      travelerAnnouncementProducts: (json['travelerAnnouncementProducts'] as List?)
+              ?.map((e) => e.toString())
+              .where((e) => e.trim().isNotEmpty)
+              .toList() ??
+          const [],
       estado: (json['status'] ?? json['estado'] ?? '').toString(),
     );
   }

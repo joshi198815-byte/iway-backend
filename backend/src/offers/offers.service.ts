@@ -28,6 +28,17 @@ export class OffersService {
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
+  private parsePickupAt(value: string) {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      throw new BadRequestException('pickupAt no es una fecha válida.');
+    }
+    if (parsed.getTime() <= Date.now()) {
+      throw new BadRequestException('La fecha de recolección debe ser futura.');
+    }
+    return parsed;
+  }
+
   private isTravelerOnline() {
     return true;
   }
@@ -63,6 +74,7 @@ export class OffersService {
 
   async create(payload: CreateOfferPayload) {
     const price = this.normalizeDecimal(payload.price);
+    const pickupAt = this.parsePickupAt(payload.pickupAt);
 
     if (price <= 0) {
       throw new BadRequestException('price debe ser mayor a 0.');
@@ -76,6 +88,7 @@ export class OffersService {
       shipmentId: payload.shipmentId,
       travelerId: payload.travelerId,
       price,
+      pickupAt: pickupAt.toISOString(),
     });
 
     const shipment = await this.prisma.shipment.findUnique({
@@ -122,6 +135,7 @@ export class OffersService {
           shipmentId: payload.shipmentId,
           travelerId: payload.travelerId,
           price,
+          pickupAt,
         },
       });
 
@@ -297,6 +311,7 @@ export class OffersService {
           marketplaceInsights: insights,
           travelerRegion: offer.traveler.stateRegion ?? '',
           travelerCity: offer.traveler.city ?? '',
+          pickupAt: offer.pickupAt,
           createdAt: offer.createdAt,
         };
       })
@@ -416,6 +431,13 @@ export class OffersService {
       'offer_accepted',
       offer.shipmentId,
     );
+
+    await this.notificationsService.schedulePickupReminders({
+      shipmentId: offer.shipmentId,
+      customerId: offer.shipment.customerId,
+      travelerId: offer.travelerId,
+      pickupAt: offer.pickupAt,
+    });
 
     this.realtimeGateway.emitOfferUpdated(
       offer.shipmentId,

@@ -83,6 +83,25 @@ export class NotificationsService implements OnModuleInit {
         },
       });
     });
+
+    this.jobsService.registerHandler('scheduled-pickup-reminder', async (payload) => {
+      const userIds = Array.isArray(payload.userIds)
+        ? payload.userIds.map((item) => String(item)).filter((item) => item.trim().length > 0)
+        : [];
+
+      if (userIds.length === 0) {
+        return;
+      }
+
+      await this.sendPushMany(
+        userIds,
+        String(payload.title ?? ''),
+        String(payload.body ?? ''),
+        typeof payload.type === 'string' ? payload.type : 'pickup_reminder',
+        typeof payload.shipmentId === 'string' ? payload.shipmentId : undefined,
+        { highPriority: payload.highPriority === true },
+      );
+    });
   }
 
   private base64UrlEncode(input: string | Buffer) {
@@ -155,6 +174,10 @@ export class NotificationsService implements OnModuleInit {
       case 'chat_message':
         return shipmentId ? '/chat' : '/notifications';
       case 'offer_accepted':
+      case 'pickup_appointment_confirmed':
+      case 'pickup_reminder_24h':
+      case 'pickup_reminder_customer_1h':
+      case 'pickup_reminder_traveler_1h':
       case 'shipment_assigned':
       case 'shipment_in_route':
       case 'shipment_status_changed':
@@ -171,6 +194,86 @@ export class NotificationsService implements OnModuleInit {
       default:
         return '/notifications';
     }
+  }
+
+  private formatPickupDateTime(value: Date) {
+    const local = new Date(value);
+    const day = `${local.getDate()}`.padStart(2, '0');
+    const month = `${local.getMonth() + 1}`.padStart(2, '0');
+    const year = `${local.getFullYear()}`;
+    const hour = `${local.getHours()}`.padStart(2, '0');
+    const minute = `${local.getMinutes()}`.padStart(2, '0');
+    return `${day}/${month}/${year} a las ${hour}:${minute}`;
+  }
+
+  async schedulePickupReminders(params: {
+    shipmentId: string;
+    customerId: string;
+    travelerId: string;
+    pickupAt: Date;
+  }) {
+    const pickupTime = params.pickupAt.getTime();
+    const now = Date.now();
+
+    await this.sendPush(
+      params.travelerId,
+      'Cita confirmada',
+      `Cita confirmada para el ${this.formatPickupDateTime(params.pickupAt)}.`,
+      'pickup_appointment_confirmed',
+      params.shipmentId,
+      { highPriority: true },
+    );
+
+    const scheduledJobs: Promise<unknown>[] = [];
+
+    if (pickupTime - 24 * 60 * 60 * 1000 > now) {
+      scheduledJobs.push(
+        this.jobsService.enqueue({
+          name: 'scheduled-pickup-reminder',
+          initialDelayMs: pickupTime - 24 * 60 * 60 * 1000 - now,
+          payload: {
+            userIds: [params.customerId, params.travelerId],
+            title: 'Recordatorio de recolección',
+            body: `Recordatorio: Mañana es la recolección del paquete #${params.shipmentId}.`,
+            type: 'pickup_reminder_24h',
+            shipmentId: params.shipmentId,
+          },
+        }),
+      );
+    }
+
+    if (pickupTime - 60 * 60 * 1000 > now) {
+      scheduledJobs.push(
+        this.jobsService.enqueue({
+          name: 'scheduled-pickup-reminder',
+          initialDelayMs: pickupTime - 60 * 60 * 1000 - now,
+          payload: {
+            userIds: [params.customerId],
+            title: 'Tu viajero está cerca',
+            body: `Tu viajero está cerca del paquete #${params.shipmentId}.`,
+            type: 'pickup_reminder_customer_1h',
+            shipmentId: params.shipmentId,
+            highPriority: true,
+          },
+        }),
+      );
+      scheduledJobs.push(
+        this.jobsService.enqueue({
+          name: 'scheduled-pickup-reminder',
+          initialDelayMs: pickupTime - 60 * 60 * 1000 - now,
+          payload: {
+            userIds: [params.travelerId],
+            title: 'Es hora de recoger',
+            body: `Es hora de recoger el paquete #${params.shipmentId}, abre tu mapa aquí.`,
+            type: 'pickup_reminder_traveler_1h',
+            shipmentId: params.shipmentId,
+            highPriority: true,
+          },
+        }),
+      );
+    }
+
+    await Promise.all(scheduledJobs);
   }
 
   private async sendFirebasePushToToken(params: {

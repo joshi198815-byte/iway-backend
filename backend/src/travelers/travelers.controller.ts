@@ -41,6 +41,21 @@ export class TravelersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/route-announcement')
+  getMyRouteAnnouncement(@Req() req: any) {
+    return this.travelersService.getLatestRouteAnnouncement(req.user.sub, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('me/route-announcement')
+  publishMyRouteAnnouncement(
+    @Body() body: { message?: string; allowedProducts?: string[] | string; regions?: string[] | string },
+    @Req() req: any,
+  ) {
+    return this.travelersService.publishRouteAnnouncement(req.user.sub, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('review-queue')
   getReviewQueue(@Req() req: any) {
     if (req.user.role !== 'admin') {

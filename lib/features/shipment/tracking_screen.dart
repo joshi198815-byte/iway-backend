@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:flutter/material.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/services/image_service.dart';
@@ -285,6 +286,28 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
     final currentShipment = shipment;
     if (currentShipment == null) return;
     await ticketService.openReceiptPdf(currentShipment);
+  }
+
+  Future<void> _addPickupToCalendar() async {
+    final currentShipment = shipment;
+    final pickupAt = currentShipment?.pickupScheduledAt;
+    if (currentShipment == null || pickupAt == null) return;
+
+    final reference = currentShipment.travelerAnnouncementProducts.isNotEmpty
+        ? 'Permitidos por viajero: ${currentShipment.travelerAnnouncementProducts.join(', ')}'
+        : '';
+
+    final event = Event(
+      title: 'Recolección IWAY ${_maskedShipmentId(currentShipment.id)}',
+      description: [currentShipment.descripcion ?? currentShipment.tipo, reference]
+          .where((item) => item.trim().isNotEmpty)
+          .join(' • '),
+      location: currentShipment.remitenteDireccion,
+      startDate: pickupAt,
+      endDate: pickupAt.add(const Duration(minutes: 45)),
+    );
+
+    await Add2Calendar.addEvent2Cal(event);
   }
 
   Widget _buildCustomerStepper(String estado) {
@@ -666,6 +689,23 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                       _DetailRow(label: 'Ruta', value: _routeLabel()),
                       const SizedBox(height: 10),
                       _DetailRow(label: 'Destinatario', value: shipment!.receptorNombre.isEmpty ? 'Pendiente' : shipment!.receptorNombre),
+                      if (shipment!.pickupScheduledAt != null) ...[
+                        const SizedBox(height: 10),
+                        _DetailRow(label: 'Cita de recolección', value: _formatDate(shipment!.pickupScheduledAt!)),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: _addPickupToCalendar,
+                          icon: const Icon(Icons.event_outlined),
+                          label: const Text('Añadir al calendario'),
+                        ),
+                      ],
+                      if (shipment!.travelerAnnouncementProducts.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _DetailRow(
+                          label: 'Referencia del servicio',
+                          value: shipment!.travelerAnnouncementProducts.join(', '),
+                        ),
+                      ],
                     ],
                   ),
                 ),

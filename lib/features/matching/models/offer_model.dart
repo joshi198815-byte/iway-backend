@@ -15,6 +15,7 @@ class OfferModel {
   final List<String> marketplaceInsights;
   final String travelerRegion;
   final String travelerCity;
+  final DateTime? pickupAt;
   final DateTime? createdAt;
 
   OfferModel({
@@ -34,6 +35,7 @@ class OfferModel {
     this.marketplaceInsights = const [],
     this.travelerRegion = '',
     this.travelerCity = '',
+    this.pickupAt,
     this.createdAt,
   });
 
@@ -55,6 +57,7 @@ class OfferModel {
       marketplaceInsights: (json['marketplaceInsights'] as List?)?.map((e) => e.toString()).toList() ?? const [],
       travelerRegion: (json['travelerRegion'] ?? '').toString(),
       travelerCity: (json['travelerCity'] ?? '').toString(),
+      pickupAt: _toDateTime(json['pickupAt']),
       createdAt: _toDateTime(json['createdAt']),
     );
   }
@@ -77,6 +80,7 @@ class OfferModel {
       'marketplaceInsights': marketplaceInsights,
       'travelerRegion': travelerRegion,
       'travelerCity': travelerCity,
+      'pickupAt': pickupAt?.toIso8601String(),
       'createdAt': createdAt?.toIso8601String(),
     };
   }

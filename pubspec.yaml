@@ -32,6 +32,7 @@ dependencies:
   shared_preferences: ^2.2.3
   socket_io_client: ^3.0.2
   url_launcher: ^6.3.1
+  add_2_calendar: ^3.0.1
 
 dev_dependencies:
   flutter_test:

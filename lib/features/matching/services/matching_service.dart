@@ -23,6 +23,7 @@ class MatchingService {
   Future<OfferModel> createOffer({
     required String shipmentId,
     required double price,
+    required DateTime pickupAt,
   }) async {
     final travelerId = SessionService.currentUserId;
 
@@ -33,6 +34,7 @@ class MatchingService {
     final data = await _apiClient.post('/offers', {
       'shipmentId': shipmentId,
       'price': price,
+      'pickupAt': pickupAt.toIso8601String(),
     });
 
     return OfferModel.fromBackendJson(data);

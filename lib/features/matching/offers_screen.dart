@@ -33,6 +33,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
   final shipmentService = ShipmentService();
   final priceController = TextEditingController();
   final realtime = RealtimeService.instance;
+  DateTime? selectedPickupAt;
   final locationService = LocationService();
   final paymentService = PaymentService();
 
@@ -159,12 +160,20 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
       return;
     }
 
+    if (selectedPickupAt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Debes proponer fecha y hora de recolección.')),
+      );
+      return;
+    }
+
     setState(() => creatingOffer = true);
 
     try {
       await matchingService.createOffer(
         shipmentId: widget.shipmentId,
         price: price,
+        pickupAt: selectedPickupAt!,
       );
 
       if (!mounted) return;
@@ -316,6 +325,48 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     final month = local.month.toString().padLeft(2, '0');
     final year = local.year.toString();
     return '$day/$month/$year';
+  }
+
+  String _formatOfferTime(DateTime? value) {
+    if (value == null) return '--:--';
+    final local = value.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '$hour:$minute';
+  }
+
+  String _formatDateTimeLong(DateTime? value) {
+    if (value == null) return 'Pendiente';
+    return '${_formatOfferDate(value)} a las ${_formatOfferTime(value)}';
+  }
+
+  Future<void> _pickPickupSchedule() async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedPickupAt ?? now.add(const Duration(days: 1)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 60)),
+    );
+    if (pickedDate == null || !mounted) return;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: selectedPickupAt != null
+          ? TimeOfDay.fromDateTime(selectedPickupAt!)
+          : const TimeOfDay(hour: 9, minute: 0),
+    );
+    if (pickedTime == null || !mounted) return;
+
+    setState(() {
+      selectedPickupAt = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    });
   }
 
   String _travelerRegionLabel(OfferModel offer) {
@@ -558,6 +609,16 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                     onChanged: (_) => setState(() {}),
                                   ),
                                   const SizedBox(height: 12),
+                                  OutlinedButton.icon(
+                                    onPressed: creatingOffer ? null : _pickPickupSchedule,
+                                    icon: const Icon(Icons.event_available_outlined),
+                                    label: Text(
+                                      selectedPickupAt == null
+                                          ? 'Elegir fecha y hora de recolección'
+                                          : 'Recolección: ${_formatDateTimeLong(selectedPickupAt)}',
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
                                   Builder(
                                     builder: (context) {
                                       final offerPrice = double.tryParse(priceController.text.trim());
@@ -700,7 +761,7 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          'Recoge el día ${_formatOfferDate(offer.createdAt)}.',
+                                          'Recolección propuesta: ${_formatOfferDate(offer.pickupAt)} a las ${_formatOfferTime(offer.pickupAt)}.',
                                           style: const TextStyle(color: AppTheme.muted, fontSize: 13),
                                         ),
                                       ],

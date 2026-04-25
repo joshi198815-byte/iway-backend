@@ -23,6 +23,32 @@ class TravelerWorkspaceState {
   }
 }
 
+class TravelerRouteAnnouncement {
+  final String message;
+  final List<String> allowedProducts;
+  final List<String> regions;
+  final DateTime? createdAt;
+  final int recipientCount;
+
+  const TravelerRouteAnnouncement({
+    required this.message,
+    required this.allowedProducts,
+    required this.regions,
+    required this.createdAt,
+    required this.recipientCount,
+  });
+
+  factory TravelerRouteAnnouncement.fromJson(Map<String, dynamic> json) {
+    return TravelerRouteAnnouncement(
+      message: (json['message'] ?? '').toString(),
+      allowedProducts: (json['allowedProducts'] as List?)?.map((item) => item.toString()).toList() ?? const <String>[],
+      regions: (json['regions'] as List?)?.map((item) => item.toString()).toList() ?? const <String>[],
+      createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()),
+      recipientCount: (json['recipientCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class TravelerWorkspaceService {
   TravelerWorkspaceService({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
 
@@ -49,5 +75,30 @@ class TravelerWorkspaceService {
       throw ApiException('No se pudo actualizar tu modo de trabajo.');
     }
     return TravelerWorkspaceState.fromJson(data);
+  }
+
+  Future<TravelerRouteAnnouncement?> getLatestRouteAnnouncement() async {
+    final data = await _apiClient.get('/travelers/me/route-announcement');
+    if (data == null) return null;
+    if (data is! Map<String, dynamic>) {
+      throw ApiException('No se pudo cargar tu anuncio de ruta.');
+    }
+    return TravelerRouteAnnouncement.fromJson(data);
+  }
+
+  Future<TravelerRouteAnnouncement> publishRouteAnnouncement({
+    required String message,
+    required List<String> allowedProducts,
+    List<String> regions = const [],
+  }) async {
+    final data = await _apiClient.post('/travelers/me/route-announcement', {
+      'message': message,
+      'allowedProducts': allowedProducts,
+      'regions': regions,
+    });
+    if (data is! Map<String, dynamic>) {
+      throw ApiException('No se pudo publicar tu anuncio de ruta.');
+    }
+    return TravelerRouteAnnouncement.fromJson(data);
   }
 }
