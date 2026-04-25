@@ -347,6 +347,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             tile(icon: Icons.inventory_2_outlined, title: 'Mis pedidos', onTap: () => Navigator.pushNamed(context, '/my_orders')),
             tile(icon: Icons.receipt_long_outlined, title: 'Mis envíos / Recibos', onTap: () => Navigator.pushNamed(context, '/history')),
             if (_isTraveler)
+              tile(icon: Icons.route_outlined, title: 'Destinos que cubro', onTap: () => Navigator.pushNamed(context, '/traveler_routes')),
+            if (_isTraveler)
               tile(icon: Icons.star_outline, title: 'Mis calificaciones', onTap: () => Navigator.pushNamed(context, '/my_ratings')),
             if (_isTraveler)
               tile(icon: Icons.account_balance_wallet_outlined, title: 'Ingresos y comisiones', onTap: () => Navigator.pushNamed(context, '/debts')),

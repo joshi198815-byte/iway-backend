@@ -30,10 +30,10 @@ class _TravelerRoutesScreenState extends State<TravelerRoutesScreen> {
 
   Future<void> _load() async {
     try {
-      final workspace = await _workspaceService.getWorkspace();
+      final destinations = await _workspaceService.getDestinations();
       if (!mounted) return;
       setState(() {
-        _selectedRoutes = [...workspace.routes];
+        _selectedRoutes = [...destinations.destinations];
         _loading = false;
       });
     } catch (_) {
@@ -48,7 +48,7 @@ class _TravelerRoutesScreenState extends State<TravelerRoutesScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      await _workspaceService.updateWorkspace(routes: _selectedRoutes);
+      await _workspaceService.updateDestinations(_selectedRoutes);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Tus rutas quedaron actualizadas.')),
@@ -96,14 +96,14 @@ class _TravelerRoutesScreenState extends State<TravelerRoutesScreen> {
                     AppBackButtonShell(onTap: () => Navigator.maybePop(context)),
                     const SizedBox(height: 24),
                     const AppPageIntro(
-                      title: 'Mis rutas',
-                      subtitle: 'Elige estados y ciudades de USA. Puedes combinar varias y borrar las que ya no operas.',
+                      title: 'Destinos que cubres',
+                      subtitle: 'Marca todos los estados y ciudades de USA donde sí recoges o entregas. Esto define tu cobertura operativa.',
                     ),
                     const SizedBox(height: 18),
                     AppGlassSection(
-                      title: 'Rutas activas',
+                      title: 'Destinos activos',
                       child: _selectedRoutes.isEmpty
-                          ? const Text('Todavía no agregaste rutas.', style: TextStyle(color: AppTheme.muted))
+                          ? const Text('Todavía no agregaste destinos.', style: TextStyle(color: AppTheme.muted))
                           : Wrap(
                               spacing: 8,
                               runSpacing: 8,
@@ -162,7 +162,7 @@ class _TravelerRoutesScreenState extends State<TravelerRoutesScreen> {
                         onPressed: _saving ? null : _save,
                         child: _saving
                             ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Guardar rutas'),
+                            : const Text('Guardar destinos'),
                       ),
                     ),
                   ],

@@ -344,6 +344,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 if (_isTraveler) ...[
                   const SizedBox(height: 16),
+                  _SectionCard(
+                    title: 'Cobertura del viajero',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Selecciona los estados y destinos de USA que cubres para que el sistema conozca tu ruta real.',
+                          style: TextStyle(color: AppTheme.muted),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/traveler_routes'),
+                            icon: const Icon(Icons.route_outlined),
+                            label: const Text('Editar destinos que cubro'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   _RatingsSummaryCard(ratingAvg: _ratingAvg, ratingCount: _ratingCount, ratings: _ratings),
                 ],
                 const SizedBox(height: 16),

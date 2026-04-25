@@ -138,6 +138,30 @@ export class TravelersService {
     };
   }
 
+  async getDestinations(userId: string, requester: { sub: string; role: string }) {
+    const workspace = await this.getWorkspace(userId, requester);
+    return {
+      destinations: workspace.routes,
+      updatedAt: workspace.updatedAt,
+    };
+  }
+
+  async updateDestinations(
+    userId: string,
+    payload: { destinations?: string[] },
+    requester: { sub: string; role: string },
+  ) {
+    const workspace = await this.updateWorkspace(
+      userId,
+      { routes: payload.destinations ?? [] },
+      requester,
+    );
+    return {
+      destinations: workspace.routes,
+      updatedAt: workspace.updatedAt,
+    };
+  }
+
   async getLatestRouteAnnouncement(userId: string, requester: { sub: string; role: string }) {
     if (requester.sub !== userId && !['admin', 'support'].includes(requester.role)) {
       throw new ForbiddenException('No tienes acceso a este anuncio.');

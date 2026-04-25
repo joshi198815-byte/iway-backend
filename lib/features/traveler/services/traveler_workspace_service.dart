@@ -29,6 +29,23 @@ class TravelerWorkspaceState {
   }
 }
 
+class TravelerDestinations {
+  final List<String> destinations;
+  final DateTime? updatedAt;
+
+  const TravelerDestinations({
+    required this.destinations,
+    required this.updatedAt,
+  });
+
+  factory TravelerDestinations.fromJson(Map<String, dynamic> json) {
+    return TravelerDestinations(
+      destinations: (json['destinations'] as List?)?.map((item) => item.toString().trim()).where((item) => item.isNotEmpty).toList() ?? const <String>[],
+      updatedAt: DateTime.tryParse((json['updatedAt'] ?? '').toString()),
+    );
+  }
+}
+
 class TravelerRouteAnnouncement {
   final String message;
   final List<String> allowedProducts;
@@ -81,6 +98,24 @@ class TravelerWorkspaceService {
       throw ApiException('No se pudo actualizar tu modo de trabajo.');
     }
     return TravelerWorkspaceState.fromJson(data);
+  }
+
+  Future<TravelerDestinations> getDestinations() async {
+    final data = await _apiClient.get('/travelers/me/destinations');
+    if (data is! Map<String, dynamic>) {
+      throw ApiException('No se pudieron cargar tus destinos.');
+    }
+    return TravelerDestinations.fromJson(data);
+  }
+
+  Future<TravelerDestinations> updateDestinations(List<String> destinations) async {
+    final data = await _apiClient.patch('/travelers/me/destinations', {
+      'destinations': destinations,
+    });
+    if (data is! Map<String, dynamic>) {
+      throw ApiException('No se pudieron guardar tus destinos.');
+    }
+    return TravelerDestinations.fromJson(data);
   }
 
   Future<TravelerRouteAnnouncement?> getLatestRouteAnnouncement() async {

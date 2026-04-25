@@ -111,23 +111,29 @@ export class ShipmentsService {
       },
     });
 
-    const eligibleTravelers = await this.prisma.travelerProfile.findMany({
+    const eligibleTravelers = await this.prisma.user.findMany({
       where: {
-        status: TravelerStatus.verified,
-        routes: {
+        role: 'traveler',
+        deviceTokens: {
           some: {
             active: true,
-            direction,
+          },
+        },
+        travelerProfile: {
+          is: {
+            status: {
+              notIn: [TravelerStatus.blocked, TravelerStatus.blocked_for_debt, TravelerStatus.rejected],
+            },
           },
         },
       },
       select: {
-        userId: true,
+        id: true,
       },
     });
 
     await this.notificationsService.sendPushMany(
-      eligibleTravelers.map((item) => item.userId),
+      eligibleTravelers.map((item) => item.id),
       'Nuevo envío disponible',
       `Hay un envío ${originCountryCode} → ${destinationCountryCode} esperando ofertas.`,
       'shipment_published',

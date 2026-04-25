@@ -41,6 +41,21 @@ export class TravelersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/destinations')
+  getMyDestinations(@Req() req: any) {
+    return this.travelersService.getDestinations(req.user.sub, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/destinations')
+  updateMyDestinations(
+    @Body() body: { destinations?: string[] },
+    @Req() req: any,
+  ) {
+    return this.travelersService.updateDestinations(req.user.sub, body, req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('me/route-announcement')
   getMyRouteAnnouncement(@Req() req: any) {
     return this.travelersService.getLatestRouteAnnouncement(req.user.sub, req.user);
