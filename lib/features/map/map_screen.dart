@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/features/tracking/services/tracking_service.dart';
@@ -11,8 +13,19 @@ import 'package:url_launcher/url_launcher.dart';
 
 class MapScreen extends StatefulWidget {
   final String? shipmentId;
+  final double? previewOriginLat;
+  final double? previewOriginLng;
+  final String focus;
+  final String? title;
 
-  const MapScreen({super.key, this.shipmentId});
+  const MapScreen({
+    super.key,
+    this.shipmentId,
+    this.previewOriginLat,
+    this.previewOriginLng,
+    this.focus = 'delivery',
+    this.title,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -23,6 +36,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   final shipmentService = ShipmentService();
   final trackingService = TrackingService();
   final realtime = RealtimeService.instance;
+  final locationService = LocationService();
 
   ShipmentModel? shipment;
   Set<Marker> routeMarkers = {};
@@ -30,13 +44,43 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   StreamSubscription<dynamic>? trackingSubscription;
   StreamSubscription<dynamic>? shipmentStatusSubscription;
   bool loading = true;
+  String? _mapStyle;
+  LatLng? _currentDevicePoint;
+
+  bool get _focusPickup => widget.focus == 'pickup';
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadMapStyle();
+    _loadCurrentLocation();
     _load();
     _bindRealtime();
+  }
+
+  Future<void> _loadMapStyle() async {
+    try {
+      _mapStyle = await rootBundle.loadString('assets/map_style.json');
+      if (mapController != null && _mapStyle != null) {
+        await mapController!.setMapStyle(_mapStyle);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    if (widget.previewOriginLat != null && widget.previewOriginLng != null) {
+      setState(() {
+        _currentDevicePoint = LatLng(widget.previewOriginLat!, widget.previewOriginLng!);
+      });
+      return;
+    }
+
+    final position = await locationService.getLocation();
+    if (!mounted || position == null) return;
+    setState(() {
+      _currentDevicePoint = LatLng(position.latitude, position.longitude);
+    });
   }
 
   LatLng? get _pickupPoint {
@@ -52,6 +96,8 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     if (lat == null || lng == null) return null;
     return LatLng(lat, lng);
   }
+
+  LatLng? get _targetPoint => _focusPickup ? _pickupPoint : _deliveryPoint;
 
   Future<void> _bindRealtime() async {
     final shipmentId = widget.shipmentId;
@@ -121,11 +167,22 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
           const <LatLng>[];
 
       final markers = <Marker>{};
+      if (_currentDevicePoint != null) {
+        markers.add(
+          Marker(
+            markerId: const MarkerId('current-device'),
+            position: _currentDevicePoint!,
+            infoWindow: const InfoWindow(title: 'Tu ubicación'),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+          ),
+        );
+      }
       if (shipmentData.pickupLat != null && shipmentData.pickupLng != null) {
         markers.add(
           Marker(
             markerId: const MarkerId('pickup'),
             position: LatLng(shipmentData.pickupLat!, shipmentData.pickupLng!),
+            infoWindow: const InfoWindow(title: 'Punto de recolección'),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           ),
         );
@@ -135,14 +192,23 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
           Marker(
             markerId: const MarkerId('delivery'),
             position: LatLng(shipmentData.deliveryLat!, shipmentData.deliveryLng!),
+            infoWindow: const InfoWindow(title: 'Punto de entrega'),
             icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
           ),
         );
       }
 
+      final localPickupPoint = shipmentData.pickupLat != null && shipmentData.pickupLng != null
+          ? LatLng(shipmentData.pickupLat!, shipmentData.pickupLng!)
+          : null;
+      final localDeliveryPoint = shipmentData.deliveryLat != null && shipmentData.deliveryLng != null
+          ? LatLng(shipmentData.deliveryLat!, shipmentData.deliveryLng!)
+          : null;
+      final localTargetPoint = _focusPickup ? localPickupPoint : localDeliveryPoint;
+
       final fallbackPoints = [
-        if (shipmentData.pickupLat != null && shipmentData.pickupLng != null) LatLng(shipmentData.pickupLat!, shipmentData.pickupLng!),
-        if (shipmentData.deliveryLat != null && shipmentData.deliveryLng != null) LatLng(shipmentData.deliveryLat!, shipmentData.deliveryLng!),
+        if (_currentDevicePoint != null) _currentDevicePoint!,
+        if (localTargetPoint != null) localTargetPoint,
       ];
 
       final polylineSource = polylinePoints.length >= 2 ? polylinePoints : fallbackPoints;
@@ -177,14 +243,14 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _openGoogleMaps() async {
-    final point = _deliveryPoint;
+    final point = _targetPoint;
     if (point == null) return;
     final uri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=${point.latitude},${point.longitude}');
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _openWaze() async {
-    final point = _deliveryPoint;
+    final point = _targetPoint;
     if (point == null) return;
     final primary = Uri.parse('waze://?ll=${point.latitude},${point.longitude}&navigate=yes');
     final fallback = Uri.parse('https://waze.com/ul?ll=${point.latitude},${point.longitude}&navigate=yes');
@@ -192,6 +258,20 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
     if (!opened) {
       await launchUrl(fallback, mode: LaunchMode.externalApplication);
     }
+  }
+
+  String _panelMessage() {
+    if (routePolylines.isEmpty) {
+      return 'Ruta disponible cuando existan coordenadas válidas.';
+    }
+    if (routePolylines.first.patterns.isEmpty) {
+      return _focusPickup
+          ? 'Ruta real hacia el punto exacto de recolección.'
+          : 'Ruta real hacia el punto actual de entrega.';
+    }
+    return _focusPickup
+        ? 'Vista previa de decisión desde tu ubicación hasta la recolección.'
+        : 'Ruta visual estimada hacia el destino.';
   }
 
   @override
@@ -206,13 +286,14 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      _loadCurrentLocation();
       _load();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final initialTarget = _deliveryPoint ?? _pickupPoint ?? const LatLng(14.6349, -90.5069);
+    final initialTarget = _targetPoint ?? _currentDevicePoint ?? const LatLng(14.6349, -90.5069);
 
     return Scaffold(
       body: loading
@@ -224,13 +305,19 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                     initialCameraPosition: CameraPosition(target: initialTarget, zoom: 11.8),
                     onMapCreated: (controller) async {
                       mapController = controller;
-                      final fitPoints = [if (_pickupPoint != null) _pickupPoint!, if (_deliveryPoint != null) _deliveryPoint!];
+                      if (_mapStyle != null) {
+                        await controller.setMapStyle(_mapStyle);
+                      }
+                      final fitPoints = [if (_currentDevicePoint != null) _currentDevicePoint!, if (_targetPoint != null) _targetPoint!];
                       await _fitRouteBounds(fitPoints);
                     },
-                    myLocationEnabled: false,
-                    myLocationButtonEnabled: false,
+                    myLocationEnabled: _currentDevicePoint != null,
+                    myLocationButtonEnabled: true,
                     zoomControlsEnabled: false,
                     mapToolbarEnabled: false,
+                    compassEnabled: true,
+                    buildingsEnabled: false,
+                    indoorViewEnabled: false,
                     markers: routeMarkers,
                     polylines: routePolylines,
                   ),
@@ -269,18 +356,19 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                routePolylines.isEmpty
-                                    ? 'Ruta disponible cuando existan coordenadas válidas.'
-                                    : routePolylines.first.patterns.isEmpty
-                                        ? 'Ruta en tiempo real disponible.'
-                                        : 'Ruta visual estimada entre origen y destino.',
+                                widget.title ?? (_focusPickup ? 'Ruta a recolección' : 'Ruta a entrega'),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _panelMessage(),
                                 style: const TextStyle(color: AppTheme.muted),
                               ),
                               const SizedBox(height: 14),
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton.icon(
-                                  onPressed: _deliveryPoint == null ? null : _openWaze,
+                                  onPressed: _targetPoint == null ? null : _openWaze,
                                   icon: const Icon(Icons.navigation_outlined),
                                   label: const Text('Abrir en Waze'),
                                 ),
@@ -289,7 +377,7 @@ class _MapScreenState extends State<MapScreen> with WidgetsBindingObserver {
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
-                                  onPressed: _deliveryPoint == null ? null : _openGoogleMaps,
+                                  onPressed: _targetPoint == null ? null : _openGoogleMaps,
                                   icon: const Icon(Icons.map_outlined),
                                   label: const Text('Abrir en Google Maps'),
                                 ),

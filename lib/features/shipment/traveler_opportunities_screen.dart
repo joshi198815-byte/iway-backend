@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:iway_app/config/theme.dart';
+import 'package:iway_app/features/auth/services/location_service.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
 import 'package:iway_app/features/shipment/services/shipment_service.dart';
 import 'package:iway_app/features/traveler/services/traveler_workspace_service.dart';
@@ -21,6 +23,7 @@ class TravelerOpportunitiesScreen extends StatefulWidget {
 class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScreen> with WidgetsBindingObserver {
   final _shipmentService = ShipmentService();
   final _workspaceService = TravelerWorkspaceService();
+  final _locationService = LocationService();
   final _realtime = RealtimeService.instance;
 
   static const _dismissedStoragePrefix = 'traveler_dismissed_opportunities';
@@ -29,12 +32,14 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
   Set<String> _dismissedShipmentIds = <String>{};
   bool _loading = true;
   bool _isOnline = true;
+  Position? _currentPosition;
   StreamSubscription<dynamic>? _globalSyncSubscription;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _loadCurrentPosition();
     _load();
     _bindRealtime();
   }
@@ -80,6 +85,43 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
     final origin = _originLabel(shipment);
     final destination = _destinationLabel(shipment);
     return 'Origen: $origin → Destino: $destination';
+  }
+
+  String _pickupDistanceLabel(ShipmentModel shipment) {
+    final origin = _currentPosition;
+    if (origin == null || shipment.pickupLat == null || shipment.pickupLng == null) {
+      return 'Recolección pendiente de distancia exacta';
+    }
+
+    final meters = Geolocator.distanceBetween(
+      origin.latitude,
+      origin.longitude,
+      shipment.pickupLat!,
+      shipment.pickupLng!,
+    );
+    final km = meters / 1000;
+    final minutes = (km / 35 * 60).round().clamp(1, 999);
+    return 'Recolección a ${km.toStringAsFixed(km >= 10 ? 0 : 1)} km / $minutes minutos de tu posición';
+  }
+
+  Future<void> _loadCurrentPosition() async {
+    final position = await _locationService.getLocation();
+    if (!mounted) return;
+    setState(() => _currentPosition = position);
+  }
+
+  Future<void> _openPickupPreview(ShipmentModel shipment) async {
+    await Navigator.pushNamed(
+      context,
+      '/map',
+      arguments: {
+        'shipmentId': shipment.id,
+        'focus': 'pickup',
+        if (_currentPosition != null) 'previewOriginLat': _currentPosition!.latitude,
+        if (_currentPosition != null) 'previewOriginLng': _currentPosition!.longitude,
+        'title': 'Ruta a recolección',
+      },
+    );
   }
 
   String get _dismissedStorageKey {
@@ -206,14 +248,17 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                   final title = shipment.descripcion?.trim().isNotEmpty == true
                                       ? shipment.descripcion!.trim()
                                       : shipment.tipo;
-                                  return Container(
-                                    padding: const EdgeInsets.all(18),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.surface,
-                                      borderRadius: BorderRadius.circular(22),
-                                      border: Border.all(color: AppTheme.border, width: 0.5),
-                                    ),
-                                    child: Column(
+                                  return InkWell(
+                                    onTap: () => _openPickupPreview(shipment),
+                                    borderRadius: BorderRadius.circular(22),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(18),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.surface,
+                                        borderRadius: BorderRadius.circular(22),
+                                        border: Border.all(color: AppTheme.border, width: 0.5),
+                                      ),
+                                      child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Row(
@@ -253,6 +298,16 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                           _routeLabel(shipment),
                                           style: const TextStyle(color: AppTheme.muted),
                                         ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          '${shipment.peso?.toStringAsFixed(1) ?? '0.0'} lb • ${shipment.tipo}',
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          _pickupDistanceLabel(shipment),
+                                          style: const TextStyle(color: AppTheme.muted),
+                                        ),
                                         const SizedBox(height: 14),
                                         Row(
                                           children: [
@@ -268,6 +323,13 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                             const SizedBox(width: 10),
                                             Expanded(
                                               child: OutlinedButton(
+                                                onPressed: () => _openPickupPreview(shipment),
+                                                child: const Text('Ver ruta'),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Expanded(
+                                              child: OutlinedButton(
                                                 onPressed: () => _dismissOpportunity(shipment.id),
                                                 child: const Text('Rechazar'),
                                               ),
@@ -276,7 +338,8 @@ class _TravelerOpportunitiesScreenState extends State<TravelerOpportunitiesScree
                                         ),
                                       ],
                                     ),
-                                  );
+                                  ),
+                                );
                                 },
                               ),
                       ),

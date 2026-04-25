@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iway_app/config/theme.dart';
 import 'package:iway_app/features/auth/data/location_catalogs.dart';
 import 'package:iway_app/features/shipment/models/shipment_model.dart';
@@ -29,6 +30,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   final _recipientPhoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _originAddressController = TextEditingController();
+  final _pickupZoneController = TextEditingController();
 
   final List<AddressSuggestion> _addressSuggestions = [];
   final List<AddressSuggestion> _originAddressSuggestions = [];
@@ -44,6 +46,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
   String _selectedUsState = usStatesCatalog.first.name;
   String _selectedUsCity = usStatesCatalog.first.cities.first;
   String _selectedGtDepartment = guatemalaDepartments.first.name;
+  String _selectedPickupDepartment = guatemalaDepartments.first.name;
   String _selectedGtMunicipality = guatemalaDepartments.first.municipalities.first;
   String _selectedGtZone = '';
   List<SavedRecipient> _savedRecipients = [];
@@ -204,12 +207,16 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         if (_category != 'documentos') {
           final weight = double.tryParse(_weightController.text.trim());
           if (weight == null || weight <= 0) {
-            _showMessage('Ingresa la cantidad de libras.');
+            _showMessage('Ingresa el peso en libras.');
             return false;
           }
         }
         if (_descriptionController.text.trim().isEmpty) {
-          _showMessage('Agrega una descripción clara del envío.');
+          _showMessage('Agrega una descripción clara del producto.');
+          return false;
+        }
+        if (_direction == 'gt_to_us' && _pickupZoneController.text.trim().isEmpty) {
+          _showMessage('Completa el departamento/zona de recolección.');
           return false;
         }
         return true;
@@ -221,6 +228,10 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         }
         return true;
       case 2:
+        if (_pickupLat == null || _pickupLng == null) {
+          _showMessage('Debes marcar el pin exacto de recolección en el mapa.');
+          return false;
+        }
         if (!_validateRecipientName(_recipientNameController.text)) {
           _showMessage('El nombre del destinatario debe llevar letras y espacios.');
           return false;
@@ -280,7 +291,9 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
         remitenteNombre: user.nombre,
         remitenteTelefono: user.telefono,
         remitenteDireccion: _direction == 'gt_to_us' ? user.direccion : _originAddressController.text.trim(),
-        remitenteRegion: _direction == 'gt_to_us' ? user.estado : _selectedUsState,
+        remitenteRegion: _direction == 'gt_to_us'
+            ? '$_selectedPickupDepartment${_pickupZoneController.text.trim().isNotEmpty ? ' / ${_pickupZoneController.text.trim()}' : ''}'
+            : _selectedUsState,
         receptorNombre: _recipientNameController.text.trim(),
         receptorTelefono: _recipientPhoneController.text.trim(),
         receptorDireccion: receiverAddress,
@@ -353,6 +366,69 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     );
   }
 
+  LatLng get _pickupMapTarget {
+    if (_pickupLat != null && _pickupLng != null) {
+      return LatLng(_pickupLat!, _pickupLng!);
+    }
+    return _direction == 'gt_to_us'
+        ? const LatLng(14.6349, -90.5069)
+        : const LatLng(25.7617, -80.1918);
+  }
+
+  void _setPickupPoint(LatLng point) {
+    setState(() {
+      _pickupLat = point.latitude;
+      _pickupLng = point.longitude;
+    });
+  }
+
+  Widget _buildPickupMapSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Pin exacto de recolección',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Toca el mapa o arrastra el pin. Sin este punto exacto no se publica el envío.',
+          style: TextStyle(color: AppTheme.muted),
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: SizedBox(
+            height: 240,
+            child: GoogleMap(
+              initialCameraPosition: CameraPosition(target: _pickupMapTarget, zoom: 13.5),
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              onTap: _setPickupPoint,
+              markers: {
+                Marker(
+                  markerId: const MarkerId('pickup-selector'),
+                  position: _pickupMapTarget,
+                  draggable: true,
+                  onDragEnd: _setPickupPoint,
+                ),
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _pickupLat == null || _pickupLng == null
+              ? 'Coordenadas pendientes'
+              : 'Lat ${_pickupLat!.toStringAsFixed(5)} • Lng ${_pickupLng!.toStringAsFixed(5)}',
+          style: const TextStyle(color: AppTheme.muted),
+        ),
+      ],
+    );
+  }
+
   Widget _buildCategoryStep() {
     return _stepCard(
       title: 'Paso 1. Ruta y tipo de envío',
@@ -378,13 +454,30 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             onSelectionChanged: (selection) => setState(() => _category = selection.first),
           ),
           const SizedBox(height: 16),
-          TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Describe lo que envías')),
+          TextField(controller: _descriptionController, maxLines: 3, decoration: const InputDecoration(labelText: 'Descripción del producto')),
           if (_category != 'documentos') ...[
             const SizedBox(height: 12),
             TextField(
               controller: _weightController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Cantidad de libras'),
+              decoration: const InputDecoration(labelText: 'Peso en libras'),
+            ),
+          ],
+          if (_direction == 'gt_to_us') ...[
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _selectedPickupDepartment,
+              decoration: const InputDecoration(labelText: 'Departamento de recolección'),
+              items: guatemalaDepartments.map((item) => DropdownMenuItem(value: item.name, child: Text(item.name))).toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() => _selectedPickupDepartment = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _pickupZoneController,
+              decoration: const InputDecoration(labelText: 'Zona de recolección'),
             ),
           ],
         ],
@@ -522,6 +615,8 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
             ),
             const SizedBox(height: 16),
           ],
+          _buildPickupMapSelector(),
+          const SizedBox(height: 16),
           TextField(controller: _recipientNameController, decoration: const InputDecoration(labelText: 'Nombre del destinatario')),
           const SizedBox(height: 12),
           TextField(
@@ -672,6 +767,7 @@ class _CreateShipmentScreenState extends State<CreateShipmentScreen> {
     _recipientPhoneController.dispose();
     _addressController.dispose();
     _originAddressController.dispose();
+    _pickupZoneController.dispose();
     super.dispose();
   }
 

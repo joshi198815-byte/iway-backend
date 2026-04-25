@@ -216,6 +216,8 @@ export class OffersService {
           select: {
             id: true,
             fullName: true,
+            stateRegion: true,
+            city: true,
             travelerProfile: true,
           },
         },
@@ -293,6 +295,9 @@ export class OffersService {
           marketplaceScore: score,
           marketplaceTier: score >= 80 ? 'prime' : score >= 65 ? 'strong' : 'watch',
           marketplaceInsights: insights,
+          travelerRegion: offer.traveler.stateRegion ?? '',
+          travelerCity: offer.traveler.city ?? '',
+          createdAt: offer.createdAt,
         };
       })
       .sort((a, b) => Number(b.marketplaceScore) - Number(a.marketplaceScore));

@@ -309,6 +309,22 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
     return 'Todavía no hay propuestas visibles para este envío.';
   }
 
+  String _formatOfferDate(DateTime? value) {
+    if (value == null) return 'por confirmar';
+    final local = value.toLocal();
+    final day = local.day.toString().padLeft(2, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final year = local.year.toString();
+    return '$day/$month/$year';
+  }
+
+  String _travelerRegionLabel(OfferModel offer) {
+    final pieces = [offer.travelerCity.trim(), offer.travelerRegion.trim()]
+        .where((item) => item.isNotEmpty)
+        .toList();
+    return pieces.isEmpty ? 'ubicación no confirmada' : pieces.join(', ');
+  }
+
   String? disabledActionHint(OfferModel offer) {
     if (SessionService.currentUserId == null) {
       return 'Debes iniciar sesión otra vez para tomar una decisión.';
@@ -656,24 +672,38 @@ class _OffersScreenState extends State<OffersScreen> with WidgetsBindingObserver
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
-                                        offer.travelerName.isNotEmpty ? offer.travelerName : 'Viajero ${offer.travelerId}',
+                                        isTraveler
+                                            ? (offer.travelerName.isNotEmpty ? offer.travelerName : 'Viajero ${offer.travelerId}')
+                                            : '${offer.travelerName.isNotEmpty ? offer.travelerName : 'Viajero'} ofertó ${shipment == null ? 'US\$${offer.precio.toStringAsFixed(2)}' : CurrencyPresenter.formatForShipment(shipment!, offer.precio)}',
                                         style: const TextStyle(fontWeight: FontWeight.w700),
                                       ),
                                       const SizedBox(height: 6),
-                                      Wrap(
-                                        spacing: 8,
-                                        runSpacing: 8,
-                                        children: [
-                                          _OfferChip(
-                                            label: '${offer.deliveredCount} entregas',
-                                            color: const Color(0xFF8AB4FF),
-                                          ),
-                                          _OfferChip(
-                                            label: '${offer.travelerRatingAvg.toStringAsFixed(1)} ★',
-                                            color: const Color(0xFFFFD27A),
-                                          ),
-                                        ],
-                                      ),
+                                      if (isTraveler)
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            _OfferChip(
+                                              label: '${offer.deliveredCount} entregas',
+                                              color: const Color(0xFF8AB4FF),
+                                            ),
+                                            _OfferChip(
+                                              label: '${offer.travelerRatingAvg.toStringAsFixed(1)} ★',
+                                              color: const Color(0xFFFFD27A),
+                                            ),
+                                          ],
+                                        )
+                                      else ...[
+                                        Text(
+                                          'Él se encuentra en ${_travelerRegionLabel(offer)}.',
+                                          style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          'Recoge el día ${_formatOfferDate(offer.createdAt)}.',
+                                          style: const TextStyle(color: AppTheme.muted, fontSize: 13),
+                                        ),
+                                      ],
                                       const SizedBox(height: 8),
                                       Text(
                                         statusHelper(offer.estado, isTravelerView: isTraveler),

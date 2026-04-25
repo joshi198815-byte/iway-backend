@@ -384,19 +384,33 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
 
   Widget _buildPickupPointsCard() {
     final current = shipment!;
-    final showPickupData = _isTraveler && _isAssignedTraveler && current.estado != 'offered';
-    if (!showPickupData) return const SizedBox.shrink();
+    final showOperationalData = _isTraveler && _isAssignedTraveler && current.estado != 'offered';
+    if (!showOperationalData) return const SizedBox.shrink();
+
+    final enRuta = current.estado == 'picked_up' || current.estado == 'in_transit' || current.estado == 'arrived' || current.estado == 'in_delivery' || current.estado == 'delivered';
+    final title = enRuta ? 'Punto de entrega' : 'Puntos de recolección';
+    final chatDraft = enRuta
+        ? 'Hola, voy en camino a entregar el paquete #${_maskedShipmentId(widget.shipmentId)}.'
+        : 'Hola, voy en camino por el paquete #${_maskedShipmentId(widget.shipmentId)}.';
 
     return AppGlassSection(
-      title: 'Puntos de recolección',
+      title: title,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _DetailRow(label: 'Recoger a', value: current.remitenteNombre.isEmpty ? 'Pendiente' : current.remitenteNombre),
-          const SizedBox(height: 10),
-          _DetailRow(label: 'Dirección exacta', value: current.remitenteDireccion.isEmpty ? 'Pendiente' : current.remitenteDireccion),
-          const SizedBox(height: 10),
-          _DetailRow(label: 'Teléfono', value: current.remitenteTelefono.isEmpty ? 'Pendiente' : current.remitenteTelefono),
+          if (!enRuta) ...[
+            _DetailRow(label: 'Recoger a', value: current.remitenteNombre.isEmpty ? 'Pendiente' : current.remitenteNombre),
+            const SizedBox(height: 10),
+            _DetailRow(label: 'Dirección exacta', value: current.remitenteDireccion.isEmpty ? 'Pendiente' : current.remitenteDireccion),
+            const SizedBox(height: 10),
+            _DetailRow(label: 'Teléfono', value: current.remitenteTelefono.isEmpty ? 'Pendiente' : current.remitenteTelefono),
+          ] else ...[
+            _DetailRow(label: 'Entregar a', value: current.receptorNombre.isEmpty ? 'Pendiente' : current.receptorNombre),
+            const SizedBox(height: 10),
+            _DetailRow(label: 'Dirección exacta', value: current.receptorDireccion.isEmpty ? 'Pendiente' : current.receptorDireccion),
+            const SizedBox(height: 10),
+            _DetailRow(label: 'Teléfono', value: current.receptorTelefono.isEmpty ? 'Pendiente' : current.receptorTelefono),
+          ],
           const SizedBox(height: 14),
           Row(
             children: [
@@ -407,7 +421,7 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                     '/chat',
                     arguments: {
                       'shipmentId': widget.shipmentId,
-                      'initialDraft': 'Hola, voy en camino por el paquete #${_maskedShipmentId(widget.shipmentId)}.',
+                      'initialDraft': chatDraft,
                     },
                   ),
                   child: const Text('Abrir chat'),
@@ -416,8 +430,16 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
               const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
-                  child: const Text('Ver ruta'),
+                  onPressed: () => Navigator.pushNamed(
+                    context,
+                    '/map',
+                    arguments: {
+                      'shipmentId': widget.shipmentId,
+                      'focus': enRuta ? 'delivery' : 'pickup',
+                      'title': enRuta ? 'Ruta a entrega' : 'Ruta a recolección',
+                    },
+                  ),
+                  child: Text(enRuta ? 'Ir a entrega' : 'Ver ruta'),
                 ),
               ),
             ],
@@ -457,7 +479,15 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
               ),
               const SizedBox(height: 12),
               OutlinedButton(
-                onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  '/map',
+                  arguments: {
+                    'shipmentId': widget.shipmentId,
+                    'focus': 'delivery',
+                    'title': 'Ruta de entrega',
+                  },
+                ),
                 child: const Text('Ver mapa'),
               ),
             ] else
@@ -674,7 +704,15 @@ class _TrackingScreenState extends State<TrackingScreen> with WidgetsBindingObse
                           ),
                         if (_isTraveler) const SizedBox(height: 10),
                         OutlinedButton(
-                          onPressed: () => Navigator.pushNamed(context, '/map', arguments: widget.shipmentId),
+                          onPressed: () => Navigator.pushNamed(
+                            context,
+                            '/map',
+                            arguments: {
+                              'shipmentId': widget.shipmentId,
+                              'focus': _isTraveler && (shipment!.estado == 'assigned') ? 'pickup' : 'delivery',
+                              'title': _isTraveler && (shipment!.estado == 'assigned') ? 'Ruta a recolección' : 'Ruta de entrega',
+                            },
+                          ),
                           child: Text(_isTraveler ? 'Abrir ruta' : 'Ver mapa'),
                         ),
                       ],

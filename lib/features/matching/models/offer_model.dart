@@ -13,6 +13,9 @@ class OfferModel {
   final int deliveredCount;
   final double acceptanceRate;
   final List<String> marketplaceInsights;
+  final String travelerRegion;
+  final String travelerCity;
+  final DateTime? createdAt;
 
   OfferModel({
     required this.id,
@@ -29,6 +32,9 @@ class OfferModel {
     this.deliveredCount = 0,
     this.acceptanceRate = 0,
     this.marketplaceInsights = const [],
+    this.travelerRegion = '',
+    this.travelerCity = '',
+    this.createdAt,
   });
 
   factory OfferModel.fromBackendJson(Map<String, dynamic> json) {
@@ -47,6 +53,9 @@ class OfferModel {
       deliveredCount: _toInt(json['deliveredCount']) ?? 0,
       acceptanceRate: _toDouble(json['acceptanceRate']) ?? 0,
       marketplaceInsights: (json['marketplaceInsights'] as List?)?.map((e) => e.toString()).toList() ?? const [],
+      travelerRegion: (json['travelerRegion'] ?? '').toString(),
+      travelerCity: (json['travelerCity'] ?? '').toString(),
+      createdAt: _toDateTime(json['createdAt']),
     );
   }
 
@@ -66,6 +75,9 @@ class OfferModel {
       'deliveredCount': deliveredCount,
       'acceptanceRate': acceptanceRate,
       'marketplaceInsights': marketplaceInsights,
+      'travelerRegion': travelerRegion,
+      'travelerCity': travelerCity,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
@@ -81,5 +93,11 @@ class OfferModel {
     if (value is double) return value;
     if (value is int) return value.toDouble();
     return double.tryParse(value.toString());
+  }
+
+  static DateTime? _toDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    return DateTime.tryParse(value.toString());
   }
 }

@@ -58,8 +58,20 @@ class AppRoutes {
     '/support': (context) => const SupportCenterScreen(),
     '/debts': (context) => const DebtsScreen(),
     '/map': (context) {
-      final id = ModalRoute.of(context)?.settings.arguments;
-      return MapScreen(shipmentId: id is String && id.isNotEmpty ? id : null);
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is String && args.isNotEmpty) {
+        return MapScreen(shipmentId: args);
+      }
+      if (args is Map) {
+        return MapScreen(
+          shipmentId: args['shipmentId']?.toString(),
+          previewOriginLat: args['previewOriginLat'] is num ? (args['previewOriginLat'] as num).toDouble() : null,
+          previewOriginLng: args['previewOriginLng'] is num ? (args['previewOriginLng'] as num).toDouble() : null,
+          focus: args['focus']?.toString() ?? 'delivery',
+          title: args['title']?.toString(),
+        );
+      }
+      return const MapScreen();
     },
     '/profile': (context) => const ProfileScreen(),
     '/rating': (context) {
